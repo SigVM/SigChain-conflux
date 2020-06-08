@@ -1521,6 +1521,38 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
                 self.stack.push(result);
             }
+            //////////////////////////////////////////////////////////////////////////
+            // Bindsig and Emitsig Opcodes
+            instructions::BINDSIG => {
+                let emitter = self.stack.pop_back();
+                let sig_id = self.stack.pop_back();
+                let code_ptr = self.stack.pop_back();
+                let gas_ratio = self.stack.pop_back();
+                let gas_limit = self.stack.pop_back();
+
+                // State transitions...
+                let result = U256::from(1);
+                self.stack.push(result);
+
+
+
+                
+            }
+            instructions::EMITSIG => {
+                let sig_id = self.stack.pop_back();
+                let blk_delay = self.stack.pop_back();
+                let sig_argv = self.stack.pop_back();
+                let sig_argc = self.stack.pop_back();
+
+                // State transitions...
+                let result = U256::from(1);
+                self.stack.push(result);
+
+
+
+
+            }
+            //////////////////////////////////////////////////////////////////////////
         };
         Ok(InstructionResult::Ok)
     }

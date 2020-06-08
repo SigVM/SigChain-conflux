@@ -183,6 +183,14 @@ enum_with_from_u8! {
         #[doc = "set a potential jump destination"]
         JUMPDEST = 0x5b,
 
+        //////////////////////////////////////////////////////////////////////////////////////////
+        // Bindsig and Emitsig Opcodes  
+        #[doc = "bind a slot to a signal"]
+        BINDSIG = 0x5c,
+        #[doc = "emit a signal"]
+        EMITSIG = 0x5d,
+        //////////////////////////////////////////////////////////////////////////////////////////
+
         #[doc = "place 1 byte item on stack"]
         PUSH1 = 0x60,
         #[doc = "place 2 byte item on stack"]
@@ -533,6 +541,15 @@ lazy_static! {
         arr[MSIZE as usize] = Some(InstructionInfo::new("MSIZE", 0, 1, GasPriceTier::Base));
         arr[GAS as usize] = Some(InstructionInfo::new("GAS", 0, 1, GasPriceTier::Base));
         arr[JUMPDEST as usize] = Some(InstructionInfo::new("JUMPDEST", 0, 0, GasPriceTier::Special));
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Bindsig and Emitsig Instructions
+        // Because the price of the data passed into by EMITSIG varies, the tier is special. Bind involves 
+        // manipulating storage so the tier is also special.
+        arr[BINDSIG as usize] = Some(InstructionInfo::new("BINDSIG", 5, 1, GasPriceTier::Special));
+        arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
+        ///////////////////////////////////////////////////////////////////////////////
+
         arr[PUSH1 as usize] = Some(InstructionInfo::new("PUSH1", 0, 1, GasPriceTier::VeryLow));
         arr[PUSH2 as usize] = Some(InstructionInfo::new("PUSH2", 0, 1, GasPriceTier::VeryLow));
         arr[PUSH3 as usize] = Some(InstructionInfo::new("PUSH3", 0, 1, GasPriceTier::VeryLow));
