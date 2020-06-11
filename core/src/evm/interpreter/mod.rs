@@ -43,7 +43,7 @@ use super::{
 };
 use crate::{
     bytes::Bytes,
-    hash::keccak,
+    hash::{keccak, KECCAK_EMPTY},
     vm::{
         self, ActionParams, ActionValue, CallType, ContractCreateResult,
         CreateContractAddress, GasLeft, MessageCallResult, ParamsType,
@@ -1522,7 +1522,15 @@ impl<Cost: CostType> Interpreter<Cost> {
                 self.stack.push(result);
             }
             //////////////////////////////////////////////////////////////////////////
-            // Bindsig and Emitsig Opcodes
+            // Createsig, Bindsig, and Emitsig Opcodes
+            instructions::CREATESIG => {
+                let sig_argc = self.stack.pop_back();
+                let sig_id = KECCAK_EMPTY;
+
+                // State transitions...
+                let sig_id = U256::from(&sig_id[..]);
+                self.stack.push(sig_id);
+            }
             instructions::BINDSIG => {
                 let emitter = self.stack.pop_back();
                 let sig_id = self.stack.pop_back();
@@ -1533,9 +1541,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // State transitions...
                 let result = U256::from(1);
                 self.stack.push(result);
-
-
-
                 
             }
             instructions::EMITSIG => {
@@ -1547,9 +1552,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // State transitions...
                 let result = U256::from(1);
                 self.stack.push(result);
-
-
-
 
             }
             //////////////////////////////////////////////////////////////////////////

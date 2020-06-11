@@ -185,10 +185,12 @@ enum_with_from_u8! {
 
         //////////////////////////////////////////////////////////////////////////////////////////
         // Bindsig and Emitsig Opcodes  
+        #[doc = "create a new signal"]
+        CREATESIG = 0x5c,
         #[doc = "bind a slot to a signal"]
-        BINDSIG = 0x5c,
+        BINDSIG = 0x5d,
         #[doc = "emit a signal"]
-        EMITSIG = 0x5d,
+        EMITSIG = 0x5e,
         //////////////////////////////////////////////////////////////////////////////////////////
 
         #[doc = "place 1 byte item on stack"]
@@ -543,9 +545,10 @@ lazy_static! {
         arr[JUMPDEST as usize] = Some(InstructionInfo::new("JUMPDEST", 0, 0, GasPriceTier::Special));
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Bindsig and Emitsig Instructions
+        // Createsig, Bindsig, and Emitsig Instructions
         // Because the price of the data passed into by EMITSIG varies, the tier is special. Bind involves 
         // manipulating storage so the tier is also special.
+        arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 1, 1, GasPriceTier::Special));
         arr[BINDSIG as usize] = Some(InstructionInfo::new("BINDSIG", 5, 1, GasPriceTier::Special));
         arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
         ///////////////////////////////////////////////////////////////////////////////

@@ -18,11 +18,20 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn new(owner: &Address, sig_hash: H256, argc: U256) -> Self {
+    pub fn new(owner: &Address, sig_list: &Vec::<H256>, argc: U256) -> Self {
+        // Buffer used for id creation.
         let mut buffer = [0u8; 20 + 32];
-        // Create a new id using owner address and sig_hash
+        // Last id in sig_list.
+        let last_sig = sig_list.last();
+
+        // Create a new id using owner address and the last item of the sig_list.
         &mut buffer[..20].copy_from_slice(&owner[..]);
-        &mut buffer[20..].copy_from_slice(&sig_hash[..]);
+        if let Some(sig) = last_sig {
+            &mut buffer[20..].copy_from_slice(&sig[..]);
+        } else {
+            let sig = H256::zero();
+            &mut buffer[20..].copy_from_slice(&sig[..]);
+        }
         let h = keccak(&buffer[..]);
 
         let new_signal = Signal {
@@ -43,7 +52,7 @@ pub struct Slot {
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
-    // TODO: How to use floating point numbers for ratios?
+    // TODO: How to use floating point numbers for ratios? Do we need an implementation of fixed point U256 numbers?
 }
 
 impl Slot {
@@ -74,11 +83,13 @@ impl<'a> SlotTx<'a> {
         sig: &'a Signal, slot: &'a Slot, 
         block_num: U256, argv: Vec::<U256>
     ) -> Self {
-        SlotTx {
+        let new_st = SlotTx {
             sig,
             slot,
             block_num,
             argv,
-        }
+        };
+
+        new_st
     }
 }
