@@ -20,6 +20,15 @@ pub enum StorageKey<'a> {
     },
     DepositListKey(&'a [u8]),
     VoteListKey(&'a [u8]),
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    SignalRootKey(&'a [u8]),
+    SignalKey {
+        address_bytes: &'a [u8],
+        signal_key: &'a [u8],
+    },
+    SlotQueueKey(&'a [u8]),
+    /* Signal and Slots end */
 }
 
 impl<'a> StorageKey<'a> {
@@ -58,6 +67,27 @@ impl<'a> StorageKey<'a> {
     pub fn new_vote_list_key(address: &'a Address) -> Self {
         StorageKey::VoteListKey(&address.0)
     }
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    // Root key of the trie holding signal to slot mappings.
+    pub fn new_signal_root_key(address: &'a Address) -> Self {
+        StorageKey::SignalRootKey(&address.0)
+    }
+    // Key for access to SignalInfo.
+    pub fn new_signal_key(
+        address: &'a Address, signal_key: &'a [u8]
+    ) -> Self {
+        StorageKey::SignalKey {
+            address_bytes: &address.0,
+            signal_key: signal_key,
+        }
+    }
+    // Key for slot transaction queue.
+    pub fn new_slot_queue_key(address: &'a Address) -> Self {
+        StorageKey::SlotQueueKey(&address.0)
+    }
+    /* Signal and Slots end */
 }
 
 // Conversion methods.
@@ -72,6 +102,13 @@ impl<'a> StorageKey<'a> {
     const STORAGE_PREFIX_LEN: usize = 4;
     const VOTE_LIST_LEN: usize = 4;
     const VOTE_LIST_PREFIX: &'static [u8] = b"vote";
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    const SIGNAL_PREFIX: &'static [u8] = b"signal";
+    const SIGNAL_PREFIX_LEN: usize = 6;
+    const SLOT_QUEUE_PREFIX: &'static [u8] = b"slot";
+    const SLOT_QUEUE_LEN: usize = 4;
+    /* Signal and Slots end */
 
     pub fn to_delta_mpt_key_bytes(
         &self, padding: &DeltaMptKeyPadding,
@@ -134,6 +171,26 @@ impl<'a> StorageKey<'a> {
             StorageKey::VoteListKey(address_bytes) => {
                 delta_mpt_storage_key::new_vote_list_key(address_bytes, padding)
             }
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            StorageKey::SignalRootKey(address_bytes) => {
+                delta_mpt_storage_key::new_signal_root_key(
+                    address_bytes,
+                    padding,
+                )
+            }
+            StorageKey::SignalKey {
+                address_bytes,
+                signal_key,
+            } => delta_mpt_storage_key::new_signal_key(
+                address_bytes,
+                signal_key,
+                padding,
+            ),
+            StorageKey::SlotQueueKey(address_bytes) => {
+                delta_mpt_storage_key::new_slot_queue_key(address_bytes, padding)
+            }
+            /* Signal and Slots end */
         }
     }
 
@@ -211,6 +268,42 @@ impl<'a> StorageKey<'a> {
 
                 key
             }
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            StorageKey::SignalRootKey(address_bytes) => {
+                let mut key = Vec::with_capacity(
+                    Self::ACCOUNT_BYTES + Self::SIGNAL_PREFIX_LEN,
+                );
+                key.extend_from_slice(address_bytes);
+                key.extend_from_slice(Self::SIGNAL_PREFIX);
+
+                key
+            }
+            StorageKey::SignalKey {
+                address_bytes,
+                signal_key,
+            } => {
+                let mut key = Vec::with_capacity(
+                    Self::ACCOUNT_BYTES
+                        + Self::SIGNAL_PREFIX_LEN
+                        + signal_key.len(),
+                );
+                key.extend_from_slice(address_bytes);
+                key.extend_from_slice(Self::SIGNAL_PREFIX);
+                key.extend_from_slice(signal_key);
+
+                key
+            }
+            StorageKey::SlotQueueKey(address_bytes) => {
+                let mut key = Vec::with_capacity(
+                    Self::ACCOUNT_BYTES + Self::SLOT_QUEUE_LEN,
+                );
+                key.extend_from_slice(address_bytes);
+                key.extend_from_slice(Self::SLOT_QUEUE_PREFIX);
+
+                key
+            }
+            /* Signal and Slots end */
         }
     }
 
@@ -372,6 +465,19 @@ mod delta_mpt_storage_key {
         key.extend_from_slice(storage_key);
     }
 
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    fn extend_signal_key(
+        key: &mut Vec<u8>, signal_key: &[u8], padding: &DeltaMptKeyPadding,
+    ) {
+        key.extend_from_slice(
+            &compute_storage_key_padding(signal_key, padding)
+                [StorageKey::SIGNAL_PREFIX_LEN..],
+        );
+        key.extend_from_slice(signal_key);
+    }
+    /* Signal and Slots end */
+
     pub fn new_storage_root_key(
         address: &[u8], padding: &DeltaMptKeyPadding,
     ) -> Vec<u8> {
@@ -470,6 +576,57 @@ mod delta_mpt_storage_key {
         key
     }
 
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    pub fn new_signal_root_key(
+        address: &[u8], padding: &DeltaMptKeyPadding,
+    ) -> Vec<u8> {
+        let mut key = Vec::with_capacity(
+            ACCOUNT_KEYPART_BYTES + StorageKey::SIGNAL_PREFIX_LEN,
+        );
+        extend_key_with_prefix(
+            &mut key,
+            address,
+            padding,
+            StorageKey::SIGNAL_PREFIX,
+        );
+
+        key
+    }
+
+    pub fn new_signal_key(
+        address: &[u8], signal_key: &[u8], padding: &DeltaMptKeyPadding,
+    ) -> Vec<u8> {
+        let mut key = Vec::with_capacity(
+            ACCOUNT_KEYPART_BYTES + KEY_PADDING_BYTES + signal_key.len(),
+        );
+        extend_key_with_prefix(
+            &mut key,
+            address,
+            padding,
+            StorageKey::SIGNAL_PREFIX,
+        );
+        extend_signal_key(&mut key, signal_key, padding);
+
+        key
+    }
+
+    pub fn new_slot_queue_key(
+        address: &[u8], padding: &DeltaMptKeyPadding,
+    ) -> Vec<u8> {
+        let mut key = Vec::with_capacity(
+            ACCOUNT_KEYPART_BYTES + StorageKey::SLOT_QUEUE_LEN,
+        );
+        extend_key_with_prefix(
+            &mut key,
+            address,
+            padding,
+            &StorageKey::SLOT_QUEUE_PREFIX,
+        );
+        key
+    }
+    /* Signal and Slots end */
+
     impl<'a> StorageKey<'a> {
         pub fn delta_mpt_padding(
             snapshot_root: &MerkleHash, intermediate_delta_root: &MerkleHash,
@@ -530,7 +687,23 @@ mod delta_mpt_storage_key {
                     StorageKey::DepositListKey(address_bytes)
                 } else if remaining_bytes.starts_with(Self::VOTE_LIST_PREFIX) {
                     StorageKey::VoteListKey(address_bytes)
-                } else {
+                } 
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                else if remaining_bytes.starts_with(Self::SIGNAL_PREFIX) {
+                    if remaining_bytes.len() == Self::SIGNAL_PREFIX_LEN {
+                        StorageKey::SignalRootKey(address_bytes)
+                    } else {
+                        StorageKey::SignalKey {
+                            address_bytes,
+                            signal_key: &remaining_bytes[KEY_PADDING_BYTES..],
+                        }
+                    }
+                } else if remaining_bytes.starts_with(Self::SLOT_QUEUE_PREFIX) {
+                    StorageKey::SlotQueueKey(address_bytes)
+                }
+                /* Signal and Slots end */
+                else {
                     unsafe { unreachable_unchecked() }
                 }
             }

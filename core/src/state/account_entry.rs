@@ -14,7 +14,7 @@ use primitives::{
     Account, CodeInfo, DepositInfo, DepositList, SponsorInfo, StorageKey,
     StorageLayout, StorageValue, VoteStakeInfo, VoteStakeList,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, collections::VecDeque, sync::Arc};
 
 lazy_static! {
     static ref SPONSOR_ADDRESS_STORAGE_KEY: Vec<u8> =
@@ -87,6 +87,19 @@ pub struct OverlayAccount {
     is_newly_created_contract: bool,
     // Whether it is a contract address.
     is_contract: bool,
+
+    //////////////////////////////////////////////////////////////////
+    // Signals and Slots
+    // 
+    // // Queue of slot transactions that are available for execution.
+    // slot_tx_queue: VecDeque<SlotTx>,
+    // // List of signals that this account owns.
+    // sig_list: Vec<Signal>,
+    // // Cache of signal and slot mappings.
+    // sig_cache: RwLock<HashMap<Vec<u8>, SlotList>>,
+    // // Cache of changes to signal and slot mappings.
+    // sig_changes: HashMap<Vec<u8>, SlotList>,
+    //////////////////////////////////////////////////////////////////
 }
 
 impl OverlayAccount {
@@ -115,6 +128,14 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: false,
             is_contract: account.code_hash != KECCAK_EMPTY,
+            
+            //////////////////////////////////////////////////////////////////
+            // // Signals and Slots
+            // slot_tx_queue: VecDeque::new(),
+            // sig_list: Vec::new(),
+            // sig_cache: Default::default(),
+            // sig_changes: HashMap::new(),
+            //////////////////////////////////////////////////////////////////
         };
 
         overlay_account
@@ -145,6 +166,13 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: false,
             is_contract: false,
+            //////////////////////////////////////////////////////////////////
+            // // Signals and Slots
+            // slot_tx_queue: VecDeque::new(),
+            // sig_list: Vec::new(),
+            // sig_cache: Default::default(),
+            // sig_changes: HashMap::new(),
+            //////////////////////////////////////////////////////////////////
         }
     }
 
@@ -174,6 +202,13 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: true,
             is_contract: true,
+            //////////////////////////////////////////////////////////////////
+            // Signals and Slots
+            slot_tx_queue: VecDeque::new(),
+            sig_list: Vec::new(),
+            sig_cache: Default::default(),
+            sig_changes: HashMap::new(),
+            //////////////////////////////////////////////////////////////////
         }
     }
 
@@ -204,6 +239,13 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: true,
             is_contract: true,
+            //////////////////////////////////////////////////////////////////
+            // // Signals and Slots
+            // slot_tx_queue: VecDeque::new(),
+            // sig_list: Vec::new(),
+            // sig_cache: Default::default(),
+            // sig_changes: HashMap::new(),
+            //////////////////////////////////////////////////////////////////
         }
     }
 
@@ -635,6 +677,13 @@ impl OverlayAccount {
             code_owner: self.code_owner,
             is_newly_created_contract: self.is_newly_created_contract,
             is_contract: self.is_contract,
+            //////////////////////////////////////////////////////////////////
+            // // Signals and Slots
+            // slot_tx_queue: VecDeque::new(),
+            // sig_list: Vec::new(),
+            // sig_cache: Default::default(),
+            // sig_changes: HashMap::new(),
+            //////////////////////////////////////////////////////////////////
         }
     }
 

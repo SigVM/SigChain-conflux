@@ -6,13 +6,15 @@ Signals are described as a struct containing an id, owner, and argument count. U
 
 ### Changes to Conflux Source Tree
 1. core/src/evm/: Added CREATESIG, BINDSIG and EMITSIG to instructions.rs and interpreter/mod.rs. 
+(Do we need a UNBINDSIG opcode? Binding something involves placing in storage so collateral should be paid right).
 2. core/src/state/: A few fields need to be added to OverlayAccount to keep track of the mapping between signals and slots as well as upcoming slot transactions. 
     * slot_tx_queue: queue that holds all the slot transactions that need to be serviced.
     * sig_list: list of signal id's that this account owns.
     * sig_cache: cache that maps signals to their respective slots.
     * sig_changes: new signal slot relations that need to be committed to storage.
 Each signal gets its own storage key derived from the owner account address and its unique id. This key will be used to access the mapping to its relevant slots. 
+3. primitives/src/account.rs: This file needs to be updated to include a representation of the signal. 
 Beyond adding to OverlayAccount, new functions need to be added to support the new state changes needed by the new opcodes.
-3. core/src/vm/: The trait ```Context``` needs to be extended to support the new state changes. 
-4. core/src/executive/: The changes in the context trait need to be implemented in in context.rs.
-5. core/src/vm/: We probably want to change env.rs so that it includes something about the previous blocks average gas price. This field can then be used to calculate the gasprice of slot transactions. How do we deal with floating point numbers?
+4. core/src/vm/: The trait ```Context``` needs to be extended to support the new state changes. 
+5. core/src/executive/: The changes in the context trait need to be implemented in in context.rs.
+6. core/src/vm/: We probably want to change env.rs so that it includes something about the previous blocks average gas price. This field can then be used to calculate the gasprice of slot transactions. How do we deal with floating point numbers?

@@ -132,6 +132,9 @@ pub struct Account {
     pub admin: Address,
     /// This is the sponsor information of the contract.
     pub sponsor_info: SponsorInfo,
+
+    // SlotQueue hash.
+    //pub slot_queue_hash: H256,
 }
 
 impl Account {
