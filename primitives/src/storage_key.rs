@@ -27,8 +27,9 @@ pub enum StorageKey<'a> {
         address_bytes: &'a [u8],
         signal_key: &'a [u8],
     },
-    SlotQueueKey(&'a [u8]),
+    SlotTxQueueKey(&'a [u8]),
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 impl<'a> StorageKey<'a> {
@@ -67,7 +68,6 @@ impl<'a> StorageKey<'a> {
     pub fn new_vote_list_key(address: &'a Address) -> Self {
         StorageKey::VoteListKey(&address.0)
     }
-
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
     // Root key of the trie holding signal to slot mappings.
@@ -84,10 +84,11 @@ impl<'a> StorageKey<'a> {
         }
     }
     // Key for slot transaction queue.
-    pub fn new_slot_queue_key(address: &'a Address) -> Self {
-        StorageKey::SlotQueueKey(&address.0)
+    pub fn new_slot_tx_queue_key(address: &'a Address) -> Self {
+        StorageKey::SlotTxQueueKey(&address.0)
     }
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 // Conversion methods.
@@ -106,9 +107,10 @@ impl<'a> StorageKey<'a> {
     /* Signal and Slots begin */
     const SIGNAL_PREFIX: &'static [u8] = b"signal";
     const SIGNAL_PREFIX_LEN: usize = 6;
-    const SLOT_QUEUE_PREFIX: &'static [u8] = b"slot";
-    const SLOT_QUEUE_LEN: usize = 4;
+    const SLOT_TX_QUEUE_PREFIX: &'static [u8] = b"slot";
+    const SLOT_TX_QUEUE_LEN: usize = 4;
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 
     pub fn to_delta_mpt_key_bytes(
         &self, padding: &DeltaMptKeyPadding,
@@ -187,10 +189,11 @@ impl<'a> StorageKey<'a> {
                 signal_key,
                 padding,
             ),
-            StorageKey::SlotQueueKey(address_bytes) => {
-                delta_mpt_storage_key::new_slot_queue_key(address_bytes, padding)
+            StorageKey::SlotTxQueueKey(address_bytes) => {
+                delta_mpt_storage_key::new_slot_tx_queue_key(address_bytes, padding)
             }
             /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -294,16 +297,17 @@ impl<'a> StorageKey<'a> {
 
                 key
             }
-            StorageKey::SlotQueueKey(address_bytes) => {
+            StorageKey::SlotTxQueueKey(address_bytes) => {
                 let mut key = Vec::with_capacity(
-                    Self::ACCOUNT_BYTES + Self::SLOT_QUEUE_LEN,
+                    Self::ACCOUNT_BYTES + Self::SLOT_TX_QUEUE_LEN,
                 );
                 key.extend_from_slice(address_bytes);
-                key.extend_from_slice(Self::SLOT_QUEUE_PREFIX);
+                key.extend_from_slice(Self::SLOT_TX_QUEUE_PREFIX);
 
                 key
             }
             /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -333,7 +337,23 @@ impl<'a> StorageKey<'a> {
                 } else {
                     StorageKey::CodeRootKey(address_bytes)
                 }
-            } else {
+            } 
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */    
+            else if bytes.starts_with(Self::SIGNAL_PREFIX) {
+                let bytes = &bytes[Self::SIGNAL_PREFIX_LEN..];
+                if bytes.len() > 0 {
+                    StorageKey::SignalKey {
+                        address_bytes: address_bytes,
+                        signal_key: bytes,
+                    }
+                } else {
+                    StorageKey::SignalRootKey(address_bytes)
+                }
+            }
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
+            else {
                 unsafe { unreachable_unchecked() }
                 /*
                 unreachable!(
@@ -477,6 +497,7 @@ mod delta_mpt_storage_key {
         key.extend_from_slice(signal_key);
     }
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 
     pub fn new_storage_root_key(
         address: &[u8], padding: &DeltaMptKeyPadding,
@@ -611,21 +632,22 @@ mod delta_mpt_storage_key {
         key
     }
 
-    pub fn new_slot_queue_key(
+    pub fn new_slot_tx_queue_key(
         address: &[u8], padding: &DeltaMptKeyPadding,
     ) -> Vec<u8> {
         let mut key = Vec::with_capacity(
-            ACCOUNT_KEYPART_BYTES + StorageKey::SLOT_QUEUE_LEN,
+            ACCOUNT_KEYPART_BYTES + StorageKey::SLOT_TX_QUEUE_LEN,
         );
         extend_key_with_prefix(
             &mut key,
             address,
             padding,
-            &StorageKey::SLOT_QUEUE_PREFIX,
+            &StorageKey::SLOT_TX_QUEUE_PREFIX,
         );
         key
     }
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 
     impl<'a> StorageKey<'a> {
         pub fn delta_mpt_padding(
@@ -699,10 +721,11 @@ mod delta_mpt_storage_key {
                             signal_key: &remaining_bytes[KEY_PADDING_BYTES..],
                         }
                     }
-                } else if remaining_bytes.starts_with(Self::SLOT_QUEUE_PREFIX) {
-                    StorageKey::SlotQueueKey(address_bytes)
+                } else if remaining_bytes.starts_with(Self::SLOT_TX_QUEUE_PREFIX) {
+                    StorageKey::SlotTxQueueKey(address_bytes)
                 }
                 /* Signal and Slots end */
+                //////////////////////////////////////////////////////////////////////
                 else {
                     unsafe { unreachable_unchecked() }
                 }

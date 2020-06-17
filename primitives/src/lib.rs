@@ -26,6 +26,12 @@ pub mod storage_key;
 pub mod transaction;
 pub mod transaction_index;
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+pub mod signal;
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 pub use crate::{
     account::{
         Account, CodeInfo, DepositInfo, DepositList, SponsorInfo,

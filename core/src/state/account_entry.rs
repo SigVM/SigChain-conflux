@@ -14,7 +14,13 @@ use primitives::{
     Account, CodeInfo, DepositInfo, DepositList, SponsorInfo, StorageKey,
     StorageLayout, StorageValue, VoteStakeInfo, VoteStakeList,
 };
-use std::{collections::HashMap, collections::VecDeque, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
+
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+use primitives::{signal};
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
 
 lazy_static! {
     static ref SPONSOR_ADDRESS_STORAGE_KEY: Vec<u8> =
@@ -88,18 +94,15 @@ pub struct OverlayAccount {
     // Whether it is a contract address.
     is_contract: bool,
 
-    //////////////////////////////////////////////////////////////////
-    // Signals and Slots
-    // 
-    // // Queue of slot transactions that are available for execution.
-    // slot_tx_queue: VecDeque<SlotTx>,
-    // // List of signals that this account owns.
-    // sig_list: Vec<Signal>,
-    // // Cache of signal and slot mappings.
-    // sig_cache: RwLock<HashMap<Vec<u8>, SlotList>>,
-    // // Cache of changes to signal and slot mappings.
-    // sig_changes: HashMap<Vec<u8>, SlotList>,
-    //////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    // // /* Signal and Slots begin */
+    // // Cache of signal and slot mappings and the changes to be committed.
+    // sig_cache: RwLock<HashMap<Vec<u8>, SignalInfo>>,
+    // sig_changes: HashMap<Vec<u8>, SignalInfo>,
+    // // List of slot transactions to be executed.
+    // slot_queue: Option<SlotTxQueue>,
+    // /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 impl OverlayAccount {

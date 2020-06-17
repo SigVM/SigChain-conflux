@@ -9,6 +9,13 @@ use rlp_derive::{
     RlpDecodable, RlpDecodableWrapper, RlpEncodable, RlpEncodableWrapper,
 };
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+use crate::signal::SlotTx;
+use std::collections::VecDeque;
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 use std::ops::{Deref, DerefMut};
 
 #[derive(
@@ -83,6 +90,33 @@ impl DerefMut for VoteStakeList {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    RlpDecodableWrapper,
+    RlpEncodableWrapper,
+    Ord,
+    PartialOrd,
+    Eq,
+    PartialEq,
+)]
+pub struct SlotTxQueue(pub Vec<SlotTx>);
+
+impl Deref for SlotTxQueue {
+    type Target = Vec<SlotTx>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl DerefMut for SlotTxQueue {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 #[derive(
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
@@ -132,9 +166,6 @@ pub struct Account {
     pub admin: Address,
     /// This is the sponsor information of the contract.
     pub sponsor_info: SponsorInfo,
-
-    // SlotQueue hash.
-    //pub slot_queue_hash: H256,
 }
 
 impl Account {
