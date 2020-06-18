@@ -95,7 +95,7 @@ pub struct OverlayAccount {
     is_contract: bool,
 
     //////////////////////////////////////////////////////////////////////
-    // // /* Signal and Slots begin */
+    /* Signal and Slots begin */
     // // Cache of signal and slot mappings and the changes to be committed.
     // sig_cache: RwLock<HashMap<Vec<u8>, SignalInfo>>,
     // sig_changes: HashMap<Vec<u8>, SignalInfo>,

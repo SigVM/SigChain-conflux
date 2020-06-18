@@ -12,7 +12,6 @@ use rlp_derive::{
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 use crate::signal::SlotTx;
-use std::collections::VecDeque;
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
 
@@ -103,6 +102,9 @@ impl DerefMut for VoteStakeList {
     Eq,
     PartialEq,
 )]
+// Deque type doesn't work because there is no Rlpencodable trait for it.
+// TODO: Implement a Vec based queue. For no just use remove() on the
+// last element to dequeue and push() to enqueue.
 pub struct SlotTxQueue(pub Vec<SlotTx>);
 
 impl Deref for SlotTxQueue {
@@ -114,6 +116,11 @@ impl Deref for SlotTxQueue {
 impl DerefMut for SlotTxQueue {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
+
+// Keep track of the block number that slottx execution is at. This is per
+// account and is found in the statedb through a special key.
+pub type SlotExecutionBlockNumber = U256;
+
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
 
