@@ -1,15 +1,19 @@
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 
-use crate::{
-    bytes::Bytes,
-    hash::keccak,
-};
-use cfx_types::{Address, H256, U256};
+// High level overview:
+// This source file provides the method for storing information in the state with respect to
+// signals and slots. SignalLocation and SlotLocation define the locations in the state trie.
+// SignalInfo and SlotInfo are held in the state information of the account that owns them.
+// Slot is the structure appended to a signal. It's purpose is to aid in the generation of
+// slot transactions, which are described by SlotTx.
 
-// SignalLocation. Struct that keeps track of the location of a signal so that
-// an account with a slot binded to a particular signal in another contract
-// can find and access the SignalInfo struct.
+use crate::{bytes::Bytes};
+use cfx_types::{Address, U256};
+
+// SignalLocation and SlotLocation. 
+// Structs that keeps track of the location of a signal or slot on the network.
+// The two types are the same. We keep them seperate just for readability.
 #[derive(
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
@@ -28,6 +32,58 @@ impl SignalLocation {
     }
 }
 
+#[derive(
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+)]
+pub struct SlotLocation {
+    address: Address,
+    slot_key: Bytes,
+}
+
+impl SlotLocation {
+    pub fn new(owner: &Address, slot_key: &[u8]) -> Self {
+        let new = SlotLocation {
+            address: owner.clone(),
+            slot_key: Bytes::from(slot_key),
+        };
+        new
+    }
+}
+
+// SignalInfo. Holds the mapping of a signal to a list of slots that are subscribed to it. This info
+// is used when a signal is emitted. The list of slots is modified accodingly when a slot binds to it.
+#[derive(
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+)]
+pub struct SignalInfo {
+    location:  SignalLocation,
+    arg_count: U256,
+    slot_list: Vec::<Slot>,
+}
+
+impl SignalInfo {
+    // Return a fresh SignalInfo.
+    pub fn new(owner: &Address, signal_key: &[u8], arg_count: U256) -> Self {
+        let new = SignalInfo {
+            location:  SignalLocation::new(owner, signal_key),
+            arg_count: arg_count,
+            slot_list: Vec::new(),
+        };
+        new
+    }
+
+    // Bind a slot to this signal.
+    pub fn add_to_slot_list(&mut self, slot_info: &SlotInfo) {
+        let slot = Slot::new(slot_info);
+        self.slot_list.push(slot);
+    }
+
+    // Removes a slot given a location.
+    pub fn remove_from_slot_list(&mut self, loc: &SlotLocation) {
+        self.slot_list.retain(|s| (s.location.address != loc.address || s.location.slot_key != loc.slot_key));
+    }
+}
+
 // SlotInfo. Holds the information that the owner of the slot needs maintain.
 // Whereas Slot is maintained by the owner of the signal that we binded to,
 // SlotInfo is owned by the owner contract who implements the handler. As a
@@ -37,8 +93,8 @@ impl SignalLocation {
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
 pub struct SlotInfo {
-    // Identifier. Used mainly to help detach or cleanup a slot.
-    id: H256,
+    // Location on the network. Used to identify this slot uniquely.
+    location: SlotLocation,
     // Pointer to the entry point of this slot.
     code_entry: U256,
     // Gas limit for slot execution.
@@ -55,14 +111,9 @@ impl SlotInfo {
     pub fn new(
         owner: &Address, slot_key: &[u8], code_entry: U256, gas_limit: U256, numerator: U256, denominator: U256
     ) -> Self {
-        // Create an id.
-        let mut buffer = [0u8; 20 + 32];
-        &mut buffer[..20].copy_from_slice(&owner[..]);
-        &mut buffer[20..].copy_from_slice(&slot_key[..]);
-        let h = keccak(&buffer[..]);
-
+        let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
-            id:                    h,
+            location:              loc,
             code_entry:            code_entry,
             gas_limit:             gas_limit,
             gas_ratio_numerator:   numerator,
@@ -71,9 +122,15 @@ impl SlotInfo {
         };
         new
     }
+    // Add a signal to the bind list.
+    pub fn add_to_bind_list(&mut self, loc: &SignalLocation) {
+        let loc = loc.clone();
+        self.bind_list.push(loc);
+    }
+
     // Remove a signal from the bind list.
-    pub fn remove_bind(loc: SignalLocation) {
-        // Remove it from bind_list.
+    pub fn remove_from_bind_list(&mut self, loc: &SignalLocation) {
+        self.bind_list.retain(|s| (s.address != loc.address || s.signal_key != loc.signal_key));
     }
 }
 
@@ -87,9 +144,7 @@ impl SlotInfo {
 )]
 pub struct Slot {
     // Address of contract that owns this slot.
-    owner: Address,
-    // ID
-    id: H256,
+    location: SlotLocation,
     // Pointer to the entry point of this slot.
     code_entry: U256,
     // Gas limit for slot execution.
@@ -100,42 +155,16 @@ pub struct Slot {
 }
 
 impl Slot {
-    // Create a new slot out of a SlotInfo and Address. 
-    pub fn new(slot_info: &SlotInfo, owner: &Address) -> Self {
+    // Create a new slot out of a SlotInfo.
+    pub fn new(slot_info: &SlotInfo) -> Self {
         let new = Slot {
-            owner:                 owner.clone(),
-            id:                    slot_info.id.clone(),                   
+            location:              slot_info.location.clone(),                   
             code_entry:            slot_info.code_entry.clone(),
             gas_limit:             slot_info.gas_limit.clone(),
             gas_ratio_numerator:   slot_info.gas_ratio_numerator.clone(),
             gas_ratio_denominator: slot_info.gas_ratio_denominator.clone(),
         };
         new
-    }
-}
-
-// SignalInfo. Holds the mapping of a signal to a list of slots that are subscribed to it. This info
-// is used when a signal is emitted. The list of slots is modified accodingly when a slot binds to it.
-#[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
-)]
-pub struct SignalInfo {
-    arg_count: U256,
-    slot_list: Vec::<Slot>,
-}
-
-impl SignalInfo {
-    // Return a fresh SignalInfo.
-    pub fn new(arg_count: U256) -> Self {
-        let new = SignalInfo {
-            arg_count: arg_count,
-            slot_list: Vec::new(),
-        };
-        new
-    }
-    // Removes a slot given a location.
-    pub fn remove_slot(id: H256) {
-        // Remove the slot with the given id if it exists.
     }
 }
 

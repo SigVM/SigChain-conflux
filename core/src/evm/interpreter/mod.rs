@@ -43,7 +43,7 @@ use super::{
 };
 use crate::{
     bytes::Bytes,
-    hash::{keccak, KECCAK_EMPTY},
+    hash::{keccak},
     vm::{
         self, ActionParams, ActionValue, CallType, ContractCreateResult,
         CreateContractAddress, GasLeft, MessageCallResult, ParamsType,
@@ -1521,40 +1521,41 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
                 self.stack.push(result);
             }
-            //////////////////////////////////////////////////////////////////////////
-            // Createsig, Bindsig, and Emitsig Opcodes
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
             instructions::CREATESIG => {
-                let sig_argc = self.stack.pop_back();
-                let sig_id = KECCAK_EMPTY;
+                // let sig_argc = self.stack.pop_back();
+                // let sig_id = KECCAK_EMPTY;
 
-                // State transitions...
-                let sig_id = U256::from(&sig_id[..]);
-                self.stack.push(sig_id);
+                // // State transitions...
+                // let sig_id = U256::from(&sig_id[..]);
+                // self.stack.push(sig_id);
             }
             instructions::BINDSIG => {
-                let emitter = self.stack.pop_back();
-                let sig_id = self.stack.pop_back();
-                let code_ptr = self.stack.pop_back();
-                let gas_ratio = self.stack.pop_back();
-                let gas_limit = self.stack.pop_back();
+                // let emitter = self.stack.pop_back();
+                // let sig_id = self.stack.pop_back();
+                // let code_ptr = self.stack.pop_back();
+                // let gas_ratio = self.stack.pop_back();
+                // let gas_limit = self.stack.pop_back();
 
-                // State transitions...
-                let result = U256::from(1);
-                self.stack.push(result);
+                // // State transitions...
+                // let result = U256::from(1);
+                // self.stack.push(result);
                 
             }
             instructions::EMITSIG => {
-                let sig_id = self.stack.pop_back();
-                let blk_delay = self.stack.pop_back();
-                let sig_argv = self.stack.pop_back();
-                let sig_argc = self.stack.pop_back();
+                // let sig_id = self.stack.pop_back();
+                // let blk_delay = self.stack.pop_back();
+                // let sig_argv = self.stack.pop_back();
+                // let sig_argc = self.stack.pop_back();
 
-                // State transitions...
-                let result = U256::from(1);
-                self.stack.push(result);
+                // // State transitions...
+                // let result = U256::from(1);
+                // self.stack.push(result);
 
             }
-            //////////////////////////////////////////////////////////////////////////
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         };
         Ok(InstructionResult::Ok)
     }

@@ -183,15 +183,16 @@ enum_with_from_u8! {
         #[doc = "set a potential jump destination"]
         JUMPDEST = 0x5b,
 
-        //////////////////////////////////////////////////////////////////////////////////////////
-        // Bindsig and Emitsig Opcodes  
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */ 
         #[doc = "create a new signal"]
         CREATESIG = 0x5c,
         #[doc = "bind a slot to a signal"]
         BINDSIG = 0x5d,
         #[doc = "emit a signal"]
         EMITSIG = 0x5e,
-        //////////////////////////////////////////////////////////////////////////////////////////
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
 
         #[doc = "place 1 byte item on stack"]
         PUSH1 = 0x60,
@@ -544,14 +545,15 @@ lazy_static! {
         arr[GAS as usize] = Some(InstructionInfo::new("GAS", 0, 1, GasPriceTier::Base));
         arr[JUMPDEST as usize] = Some(InstructionInfo::new("JUMPDEST", 0, 0, GasPriceTier::Special));
 
-        ///////////////////////////////////////////////////////////////////////////////
-        // Createsig, Bindsig, and Emitsig Instructions
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
         // Because the price of the data passed into by EMITSIG varies, the tier is special. Bind involves 
         // manipulating storage so the tier is also special.
         arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 1, 1, GasPriceTier::Special));
         arr[BINDSIG as usize] = Some(InstructionInfo::new("BINDSIG", 5, 1, GasPriceTier::Special));
         arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
-        ///////////////////////////////////////////////////////////////////////////////
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
 
         arr[PUSH1 as usize] = Some(InstructionInfo::new("PUSH1", 0, 1, GasPriceTier::VeryLow));
         arr[PUSH2 as usize] = Some(InstructionInfo::new("PUSH2", 0, 1, GasPriceTier::VeryLow));

@@ -32,12 +32,7 @@ pub enum StorageKey<'a> {
         address_bytes: &'a [u8],
         slot_key: &'a [u8],
     },
-    SlotTxQueueRootKey(&'a [u8]),
-    SlotTxQueueKey {
-        address_bytes: &'a [u8],
-        slot_tx_queue_key: &'a [u8],
-    },
-    SlotExecutionBlockNumberKey(&'a [u8]),
+    SlotTxQueueKey(&'a [u8]),
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -84,6 +79,7 @@ impl<'a> StorageKey<'a> {
     pub fn new_signal_root_key(address: &'a Address) -> Self {
         StorageKey::SignalRootKey(&address.0)
     }
+
     // Key for access to SignalInfo.
     pub fn new_signal_key(
         address: &'a Address, signal_key: &'a [u8]
@@ -93,6 +89,7 @@ impl<'a> StorageKey<'a> {
             signal_key: signal_key,
         }
     }
+
     // Root key of the trie holding slot information.
     pub fn new_slot_root_key(address: &'a Address) -> Self {
         StorageKey::SlotRootKey(&address.0)
@@ -106,22 +103,10 @@ impl<'a> StorageKey<'a> {
             slot_key: slot_key,
         }
     }
-    //  Root key of the trie holding slot tx queues.
-    pub fn new_slot_tx_queue_root_key(address: &'a Address) -> Self {
-        StorageKey::SlotTxQueueRootKey(&address.0)
-    }
-    // Key for access to SlotInfo. slot_tx_queue_key is the blocknum for execution.
-    pub fn new_slot_tx_queue_key(
-        address: &'a Address, slot_tx_queue_key: &'a [u8]
-    ) -> Self {
-        StorageKey::SlotTxQueueKey {
-            address_bytes: &address.0,
-            slot_tx_queue_key: slot_tx_queue_key,
-        }
-    }
-    // Key to access the SlotExecutionBlockNumber
-    pub fn new_slot_execution_block_number_key(address: &'a Address) -> Self {
-        StorageKey::SlotExecutionBlockNumberKey(&address.0)
+    
+    // Local slot transactions that are ready to be executed.
+    pub fn new_slot_tx_queue_key(address: &'a Address) -> Self {
+        StorageKey::SlotTxQueueKey(&address.0)
     }
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
@@ -145,10 +130,8 @@ impl<'a> StorageKey<'a> {
     const SIGNAL_PREFIX_LEN: usize = 6;
     const SLOT_PREFIX: &'static [u8] = b"slot";
     const SLOT_PREFIX_LEN: usize = 4;
+    const SLOT_TX_QUEUE_LEN: usize = 6;
     const SLOT_TX_QUEUE_PREFIX: &'static [u8] = b"slottx";
-    const SLOT_TX_QUEUE_PREFIX_LEN: usize = 6;
-    const SLOT_EXECUTION_PREFIX: &'static [u8] = b"slotexec";
-    const SLOT_EXECUTION_PREFIX_LEN: usize = 8;
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 
@@ -243,22 +226,8 @@ impl<'a> StorageKey<'a> {
                 slot_key,
                 padding,
             ),
-            StorageKey::SlotTxQueueRootKey(address_bytes) => {
-                delta_mpt_storage_key::new_slot_tx_queue_root_key(
-                    address_bytes,
-                    padding,
-                )
-            }
-            StorageKey::SlotTxQueueKey {
-                address_bytes,
-                slot_tx_queue_key,
-            } => delta_mpt_storage_key::new_slot_tx_queue_key(
-                address_bytes,
-                slot_tx_queue_key,
-                padding,
-            ),
-            StorageKey::SlotExecutionBlockNumberKey(address_bytes) => {
-                delta_mpt_storage_key::new_slot_execution_block_number_key(
+            StorageKey::SlotTxQueueKey(address_bytes) => {
+                delta_mpt_storage_key::new_slot_tx_queue_key(
                     address_bytes,
                     padding,
                 )
@@ -392,36 +361,12 @@ impl<'a> StorageKey<'a> {
 
                 key
             }
-            StorageKey::SlotTxQueueRootKey(address_bytes) => {
+            StorageKey::SlotTxQueueKey(address_bytes) => {
                 let mut key = Vec::with_capacity(
-                    Self::ACCOUNT_BYTES + Self::SLOT_TX_QUEUE_PREFIX_LEN,
+                    Self::ACCOUNT_BYTES + Self::SLOT_TX_QUEUE_LEN,
                 );
                 key.extend_from_slice(address_bytes);
                 key.extend_from_slice(Self::SLOT_TX_QUEUE_PREFIX);
-
-                key
-            }
-            StorageKey::SlotTxQueueKey {
-                address_bytes,
-                slot_tx_queue_key,
-            } => {
-                let mut key = Vec::with_capacity(
-                    Self::ACCOUNT_BYTES
-                        + Self::SLOT_TX_QUEUE_PREFIX_LEN
-                        + slot_tx_queue_key.len(),
-                );
-                key.extend_from_slice(address_bytes);
-                key.extend_from_slice(Self::SLOT_TX_QUEUE_PREFIX);
-                key.extend_from_slice(slot_tx_queue_key);
-
-                key
-            }
-            StorageKey::SlotExecutionBlockNumberKey(address_bytes) => {
-                let mut key = Vec::with_capacity(
-                    Self::ACCOUNT_BYTES + Self::SLOT_EXECUTION_PREFIX_LEN,
-                );
-                key.extend_from_slice(address_bytes);
-                key.extend_from_slice(Self::SLOT_EXECUTION_PREFIX);
 
                 key
             }
@@ -479,17 +424,6 @@ impl<'a> StorageKey<'a> {
                     }
                 } else {
                     StorageKey::SlotRootKey(address_bytes)
-                }
-            }
-            else if bytes.starts_with(Self::SLOT_TX_QUEUE_PREFIX) {
-                let bytes = &bytes[Self::SLOT_TX_QUEUE_PREFIX_LEN..];
-                if bytes.len() > 0 {
-                    StorageKey::SlotTxQueueKey {
-                        address_bytes: address_bytes,
-                        slot_tx_queue_key: bytes,
-                    }
-                } else {
-                    StorageKey::SlotTxQueueRootKey(address_bytes)
                 }
             }
             /* Signal and Slots end */
@@ -637,6 +571,7 @@ mod delta_mpt_storage_key {
         );
         key.extend_from_slice(signal_key);
     }
+
     fn extend_slot_key(
         key: &mut Vec<u8>, slot_key: &[u8], padding: &DeltaMptKeyPadding,
     ) {
@@ -645,15 +580,6 @@ mod delta_mpt_storage_key {
                 [StorageKey::SLOT_PREFIX_LEN..],
         );
         key.extend_from_slice(slot_key);
-    }
-    fn extend_slot_tx_queue_key(
-        key: &mut Vec<u8>, slot_tx_queue_key: &[u8], padding: &DeltaMptKeyPadding,
-    ) {
-        key.extend_from_slice(
-            &compute_storage_key_padding(slot_tx_queue_key, padding)
-                [StorageKey::SLOT_TX_QUEUE_PREFIX_LEN..],
-        );
-        key.extend_from_slice(slot_tx_queue_key);
     }
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
@@ -773,6 +699,7 @@ mod delta_mpt_storage_key {
 
         key
     }
+
     pub fn new_signal_key(
         address: &[u8], signal_key: &[u8], padding: &DeltaMptKeyPadding,
     ) -> Vec<u8> {
@@ -805,6 +732,7 @@ mod delta_mpt_storage_key {
 
         key
     }
+
     pub fn new_slot_key(
         address: &[u8], slot_key: &[u8], padding: &DeltaMptKeyPadding,
     ) -> Vec<u8> {
@@ -822,49 +750,17 @@ mod delta_mpt_storage_key {
         key
     }
 
-    pub fn new_slot_tx_queue_root_key(
-        address: &[u8], padding: &DeltaMptKeyPadding,
-    ) -> Vec<u8> {
-        let mut key = Vec::with_capacity(
-            ACCOUNT_KEYPART_BYTES + StorageKey::SLOT_TX_QUEUE_PREFIX_LEN,
-        );
-        extend_key_with_prefix(
-            &mut key,
-            address,
-            padding,
-            StorageKey::SLOT_TX_QUEUE_PREFIX,
-        );
-
-        key
-    }
     pub fn new_slot_tx_queue_key(
-        address: &[u8], slot_tx_queue_key: &[u8], padding: &DeltaMptKeyPadding,
-    ) -> Vec<u8> {
-        let mut key = Vec::with_capacity(
-            ACCOUNT_KEYPART_BYTES + KEY_PADDING_BYTES + slot_tx_queue_key.len(),
-        );
-        extend_key_with_prefix(
-            &mut key,
-            address,
-            padding,
-            StorageKey::SLOT_TX_QUEUE_PREFIX,
-        );
-        extend_slot_tx_queue_key(&mut key, slot_tx_queue_key, padding);
-
-        key
-    }
-
-    pub fn new_slot_execution_block_number_key(
         address: &[u8], padding: &DeltaMptKeyPadding,
     ) -> Vec<u8> {
         let mut key = Vec::with_capacity(
-            ACCOUNT_KEYPART_BYTES + StorageKey::SLOT_EXECUTION_PREFIX_LEN,
+            ACCOUNT_KEYPART_BYTES + StorageKey::SLOT_TX_QUEUE_LEN,
         );
         extend_key_with_prefix(
             &mut key,
             address,
             padding,
-            &StorageKey::SLOT_EXECUTION_PREFIX,
+            &StorageKey::SLOT_TX_QUEUE_PREFIX,
         );
         key
     }
@@ -955,14 +851,7 @@ mod delta_mpt_storage_key {
                     }
                 } 
                 else if remaining_bytes.starts_with(Self::SLOT_TX_QUEUE_PREFIX) {
-                    if remaining_bytes.len() == Self::SLOT_TX_QUEUE_PREFIX_LEN {
-                        StorageKey::SlotTxQueueRootKey(address_bytes)
-                    } else {
-                        StorageKey::SlotTxQueueKey {
-                            address_bytes,
-                            slot_tx_queue_key: &remaining_bytes[KEY_PADDING_BYTES..],
-                        }
-                    }
+                    StorageKey::SlotTxQueueKey(address_bytes)
                 }
                 /* Signal and Slots end */
                 //////////////////////////////////////////////////////////////////////
