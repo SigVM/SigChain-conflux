@@ -181,4 +181,39 @@ pub trait Context {
 
     /// Check if running in static context.
     fn is_static(&self) -> bool;
+
+    /* Signal and Slots begin */
+    //TODO: may want to define new Result
+    // Create a new signal definition
+    fn create_sig(
+        &mut self, gas: &U256, sender_address: &Address,
+        num_arg: &U256
+    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+
+    // Create a new slot definition
+    // gas_ratio is out of 100
+    fn create_slot(
+        &mut self, gas: &U256, sender_address: &Address,
+        num_arg: &U256, gas_limit: &U256, gas_ratio: &U256,
+        code_ptr: H256
+    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+
+    // Bind a slot to a signal
+    fn bind_slot(
+        &mut self, gas: &U256, sender_address: &Address,
+        signal_address: &Address, signal_id: H256, slot_id: H256
+    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+
+    // Detach a slot from a signal
+    fn detach_slot(
+        &mut self, gas: &U256, sender_address: &Address,
+        signal_address: &Address, signal_id: H256, slot_id: H256
+    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+
+    // Emit a new signal instance
+    fn emit_sig(
+        &mut self, gas: &U256, sender_address: &Address,
+        signal_id: &U256, blocks_delayed: &U256
+    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+    /* Signal and Slots end */
 }
