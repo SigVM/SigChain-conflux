@@ -183,17 +183,6 @@ enum_with_from_u8! {
         #[doc = "set a potential jump destination"]
         JUMPDEST = 0x5b,
 
-        //////////////////////////////////////////////////////////////////////
-        /* Signal and Slots begin */ 
-        #[doc = "create a new signal"]
-        CREATESIG = 0x5c,
-        #[doc = "bind a slot to a signal"]
-        BINDSIG = 0x5d,
-        #[doc = "emit a signal"]
-        EMITSIG = 0x5e,
-        /* Signal and Slots end */
-        //////////////////////////////////////////////////////////////////////
-
         #[doc = "place 1 byte item on stack"]
         PUSH1 = 0x60,
         #[doc = "place 2 byte item on stack"]
@@ -342,6 +331,21 @@ enum_with_from_u8! {
         JUMPSUB = 0xb3,
         #[doc = "Returns from a subroutine."]
         RETURNSUB = 0xb7,
+
+		//////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        #[doc = "create a new signal"]
+        CREATESIG = 0xc0,
+		#[doc = "create a new slot"]
+        CREATESLOT = 0xc1,
+        #[doc = "bind a slot to a signal"]
+        BINDSLOT = 0xc2,
+		#[doc = "detach a slot from a signal"]
+        DETACHSLOT = 0xc3,
+        #[doc = "emit a signal"]
+        EMITSIG = 0xc4,
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
 
         #[doc = "create a new account with associated code"]
         CREATE = 0xf0,
@@ -547,10 +551,12 @@ lazy_static! {
 
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
-        // Because the price of the data passed into by EMITSIG varies, the tier is special. Bind involves 
+        // Because the price of the data passed into by EMITSIG varies, the tier is special. Bind involves
         // manipulating storage so the tier is also special.
         arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 1, 1, GasPriceTier::Special));
-        arr[BINDSIG as usize] = Some(InstructionInfo::new("BINDSIG", 5, 1, GasPriceTier::Special));
+		arr[CREATESLOT as usize] = Some(InstructionInfo::new("CREATESLOT", 1, 1, GasPriceTier::Special));
+        arr[BINDSLOT as usize] = Some(InstructionInfo::new("BINDSLOT", 5, 1, GasPriceTier::Special));
+		arr[DETACHSLOT as usize] = Some(InstructionInfo::new("DETACHSLOT", 5, 1, GasPriceTier::Special));
         arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////

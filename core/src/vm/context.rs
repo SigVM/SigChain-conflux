@@ -213,7 +213,7 @@ pub trait Context {
     // Emit a new signal instance
     fn emit_sig(
         &mut self, gas: &U256, sender_address: &Address,
-        signal_id: &U256, blocks_delayed: &U256
+        signal_id: &U256, blocks_delayed: &U256, data: &[u8]
     ) -> ::std::result::Result<MessageCallResult, TrapKind>;
     /* Signal and Slots end */
 }

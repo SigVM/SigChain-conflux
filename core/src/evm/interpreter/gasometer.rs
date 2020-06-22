@@ -279,6 +279,38 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
             instructions::BLOCKHASH => {
                 Request::Gas(Gas::from(spec.blockhash_gas))
             }
+            /* Signal and Slots begin */
+            instructions::CREATESIG => {
+                // fixed single return value
+                Request::Gas(Gas::from(spec.sig_create_gas))
+            }
+            instructions::CREATESLOT => {
+                // fixed single return value
+                Request::Gas(Gas::from(spec.slot_create_gas))
+            }
+            instructions::BINDSLOT => {
+                // fixed single return value
+                Request::Gas(Gas::from(spec.slot_bind_gas))
+            }
+            instructions::DETACHSLOT => {
+                // fixed single return value
+                Request::Gas(Gas::from(spec.slot_detach_gas))
+            }
+            instructions::EMITSIG => {
+                let base = Gas::from(spec.signal_emit_gas);
+                let start = stack.peek(2);
+                let len = stack.peek(3);
+
+                let word = overflowing!(to_word_size(Gas::from_u256(*len)?));
+                let word_gas = overflowing!(
+                    Gas::from(spec.sha3_word_gas).overflow_mul(word)
+                );
+                let gas = overflowing!(base.overflow_add(word_gas));
+                let mem = mem_needed(start, len)?;
+
+                Request::GasMemProvide(gas, mem, None)
+            }
+            /* Signal and Slots end */
             _ => Request::Gas(default_gas),
         };
 

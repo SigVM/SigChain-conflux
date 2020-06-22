@@ -1531,17 +1531,36 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // let sig_id = U256::from(&sig_id[..]);
                 // self.stack.push(sig_id);
             }
-            instructions::BINDSIG => {
-                // let emitter = self.stack.pop_back();
-                // let sig_id = self.stack.pop_back();
+            instructions::CREATESLOT => {
+                // let slot_argc = self.stack.pop_back();
                 // let code_ptr = self.stack.pop_back();
                 // let gas_ratio = self.stack.pop_back();
                 // let gas_limit = self.stack.pop_back();
 
                 // // State transitions...
+                // let slot_id = U256::from(&slot_id[..]);
+                // self.stack.push(slot_id);
+
+            }
+            instructions::BINDSLOT => {
+                // let emitter = self.stack.pop_back();
+                // let sig_id = self.stack.pop_back();
+                // let slot_id = self.stack.pop_back();
+
+                // // State transitions...
                 // let result = U256::from(1);
                 // self.stack.push(result);
-                
+
+            }
+            instructions::DETACHSLOT => {
+                // let emitter = self.stack.pop_back();
+                // let sig_id = self.stack.pop_back();
+                // let slot_id = self.stack.pop_back();
+
+                // // State transitions...
+                // let slot_id = U256::from(&slot_id[..]);
+                // self.stack.push(slot_id);
+
             }
             instructions::EMITSIG => {
                 // let sig_id = self.stack.pop_back();
