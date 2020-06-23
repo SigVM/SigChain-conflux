@@ -91,6 +91,8 @@ impl DerefMut for VoteStakeList {
 
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
+
+// RLP supported queue. Implemented using a vector.
 #[derive(
     Clone,
     Debug,
@@ -102,9 +104,6 @@ impl DerefMut for VoteStakeList {
     Eq,
     PartialEq,
 )]
-// Deque type doesn't work because there is no Rlpencodable trait for it.
-// TODO: Implement a Vec based queue. For no just use remove() on the
-// last element to dequeue and push() to enqueue.
 pub struct SlotTxQueue(pub Vec<SlotTx>);
 
 impl Deref for SlotTxQueue {
@@ -117,9 +116,28 @@ impl DerefMut for SlotTxQueue {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
-// Keep track of the block number that slottx execution is at. This is per
-// account and is found in the statedb through a special key.
-pub type SlotExecutionBlockNumber = U256;
+impl SlotTxQueue {
+    pub fn new() -> Self {
+        let new = SlotTxQueue(Vec::new());
+        new
+    }
+
+    pub fn enqueue(&mut self, slot_tx: SlotTx) {
+        self.0.push(slot_tx);
+    }
+
+    pub fn dequeue(&mut self) -> Option<SlotTx> {
+        if self.0.is_empty() {
+            return None;
+        }
+        let last_item_index = self.0.len() - 1;
+        Some(self.0.remove(last_item_index))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////

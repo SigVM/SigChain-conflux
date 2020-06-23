@@ -35,7 +35,7 @@ pub mod signal;
 pub use crate::{
     account::{
         Account, CodeInfo, DepositInfo, DepositList, SponsorInfo,
-        VoteStakeInfo, VoteStakeList,
+        VoteStakeInfo, VoteStakeList, SlotTxQueue,
     },
     block::{Block, BlockNumber},
     block_header::{BlockHeader, BlockHeaderBuilder},
@@ -51,4 +51,7 @@ pub use crate::{
         TxPropagateId,
     },
     transaction_index::TransactionIndex,
+    signal::{
+        SignalLocation, SlotLocation, SignalInfo, SlotInfo, Slot, SlotTx,
+    },
 };

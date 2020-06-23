@@ -18,8 +18,8 @@ use cfx_types::{Address, U256};
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
 pub struct SignalLocation {
-    address: Address,
-    signal_key: Bytes,
+    pub address: Address,
+    pub signal_key: Bytes,
 }
 
 impl SignalLocation {
@@ -36,8 +36,8 @@ impl SignalLocation {
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
 pub struct SlotLocation {
-    address: Address,
-    slot_key: Bytes,
+    pub address: Address,
+    pub slot_key: Bytes,
 }
 
 impl SlotLocation {
@@ -72,6 +72,11 @@ impl SignalInfo {
         new
     }
 
+    // Get the slot_list.
+    pub fn get_slot_list(&self) -> &Vec::<Slot> {
+        &self.slot_list
+    }
+
     // Bind a slot to this signal.
     pub fn add_to_slot_list(&mut self, slot_info: &SlotInfo) {
         let slot = Slot::new(slot_info);
@@ -103,6 +108,8 @@ pub struct SlotInfo {
     gas_ratio_numerator: U256,
     gas_ratio_denominator: U256,
     // List of keys to the signals that this slot is binded to.
+    // This may not be neccessary for functionality, but might be
+    // useful down the road when implementing automatic cleanup.
     bind_list: Vec::<SignalLocation>,
 }
 
@@ -127,7 +134,6 @@ impl SlotInfo {
         let loc = loc.clone();
         self.bind_list.push(loc);
     }
-
     // Remove a signal from the bind list.
     pub fn remove_from_bind_list(&mut self, loc: &SignalLocation) {
         self.bind_list.retain(|s| (s.address != loc.address || s.signal_key != loc.signal_key));
@@ -177,21 +183,25 @@ pub struct SlotTx {
     // Slot to be executed.
     slot: Slot,
     // Block number of when this transaction becomes available for execution.
-    block_num: U256,
+    block_num: u64,
     // Vector of arguments emitted by the signal.
     argv: Vec::<Bytes>,
 }
 
 impl SlotTx {
     pub fn new(
-        slot: &Slot, block_num: U256, argv: Vec::<Bytes>
+        slot: &Slot, block_num: u64, argv: &Vec::<Bytes>
     ) -> Self {
         let new = SlotTx {
             slot:      slot.clone(),
             block_num: block_num,
-            argv:      argv,
+            argv:      argv.clone(),
         };
         new
+    }
+    // Returns the address that this slot tx belongs to.
+    pub fn get_owner(&self) -> &Address {
+        &self.slot.location.address
     }
 }
 

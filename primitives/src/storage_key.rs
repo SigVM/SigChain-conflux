@@ -75,7 +75,7 @@ impl<'a> StorageKey<'a> {
     }
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    // Root key of the trie holding signal information.
+    //Root key of the trie holding signal information.
     pub fn new_signal_root_key(address: &'a Address) -> Self {
         StorageKey::SignalRootKey(&address.0)
     }
@@ -130,8 +130,8 @@ impl<'a> StorageKey<'a> {
     const SIGNAL_PREFIX_LEN: usize = 6;
     const SLOT_PREFIX: &'static [u8] = b"slot";
     const SLOT_PREFIX_LEN: usize = 4;
-    const SLOT_TX_QUEUE_LEN: usize = 6;
-    const SLOT_TX_QUEUE_PREFIX: &'static [u8] = b"slottx";
+    const SLOT_TX_QUEUE_LEN: usize = 7;
+    const SLOT_TX_QUEUE_PREFIX: &'static [u8] = b"txqueue";
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 
@@ -984,4 +984,81 @@ mod tests {
         let key2 = StorageKey::from_delta_mpt_key(&bytes[..]);
         assert_eq!(key, key2);
     }
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */ 
+    #[test]
+    fn test_delta_mpt_signal_root_key() {
+        let padding = DeltaMptKeyPadding([0; KEY_PADDING_BYTES]);
+
+        let address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6"
+            .parse::<Address>()
+            .unwrap();
+
+        let key = StorageKey::new_signal_root_key(&address);
+        let bytes = key.to_delta_mpt_key_bytes(&padding);
+        let key2 = StorageKey::from_delta_mpt_key(&bytes[..]);
+        assert_eq!(key, key2);
+    }
+
+    #[test]
+    fn test_delta_mpt_signal_key() {
+        let padding = DeltaMptKeyPadding([0; KEY_PADDING_BYTES]);
+
+        let address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6"
+            .parse::<Address>()
+            .unwrap();
+
+        let signal_key = &[99; 32];
+
+        let key = StorageKey::new_signal_key(&address, signal_key);
+        let bytes = key.to_delta_mpt_key_bytes(&padding);
+        let key2 = StorageKey::from_delta_mpt_key(&bytes[..]);
+        assert_eq!(key, key2);
+    }
+
+    #[test]
+    fn test_delta_mpt_slot_root_key() {
+        let padding = DeltaMptKeyPadding([0; KEY_PADDING_BYTES]);
+
+        let address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6"
+            .parse::<Address>()
+            .unwrap();
+
+        let key = StorageKey::new_slot_root_key(&address);
+        let bytes = key.to_delta_mpt_key_bytes(&padding);
+        let key2 = StorageKey::from_delta_mpt_key(&bytes[..]);
+        assert_eq!(key, key2);
+    }
+
+    #[test]
+    fn test_delta_mpt_slot_key() {
+        let padding = DeltaMptKeyPadding([0; KEY_PADDING_BYTES]);
+
+        let address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6"
+            .parse::<Address>()
+            .unwrap();
+
+        let slot_key = &[99; 32];
+
+        let key = StorageKey::new_signal_key(&address, slot_key);
+        let bytes = key.to_delta_mpt_key_bytes(&padding);
+        let key2 = StorageKey::from_delta_mpt_key(&bytes[..]);
+        assert_eq!(key, key2);
+    }
+
+    #[test]
+    fn test_delta_mpt_slot_tx_queue_key() {
+        let padding = DeltaMptKeyPadding([0; KEY_PADDING_BYTES]);
+
+        let address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6"
+            .parse::<Address>()
+            .unwrap();
+
+        let key = StorageKey::new_slot_tx_queue_key(&address);
+        let bytes = key.to_delta_mpt_key_bytes(&padding);
+        let key2 = StorageKey::from_delta_mpt_key(&bytes[..]);
+        assert_eq!(key, key2);
+    }
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }

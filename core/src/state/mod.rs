@@ -1447,4 +1447,11 @@ impl State {
         self.staking_state.total_storage_tokens =
             self.db.get_total_storage_tokens().expect("No db error");
     }
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+
+
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
