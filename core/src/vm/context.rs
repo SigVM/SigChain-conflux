@@ -58,6 +58,20 @@ pub enum MessageCallResult {
     Reverted(U256, ReturnData),
 }
 
+/* Signal and Slots begin */
+#[derive(Debug)]
+/// Result of signal or slot operation function.
+pub enum SignalSlotOpResult {
+    /// Returned when the creation was successfull.
+    /// return along the signal/slot storage id
+    SuccessWithId(U256),
+    /// Returned when the operation was successfull.
+    Success,
+    /// Returned when message call failed.
+    Failed,
+}
+/* Signal and Slots end */
+
 /// Specifies how an address is calculated for a new contract.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum CreateContractAddress {
@@ -186,34 +200,34 @@ pub trait Context {
     //TODO: may want to define new Result
     // Create a new signal definition
     fn create_sig(
-        &mut self, gas: &U256, sender_address: &Address,
+        &mut self, sender_address: &Address, signal_key: &Vec<u8>,
         num_arg: &U256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Create a new slot definition
     // gas_ratio is out of 100
     fn create_slot(
-        &mut self, gas: &U256, sender_address: &Address,
+        &mut self, sender_address: &Address, slot_key: &Vec<u8>,
         num_arg: &U256, gas_limit: &U256, gas_ratio: &U256,
-        code_ptr: H256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+        code: &[u8]
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Bind a slot to a signal
     fn bind_slot(
-        &mut self, gas: &U256, sender_address: &Address,
-        signal_address: &Address, signal_id: H256, slot_id: H256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+        &mut self, sender_address: &Address,
+        signal_address: &Address, signal_id: U256, slot_id: U256
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Detach a slot from a signal
     fn detach_slot(
-        &mut self, gas: &U256, sender_address: &Address,
-        signal_address: &Address, signal_id: H256, slot_id: H256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+        &mut self, sender_address: &Address,
+        signal_address: &Address, signal_id: U256, slot_id: U256
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Emit a new signal instance
     fn emit_sig(
-        &mut self, gas: &U256, sender_address: &Address,
+        &mut self, sender_address: &Address,
         signal_id: &U256, blocks_delayed: &U256, data: &[u8]
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>;
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
     /* Signal and Slots end */
 }

@@ -13,6 +13,9 @@ use crate::{
         self, ActionParams, ActionValue, CallType, Context as ContextTrait,
         ContractCreateResult, CreateContractAddress, Env, MessageCallResult,
         ReturnData, Spec, TrapKind,
+        /* Signal and Slots begin */
+        SignalSlotOpResult,
+        /* Signal and Slots end */
     },
 };
 use cfx_types::{Address, H256, U256};
@@ -444,67 +447,65 @@ impl<'a> ContextTrait for Context<'a> {
     }
 
     /* Signal and Slots begin */
-    // Create a new signal definition
+    // Create a new signal definition, gas is hardcoded for now
     fn create_sig(
-        &mut self, gas: &U256, sender_address: &Address,
+        &mut self, sender_address: &Address, signal_key: &Vec<u8>,
         num_arg: &U256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>{
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(MessageCallResult::Failed)
+        Ok(SignalSlotOpResult::Failed)
     }
 
     // Create a new slot definition
-    // gas_ratio is out of 100
+    // gas_ratio is out of 100, gas is hardcoded for now
     fn create_slot(
-        &mut self, gas: &U256, sender_address: &Address,
+        &mut self, sender_address: &Address, slot_key: &Vec<u8>,
         num_arg: &U256, gas_limit: &U256, gas_ratio: &U256,
-        code_ptr: H256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>{
+        code: &[u8]
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(MessageCallResult::Failed)
+        Ok(SignalSlotOpResult::Failed)
     }
 
-    // Bind a slot to a signal
+    // Bind a slot to a signal, gas is hardcoded for now
     fn bind_slot(
-        &mut self, gas: &U256, sender_address: &Address,
-        signal_address: &Address, signal_id: H256, slot_id: H256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>{
+        &mut self, sender_address: &Address,
+        signal_address: &Address, signal_id: U256, slot_id: U256
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(MessageCallResult::Failed)
+        Ok(SignalSlotOpResult::Failed)
     }
 
-    // Detach a slot from a signal
+    // Detach a slot from a signal, gas is hardcoded for now
     fn detach_slot(
-        &mut self, gas: &U256, sender_address: &Address,
-        signal_address: &Address, signal_id: H256, slot_id: H256
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>{
+        &mut self, sender_address: &Address,
+        signal_address: &Address, signal_id: U256, slot_id: U256
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(MessageCallResult::Failed)
+        Ok(SignalSlotOpResult::Failed)
     }
 
-    // Emit a new signal instance
+    // Emit a new signal instance, gas is hardcoded for now
     fn emit_sig(
-        &mut self, gas: &U256, sender_address: &Address,
+        &mut self, sender_address: &Address,
         signal_id: &U256, blocks_delayed: &U256, data: &[u8]
-    ) -> ::std::result::Result<MessageCallResult, TrapKind>{
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(MessageCallResult::Failed)
+        Ok(SignalSlotOpResult::Failed)
     }
-    /* Signal and Slots end */
-        //////////////////////////////////////////////////////////////////////
-    /* Signal and Slots begin */
+
 
     /* Functions that support binding and unbinding from signals. */
     // Bind a slot to a signal.
-    // pub fn bind_slot_to_signal(
+    // fn bind_slot_to_signal(
     //     &mut self, sig_loc: SignalLocation, slot_loc: SlotLocation,
     // ) -> Result<()> {
     //     // Get the signal info from the db
     //     let signal_info = self.get::<SignalInfo>(
     //         StorageKey::new_storage_key(&sig_loc.address, &sig_loc.signal_key)
     //     );
-    //     // 
-
+    //     //
+    //
     // }
 
 
@@ -522,7 +523,7 @@ impl<'a> ContextTrait for Context<'a> {
     //     debug_record: Option<&mut ComputeEpochDebugRecord>
     // ) -> Result<()> {
     //     let slot_tx_queue = self.get::<SlotTxQueue>(StorageKey::new_slot_tx_queue_key(address));
-        
+    //
     //     let slot_tx_queue = match slot_tx_queue {
     //         Ok(q) => q,
     //         Err(e) => return Err(e),
@@ -532,7 +533,7 @@ impl<'a> ContextTrait for Context<'a> {
     //         None => SlotTxQueue::new(),
     //     };
     //     slot_tx_queue.enqueue(slot_tx);
-
+    //
     //     self.set::<SlotTxQueue>(StorageKey::new_slot_tx_queue_key(address), &slot_tx_queue, debug_record)
     // }
 
@@ -542,7 +543,7 @@ impl<'a> ContextTrait for Context<'a> {
     //     debug_record: Option<&mut ComputeEpochDebugRecord>
     // ) -> Option<SlotTx> {
     //     let slot_tx_queue = self.get::<SlotTxQueue>(StorageKey::new_slot_tx_queue_key(address));
-        
+    //
     //     let slot_tx_queue = match slot_tx_queue {
     //         Ok(q) => q,
     //         _ => return None,
@@ -575,14 +576,14 @@ impl<'a> ContextTrait for Context<'a> {
     //     debug_record: Option<&mut ComputeEpochDebugRecord>
     // ) -> Result<()> {
     //     let buffer = &epoch_height.to_le_bytes();
-
+    //
     //     let global_slot_tx_queue_key = StorageKey::new_storage_key(
     //         &GLOBAL_SLOT_TX_QUEUE_ADDRESS,
     //         buffer,
     //     );
-
+    //
     //     let slot_tx_queue = self.get::<SlotTxQueue>(global_slot_tx_queue_key);
-
+    //
     //     let slot_tx_queue = match slot_tx_queue {
     //         Ok(q) => q,
     //         Err(e) => return Err(e),
@@ -601,19 +602,19 @@ impl<'a> ContextTrait for Context<'a> {
     //     debug_record: Option<&mut ComputeEpochDebugRecord>
     // ) -> Option<SlotTxQueue> {
     //     let buffer = &epoch_height.to_le_bytes();
-        
+    //
     //     let global_slot_tx_queue_key = StorageKey::new_storage_key(
     //         &GLOBAL_SLOT_TX_QUEUE_ADDRESS,
     //         buffer,
     //     );
-
+    //
     //     let slot_tx_queue = self.get::<SlotTxQueue>(global_slot_tx_queue_key);
-
+    //
     //     let slot_tx_queue = match slot_tx_queue {
     //         Ok(q) => q,
     //         _ => return None,
     //     };
-        
+    //
     //     self.delete(global_slot_tx_queue_key, debug_record).unwrap();
     //     slot_tx_queue
     // }

@@ -48,6 +48,9 @@ use crate::{
         self, ActionParams, ActionValue, CallType, ContractCreateResult,
         CreateContractAddress, GasLeft, MessageCallResult, ParamsType,
         ReturnData, Spec, TrapError, TrapKind,
+        /* Signal and Slots begin */
+        SignalSlotOpResult,
+        /* Signal and Slots end */
     },
 };
 use bit_set::BitSet;
@@ -143,6 +146,7 @@ struct InterpreterParams {
     pub call_type: CallType,
     /// Param types encoding
     pub params_type: ParamsType,
+
 }
 
 impl From<ActionParams> for InterpreterParams {
@@ -1524,54 +1528,125 @@ impl<Cost: CostType> Interpreter<Cost> {
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             instructions::CREATESIG => {
-                // let sig_argc = self.stack.pop_back();
-                // let sig_id = KECCAK_EMPTY;
+                let sig_argc = self.stack.pop_back();  // 0
+                let mut sig_key = vec![0; 32];         // 1
+                self.stack.pop_back().to_big_endian(sig_key.as_mut());
 
-                // // State transitions...
-                // let sig_id = U256::from(&sig_id[..]);
-                // self.stack.push(sig_id);
+                let call_result =
+                    context.create_sig(
+                        &self.params.address,
+                        &sig_key,
+                        &sig_argc,
+                    );
+
+                match call_result {
+                    Ok(SignalSlotOpResult::SuccessWithId(sigId)) => {
+                        self.stack.push(sigId);
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
             }
             instructions::CREATESLOT => {
-                // let slot_argc = self.stack.pop_back();
-                // let code_ptr = self.stack.pop_back();
-                // let gas_ratio = self.stack.pop_back();
-                // let gas_limit = self.stack.pop_back();
+                let slot_argc = self.stack.pop_back(); // 0
+                let code_off = self.stack.pop_back();  // 1
+                let code_size = self.stack.pop_back(); // 2
+                let gas_ratio = self.stack.pop_back(); // 3, not used yet
+                let gas_limit = self.stack.pop_back(); // 4
+                let mut slot_key = vec![0; 32];        // 5
+                self.stack.pop_back().to_big_endian(slot_key.as_mut());
+                let slot_code = self.mem.read_slice(code_off, code_size);
 
-                // // State transitions...
-                // let slot_id = U256::from(&slot_id[..]);
-                // self.stack.push(slot_id);
+                let call_result =
+                    context.create_slot(
+                        &self.params.address,
+                        &slot_key,
+                        &slot_argc,
+                        &gas_limit,
+                        &gas_ratio,
+                        slot_code,
+                    );
+
+                match call_result {
+                    Ok(SignalSlotOpResult::SuccessWithId(slotId)) => {
+                        self.stack.push(slotId);
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
 
             }
             instructions::BINDSLOT => {
-                // let emitter = self.stack.pop_back();
-                // let sig_id = self.stack.pop_back();
-                // let slot_id = self.stack.pop_back();
+                let emitter = self.stack.pop_back(); // 0
+                let sig_id = self.stack.pop_back();  // 1
+                let slot_id = self.stack.pop_back(); // 2
 
-                // // State transitions...
-                // let result = U256::from(1);
-                // self.stack.push(result);
+                let call_result =
+                    context.bind_slot(
+                        &self.params.address,
+                        &u256_to_address(&emitter),
+                        sig_id,
+                        slot_id,
+                    );
 
+                match call_result {
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
             }
             instructions::DETACHSLOT => {
-                // let emitter = self.stack.pop_back();
-                // let sig_id = self.stack.pop_back();
-                // let slot_id = self.stack.pop_back();
+                let emitter = self.stack.pop_back(); // 0
+                let sig_id = self.stack.pop_back();  // 1
+                let slot_id = self.stack.pop_back(); // 2
 
-                // // State transitions...
-                // let slot_id = U256::from(&slot_id[..]);
-                // self.stack.push(slot_id);
+                let call_result =
+                    context.detach_slot(
+                        &self.params.address,
+                        &u256_to_address(&emitter),
+                        sig_id,
+                        slot_id,
+                    );
+
+                match call_result {
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
 
             }
             instructions::EMITSIG => {
-                // let sig_id = self.stack.pop_back();
-                // let blk_delay = self.stack.pop_back();
-                // let sig_argv = self.stack.pop_back();
-                // let sig_argc = self.stack.pop_back();
+                let sig_id = self.stack.pop_back();    // 0
+                let blk_delay = self.stack.pop_back(); // 1
+                let arg_off = self.stack.pop_back();   // 2
+                let arg_size = self.stack.pop_back();  // 3
 
-                // // State transitions...
-                // let result = U256::from(1);
-                // self.stack.push(result);
+                let call_result = {
+                    let data = self.mem.read_slice(arg_off, arg_size);
+                    context.emit_sig(
+                        &self.params.address,
+                        &sig_id,
+                        &blk_delay,
+                        &data,
+                    )
+                };
 
+                match call_result {
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
             }
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////

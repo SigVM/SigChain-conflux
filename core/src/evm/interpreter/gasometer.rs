@@ -233,6 +233,15 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                             .overflow_add(spec.call_value_transfer_gas.into()));
                 }
 
+                /* Signal and Slots begin */
+                // TODO: check if this makes sense
+                // if spec.have_slot_call {
+                //     gas =
+                //         overflowing!(gas
+                //             .overflow_mul(spec.slot_special_ratio.into()))/Gas::from(100);
+                // }
+                /* Signal and Slots end */
+
                 let requested = *stack.peek(0);
 
                 Request::GasMemProvide(gas, mem, Some(requested))

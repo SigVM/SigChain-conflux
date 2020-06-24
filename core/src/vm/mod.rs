@@ -17,6 +17,9 @@ pub use self::{
     call_type::CallType,
     context::{
         Context, ContractCreateResult, CreateContractAddress, MessageCallResult,
+        /* Signal and Slots begin */
+        SignalSlotOpResult,
+        /* Signal and Slots end */
     },
     env::Env,
     error::{Error, ExecTrapResult, Result, TrapError, TrapKind, TrapResult},
