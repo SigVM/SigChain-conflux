@@ -1110,41 +1110,33 @@ impl OverlayAccount {
     }
 
     // Set a new signal info in cache.
-    pub fn set_signal(
-        &mut self, sig_loc: &SignalLocation, sig_info: SignalInfo
-    ) {
+    pub fn set_signal(&mut self, sig_loc: &SignalLocation, sig_info: SignalInfo) {
         self.signal_changes.insert(sig_loc.signal_key.clone(), sig_info);
     }   
 
     // Set a new slot info in cache.
-    pub fn set_slot(
-        &mut self, slot_loc: &SlotLocation, slot_info: SlotInfo
-    ) {
+    pub fn set_slot(&mut self, slot_loc: &SlotLocation, slot_info: SlotInfo) {
         self.slot_changes.insert(slot_loc.slot_key.clone(), slot_info);
     }
 
+    // Get slot transaction queue.
+    pub fn slot_tx_queue(&self) -> Option<&SlotTxQueue> {
+        self.slot_tx_queue.as_ref() 
+    }
+
     // Bring the slot transaction queue into cache.
-    fn cache_slot_tx_queue(
-        &mut self, db: &StateDb, address: &Address
-    ) -> Option<SlotTxQueue> {
-        match db.get_account_slot_tx_queue(address) {
-            Ok(Some(queue)) => {
-                self.slot_tx_queue = Some(queue.clone());
-                Some(queue)
-            }
-            _ => {
-                None
-            }
+    pub fn cache_slot_tx_queue(
+        &mut self, db: &StateDb,
+    ) -> DbResult<()> {
+        if self.slot_tx_queue.is_none() {
+            let slot_tx_queue = db.get_account_slot_tx_queue(&self.address)?;
+            self.slot_tx_queue = Some(slot_tx_queue.unwrap().clone());
         }
+        Ok(())
     }
 
     // Push a slot tx to the slot transaction list.
-    pub fn queue_slot_tx(
-        &mut self, db: &StateDb, address: &Address, slot_tx: SlotTx
-    ) {
-        if !self.slot_tx_queue.is_some() {
-            self.cache_slot_tx_queue(db, address);
-        }
+    pub fn queue_slot_tx(&mut self, slot_tx: SlotTx) {
         self.slot_tx_queue.as_mut().unwrap().push(slot_tx);
     } 
 

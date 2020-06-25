@@ -38,9 +38,8 @@ use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 use primitives::{
-    SlotTxQueue, SlotTx, SignalLocation, SlotLocation, SignalInfo, SlotInfo,
+    SlotTxQueue, SlotTx,
 };
-use crate::signal::GLOBAL_SLOT_TX_QUEUE_ADDRESS;
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
 
@@ -51,6 +50,11 @@ enum RequireCache {
     Code,
     DepositList,
     VoteStakeList,
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    SlotTxQueue,
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 /// Mode of dealing with null accounts.
@@ -104,8 +108,8 @@ pub struct State {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    global_slot_tx_queue_cache: RwLock<HashMap<Vec<u8>, SlotTxQueue>>,
-    global_slot_tx_queue_changes: HashMap<Vec<u8>, SlotTxQueue>, 
+    global_slot_tx_queue_cache: RwLock<HashMap<u64, SlotTxQueue>>,
+    global_slot_tx_queue_changes: HashMap<u64, SlotTxQueue>, 
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -904,6 +908,11 @@ impl State {
             RequireCache::Code | RequireCache::CodeSize => !account.is_cached(),
             RequireCache::DepositList => account.deposit_list().is_none(),
             RequireCache::VoteStakeList => account.vote_stake_list().is_none(),
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            RequireCache::SlotTxQueue => account.slot_tx_queue().is_none(),
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -931,6 +940,13 @@ impl State {
                     db,
                 )
                 .is_ok(),
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            RequireCache::SlotTxQueue => account
+                .cache_slot_tx_queue(db)
+                .is_ok(),
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -1476,7 +1492,7 @@ impl State {
     // This section provides an API to be called by context.rs in the executive directory.
     // All operations done here are first done on cache, then commiting to the StateDb in
     // the commit functions found under State as well as in OverlayAccount.  
-    
+
     // Get signal info from the cache.
     pub fn signal_at() {
         
@@ -1498,16 +1514,71 @@ impl State {
     }
 
     // Emit a signal.
-    pub fn emit_signal_and_create_slot_tx() {
+    pub fn emit_signal_and_queue_slot_tx() {
+        
+    }
 
+    // Bring the global slot queue to cache and changes.
+    pub fn cache_global_slot_tx_queue_to_changes(
+        &mut self, epoch_height: u64,
+    ) -> DbResult<()> {
+        if let Some(_global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
+            return Ok(());
+        }
+        if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
+            self.global_slot_tx_queue_changes
+                .insert(epoch_height, global_queue.clone());
+            return Ok(());
+        }
+        if let Some(global_queue) = self.db.get_global_slot_tx_queue(epoch_height)? {
+            self.global_slot_tx_queue_cache.write()
+                .insert(epoch_height, global_queue.clone());
+            self.global_slot_tx_queue_changes
+                .insert(epoch_height, global_queue.clone());
+            return Ok(());
+        }
+        Ok(())
+    }   
+
+    // Queue a slot transaction to the queue.
+    pub fn queue_slot_tx_to_global_queue(
+        &mut self, epoch_height: u64, slot_tx: SlotTx,
+    ) -> DbResult<()> {
+        // Cache global_slot_tx_queue
+        self.cache_global_slot_tx_queue_to_changes(epoch_height)?;
+
+        // In changes and cache.
+        if let Some(global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
+            let mut global_queue = global_queue.clone();
+            global_queue.enqueue(slot_tx);
+            self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+        }
+        Ok(())
     }
 
     // Prune a slot transaction queue off the global queue and push them
     // into individual account slot transaction queues.
     // This function should be used at the start of every epoch. Meaning
     // it should be used by the consensus executor.
-    pub fn drain_global_slot_transaction_queue() {
+    pub fn drain_global_slot_transaction_queue(
+        &mut self, epoch_height: u64,
+    ) -> DbResult<()> { 
+        // Cache global queue.
+        self.cache_global_slot_tx_queue_to_changes(epoch_height)?;
 
+        // In changes and cache.
+        if let Some(global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
+            let mut global_queue = global_queue.clone();
+            while !global_queue.is_empty() {
+                let slot_tx = global_queue.dequeue().unwrap();
+                let address = slot_tx.get_owner();
+                let mut account = self.require_exists(address, false)?;
+                account.cache_slot_tx_queue(&self.db)?;
+                account.queue_slot_tx(slot_tx);
+            }
+            self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+        }
+        Ok(())
     }
 
     /* Signal and Slots end */

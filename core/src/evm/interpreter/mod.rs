@@ -1540,8 +1540,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                     );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithId(sigId)) => {
-                        self.stack.push(sigId);
+                    Ok(SignalSlotOpResult::SuccessWithId(sig_key)) => {
+                        self.stack.push(sig_key);
                     }
                     _ => {
                         self.stack.push(U256::zero());
@@ -1569,8 +1569,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                     );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithId(slotId)) => {
-                        self.stack.push(slotId);
+                    Ok(SignalSlotOpResult::SuccessWithId(slot_key)) => {
+                        self.stack.push(slot_key);
                     }
                     _ => {
                         self.stack.push(U256::zero());

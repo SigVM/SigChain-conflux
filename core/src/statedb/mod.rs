@@ -9,7 +9,6 @@ use crate::{
         Error as StorageError, ErrorKind as StorageErrorKind, StateProof,
         StateRootWithAuxInfo, StorageState, StorageStateTrait,
     },
-    bytes::Bytes ,
 };
 use cfx_types::{Address, H256, U256};
 use primitives::{
@@ -20,8 +19,7 @@ use primitives::{
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 use primitives::{
-    SlotTxQueue, SlotTx, SignalLocation, SlotLocation, SignalInfo,
-    SlotInfo,
+    SlotTxQueue, SignalInfo, SlotInfo,
 };
 use crate::signal::GLOBAL_SLOT_TX_QUEUE_ADDRESS;
 /* Signal and Slots end */
@@ -342,12 +340,29 @@ impl StateDb {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    pub fn get_global_slot_tx_queue() {
 
+    // Given an epoch number, retrieve the queue.
+    pub fn get_global_slot_tx_queue(
+        &self, epoch_height: u64,
+    ) -> Result<Option<SlotTxQueue>> {
+        let buffer = epoch_height.to_le_bytes();
+        let key = StorageKey::new_storage_key(
+            &GLOBAL_SLOT_TX_QUEUE_ADDRESS, 
+            &buffer,
+        );
+        self.get::<SlotTxQueue>(key)
     }
 
-    pub fn set_global_slot_tx_queue() {
-
+    pub fn set_global_slot_tx_queue(
+        &mut self, epoch_height: u64, queue: &SlotTxQueue,
+        debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        let buffer = epoch_height.to_le_bytes();
+        let key = StorageKey::new_storage_key(
+            &GLOBAL_SLOT_TX_QUEUE_ADDRESS, 
+            &buffer,
+        );
+        self.set::<SlotTxQueue>(key, queue, debug_record)
     }
 
     pub fn get_account_slot_tx_queue(

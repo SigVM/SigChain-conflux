@@ -13,9 +13,11 @@ use crate::{
         self, ActionParams, ActionValue, CallType, Context as ContextTrait,
         ContractCreateResult, CreateContractAddress, Env, MessageCallResult,
         ReturnData, Spec, TrapKind,
+        //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
         SignalSlotOpResult,
         /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
     },
 };
 use cfx_types::{Address, H256, U256};
@@ -446,11 +448,12 @@ impl<'a> ContextTrait for Context<'a> {
         // TODO
     }
 
+    //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
     // Create a new signal definition, gas is hardcoded for now
     fn create_sig(
-        &mut self, sender_address: &Address, signal_key: &Vec<u8>,
-        num_arg: &U256
+        &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
+        _num_arg: &U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
@@ -459,9 +462,9 @@ impl<'a> ContextTrait for Context<'a> {
     // Create a new slot definition
     // gas_ratio is out of 100, gas is hardcoded for now
     fn create_slot(
-        &mut self, sender_address: &Address, slot_key: &Vec<u8>,
-        num_arg: &U256, gas_limit: &U256, gas_ratio: &U256,
-        code: &[u8]
+        &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
+        _num_arg: &U256, _gas_limit: &U256, _gas_ratio: &U256,
+        _code: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
@@ -469,8 +472,8 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Bind a slot to a signal, gas is hardcoded for now
     fn bind_slot(
-        &mut self, sender_address: &Address,
-        signal_address: &Address, signal_id: U256, slot_id: U256
+        &mut self, _sender_address: &Address,
+        _signal_address: &Address, _signal_id: U256, _slot_id: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
@@ -478,8 +481,8 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Detach a slot from a signal, gas is hardcoded for now
     fn detach_slot(
-        &mut self, sender_address: &Address,
-        signal_address: &Address, signal_id: U256, slot_id: U256
+        &mut self, _sender_address: &Address,
+        _signal_address: &Address, _signal_id: U256, _slot_id: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
@@ -487,13 +490,14 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Emit a new signal instance, gas is hardcoded for now
     fn emit_sig(
-        &mut self, sender_address: &Address,
-        signal_id: &U256, blocks_delayed: &U256, data: &[u8]
+        &mut self, _sender_address: &Address,
+        _signal_id: &U256, _blocks_delayed: &U256, _data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
     }
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 #[cfg(test)]
