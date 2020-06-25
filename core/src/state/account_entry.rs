@@ -18,7 +18,9 @@ use std::{collections::HashMap, sync::Arc};
 
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
-//use primitives::{signal};
+use primitives::{
+    SlotTxQueue, SlotTx, SignalLocation, SlotLocation, SignalInfo, SlotInfo,
+};
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
 
@@ -96,12 +98,18 @@ pub struct OverlayAccount {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    // // Cache of signal and slot mappings and the changes to be committed.
-    // sig_cache: RwLock<HashMap<Vec<u8>, SignalInfo>>,
-    // sig_changes: HashMap<Vec<u8>, SignalInfo>,
-    // // List of slot transactions to be executed.
-    // slot_queue: Option<SlotTxQueue>,
-    // /* Signal and Slots end */
+    
+    // Signal cache.
+    signal_cache: RwLock<HashMap<Vec<u8>, SignalInfo>>,
+    signal_changes: HashMap<Vec<u8>, SignalInfo>,
+    // Slot cache.
+    slot_cache: RwLock<HashMap<Vec<u8>, SlotInfo>>,
+    slot_changes: HashMap<Vec<u8>, SlotInfo>,
+    // Slot transaction queue. If it's None it means it has 
+    // not been cached in from the db.
+    slot_tx_queue: Option<SlotTxQueue>,
+
+    /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
 
@@ -131,14 +139,15 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: false,
             is_contract: account.code_hash != KECCAK_EMPTY,
-            
-            //////////////////////////////////////////////////////////////////
-            // // Signals and Slots
-            // slot_tx_queue: VecDeque::new(),
-            // sig_list: Vec::new(),
-            // sig_cache: Default::default(),
-            // sig_changes: HashMap::new(),
-            //////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            signal_cache: Default::default(),
+            signal_changes: HashMap::new(),
+            slot_cache: Default::default(),
+            slot_changes: HashMap::new(),
+            slot_tx_queue: None,
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         };
 
         overlay_account
@@ -169,13 +178,15 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: false,
             is_contract: false,
-            //////////////////////////////////////////////////////////////////
-            // // Signals and Slots
-            // slot_tx_queue: VecDeque::new(),
-            // sig_list: Vec::new(),
-            // sig_cache: Default::default(),
-            // sig_changes: HashMap::new(),
-            //////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            signal_cache: Default::default(),
+            signal_changes: HashMap::new(),
+            slot_cache: Default::default(),
+            slot_changes: HashMap::new(),
+            slot_tx_queue: None,
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -205,13 +216,6 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: true,
             is_contract: true,
-            //////////////////////////////////////////////////////////////////
-            // Signals and Slots
-            slot_tx_queue: VecDeque::new(),
-            sig_list: Vec::new(),
-            sig_cache: Default::default(),
-            sig_changes: HashMap::new(),
-            //////////////////////////////////////////////////////////////////
         }
     }
 
@@ -242,13 +246,15 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: true,
             is_contract: true,
-            //////////////////////////////////////////////////////////////////
-            // // Signals and Slots
-            // slot_tx_queue: VecDeque::new(),
-            // sig_list: Vec::new(),
-            // sig_cache: Default::default(),
-            // sig_changes: HashMap::new(),
-            //////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            signal_cache: Default::default(),
+            signal_changes: HashMap::new(),
+            slot_cache: Default::default(),
+            slot_changes: HashMap::new(),
+            slot_tx_queue: None,
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -680,13 +686,15 @@ impl OverlayAccount {
             code_owner: self.code_owner,
             is_newly_created_contract: self.is_newly_created_contract,
             is_contract: self.is_contract,
-            //////////////////////////////////////////////////////////////////
-            // // Signals and Slots
-            // slot_tx_queue: VecDeque::new(),
-            // sig_list: Vec::new(),
-            // sig_cache: Default::default(),
-            // sig_changes: HashMap::new(),
-            //////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            signal_cache: Default::default(),
+            signal_changes: HashMap::new(),
+            slot_cache: Default::default(),
+            slot_changes: HashMap::new(),
+            slot_tx_queue: self.slot_tx_queue.clone(),
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -993,12 +1001,155 @@ impl OverlayAccount {
             }
         }
 
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+
+        // Commit signal changes.
+        for (k, sig) in self.signal_changes.drain() {
+            db.set_signal_info(&self.address, k.as_ref(), &sig, debug_record.as_deref_mut())?;
+        }
+        // Commit slot changes.
+        for (k, slot) in self.slot_changes.drain() {
+            db.set_slot_info(&self.address, k.as_ref(), &slot, debug_record.as_deref_mut())?;
+        }
+        // Commit slot transaction queue.
+        match self.slot_tx_queue.as_ref() {
+            None => {}
+            Some(queue) => {
+                db.set_account_slot_tx_queue(&self.address, &queue, debug_record.as_deref_mut())?;
+            }
+        }
+
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+
         if let Some(ref layout) = self.storage_layout_change {
             db.set_storage_layout(&self.address, layout, debug_record)?;
         }
 
         Ok(())
     }
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+
+    // Get and cache the signal from the db. This should be called only if cached_signal_at return None.
+    fn get_and_cache_signal(
+        &mut self, db: &StateDb, sig_loc: &SignalLocation
+    ) -> Option<SignalInfo> {
+        match db.get_signal_info(&sig_loc.address, &sig_loc.signal_key) {
+            Ok(Some(sig_info)) => {
+                self.signal_cache.write().insert(sig_loc.signal_key.clone(), sig_info.clone());
+                Some(sig_info.clone())
+            }
+            _ => {
+                None
+            }
+        }
+    }
+
+    // Get and cace the slot from the db.
+    fn get_and_cache_slot(
+        &mut self, db: &StateDb, slot_loc: &SlotLocation
+    ) -> Option<SlotInfo> {
+        match db.get_slot_info(&slot_loc.address, &slot_loc.slot_key) {
+            Ok(Some(slot_info)) => {
+                self.slot_cache.write().insert(slot_loc.slot_key.clone(), slot_info.clone());
+                Some(slot_info.clone())
+            }
+            _ => {
+                None
+            }
+        }
+    }
+
+    // Look into cache for the newest version of signal info. Does not look into db.
+    pub fn cached_signal_at(
+        &self, sig_loc: &SignalLocation
+    ) -> Option<SignalInfo> {
+        if let Some(sig_info) = self.signal_changes.get(&sig_loc.signal_key) {
+            return Some(sig_info.clone());
+        }
+        if let Some(sig_info) = self.signal_cache.read().get(&sig_loc.signal_key) {
+            return Some(sig_info.clone());
+        }
+        None
+    }
+
+    // Look into cache for the newest version of slot info.
+    pub fn cached_slot_at(
+        &self, slot_loc: &SlotLocation
+    ) -> Option<SlotInfo> {
+        if let Some(slot_info) = self.slot_changes.get(&slot_loc.slot_key) {
+            return Some(slot_info.clone());
+        }
+        if let Some(slot_info) = self.slot_cache.read().get(&slot_loc.slot_key) {
+            return Some(slot_info.clone());
+        }
+        None
+    } 
+
+    // Check into cache for signal info. If not currently in cache find it in the db.
+    pub fn signal_at(
+        &mut self, db: &StateDb, sig_loc: &SignalLocation
+    ) -> Option<SignalInfo> {
+        if let Some(sig_info) = self.cached_signal_at(sig_loc) {
+            return Some(sig_info);
+        }
+        self.get_and_cache_signal(db, sig_loc)
+    }
+
+    // Check into cache for slot info. If not in cache find it in the db.
+    pub fn slot_at(
+        &mut self, db: &StateDb, slot_loc: &SlotLocation
+    ) -> Option<SlotInfo> {
+        if let Some(slot_info) = self.cached_slot_at(slot_loc) {
+            return Some(slot_info);
+        }
+        self.get_and_cache_slot(db, slot_loc)
+    }
+
+    // Set a new signal info in cache.
+    pub fn set_signal(
+        &mut self, sig_loc: &SignalLocation, sig_info: SignalInfo
+    ) {
+        self.signal_changes.insert(sig_loc.signal_key.clone(), sig_info);
+    }   
+
+    // Set a new slot info in cache.
+    pub fn set_slot(
+        &mut self, slot_loc: &SlotLocation, slot_info: SlotInfo
+    ) {
+        self.slot_changes.insert(slot_loc.slot_key.clone(), slot_info);
+    }
+
+    // Bring the slot transaction queue into cache.
+    fn cache_slot_tx_queue(
+        &mut self, db: &StateDb, address: &Address
+    ) -> Option<SlotTxQueue> {
+        match db.get_account_slot_tx_queue(address) {
+            Ok(Some(queue)) => {
+                self.slot_tx_queue = Some(queue.clone());
+                Some(queue)
+            }
+            _ => {
+                None
+            }
+        }
+    }
+
+    // Push a slot tx to the slot transaction list.
+    pub fn queue_slot_tx(
+        &mut self, db: &StateDb, address: &Address, slot_tx: SlotTx
+    ) {
+        if !self.slot_tx_queue.is_some() {
+            self.cache_slot_tx_queue(db, address);
+        }
+        self.slot_tx_queue.as_mut().unwrap().push(slot_tx);
+    } 
+
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]

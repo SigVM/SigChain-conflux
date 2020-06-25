@@ -35,6 +35,15 @@ pub use self::{account_entry::OverlayAccount, substate::Substate};
 use crate::evm::Spec;
 use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+use primitives::{
+    SlotTxQueue, SlotTx, SignalLocation, SlotLocation, SignalInfo, SlotInfo,
+};
+use crate::signal::GLOBAL_SLOT_TX_QUEUE_ADDRESS;
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 #[derive(Copy, Clone)]
 enum RequireCache {
     None,
@@ -92,6 +101,13 @@ pub struct State {
     // the `number` entry in EVM Environment.
     block_number: u64,
     vm: VmFactory,
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    global_slot_tx_queue_cache: RwLock<HashMap<Vec<u8>, SlotTxQueue>>,
+    global_slot_tx_queue_changes: HashMap<Vec<u8>, SlotTxQueue>, 
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 impl State {
@@ -137,6 +153,12 @@ impl State {
             block_number,
             vm,
             dirty_accounts_to_commit: Default::default(),
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            global_slot_tx_queue_cache: Default::default(),
+            global_slot_tx_queue_changes: HashMap::new(),
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -1450,7 +1472,43 @@ impl State {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
+    
+    // This section provides an API to be called by context.rs in the executive directory.
+    // All operations done here are first done on cache, then commiting to the StateDb in
+    // the commit functions found under State as well as in OverlayAccount.  
+    
+    // Get signal info from the cache.
+    pub fn signal_at() {
+        
+    }
 
+    // Get slot info from the cache.
+    pub fn slot_at() {
+
+    }
+
+    // Bind a slot to a signal.
+    pub fn bind_slot_to_signal() {
+ 
+    }
+
+    // Detach a slot from a signal.
+    pub fn detach_slot_from_signal() {
+
+    }
+
+    // Emit a signal.
+    pub fn emit_signal_and_create_slot_tx() {
+
+    }
+
+    // Prune a slot transaction queue off the global queue and push them
+    // into individual account slot transaction queues.
+    // This function should be used at the start of every epoch. Meaning
+    // it should be used by the consensus executor.
+    pub fn drain_global_slot_transaction_queue() {
+
+    }
 
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
