@@ -202,25 +202,29 @@ pub struct SlotTx {
     // Slot to be executed.
     slot: Slot,
     // Block number of when this transaction becomes available for execution.
-    block_num: u64,
+    epoch_height: u64,
     // Vector of arguments emitted by the signal.
     argv: Vec::<Bytes>,
 }
 
 impl SlotTx {
     pub fn new(
-        slot: &Slot, block_num: u64, argv: &Vec::<Bytes>
+        slot: &Slot, epoch_height: u64, argv: &Vec::<Bytes>
     ) -> Self {
         let new = SlotTx {
-            slot:      slot.clone(),
-            block_num: block_num,
-            argv:      argv.clone(),
+            slot:         slot.clone(),
+            epoch_height: epoch_height,
+            argv:         argv.clone(),
         };
         new
     }
     // Returns the address that this slot tx belongs to.
     pub fn get_owner(&self) -> &Address {
         &self.slot.location.address
+    }
+    // Returns epoch height.
+    pub fn get_epoch_height(&self) -> u64 {
+        self.epoch_height
     }
 }
 

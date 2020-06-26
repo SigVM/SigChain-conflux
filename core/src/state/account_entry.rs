@@ -1016,7 +1016,12 @@ impl OverlayAccount {
         match self.slot_tx_queue.as_ref() {
             None => {}
             Some(queue) => {
-                db.set_account_slot_tx_queue(&self.address, &queue, debug_record.as_deref_mut())?;
+                if queue.is_empty() {
+                    db.delete_account_slot_tx_queue(&self.address, debug_record.as_deref_mut())?;
+                }
+                else {
+                    db.set_account_slot_tx_queue(&self.address, &queue, debug_record.as_deref_mut())?;
+                }
             }
         }
 
@@ -1035,11 +1040,12 @@ impl OverlayAccount {
 
     // Get and cache the signal from the db. This should be called only if cached_signal_at return None.
     fn get_and_cache_signal(
-        &mut self, db: &StateDb, sig_loc: &SignalLocation
+        signal_cache: &mut HashMap<Vec<u8>, SignalInfo>, 
+        sig_loc: &SignalLocation, db: &StateDb
     ) -> Option<SignalInfo> {
         match db.get_signal_info(&sig_loc.address, &sig_loc.signal_key) {
             Ok(Some(sig_info)) => {
-                self.signal_cache.write().insert(sig_loc.signal_key.clone(), sig_info.clone());
+                signal_cache.insert(sig_loc.signal_key.clone(), sig_info.clone());
                 Some(sig_info.clone())
             }
             _ => {
@@ -1050,11 +1056,12 @@ impl OverlayAccount {
 
     // Get and cace the slot from the db.
     fn get_and_cache_slot(
-        &mut self, db: &StateDb, slot_loc: &SlotLocation
+        slot_cache: &mut HashMap<Vec<u8>, SlotInfo>,
+        slot_loc: &SlotLocation, db: &StateDb
     ) -> Option<SlotInfo> {
         match db.get_slot_info(&slot_loc.address, &slot_loc.slot_key) {
             Ok(Some(slot_info)) => {
-                self.slot_cache.write().insert(slot_loc.slot_key.clone(), slot_info.clone());
+                slot_cache.insert(slot_loc.slot_key.clone(), slot_info.clone());
                 Some(slot_info.clone())
             }
             _ => {
@@ -1091,22 +1098,30 @@ impl OverlayAccount {
 
     // Check into cache for signal info. If not currently in cache find it in the db.
     pub fn signal_at(
-        &mut self, db: &StateDb, sig_loc: &SignalLocation
+        &self, db: &StateDb, sig_loc: &SignalLocation
     ) -> Option<SignalInfo> {
         if let Some(sig_info) = self.cached_signal_at(sig_loc) {
             return Some(sig_info);
         }
-        self.get_and_cache_signal(db, sig_loc)
+        Self::get_and_cache_signal(
+            &mut self.signal_cache.write(), 
+            sig_loc, 
+            db
+        )
     }
 
     // Check into cache for slot info. If not in cache find it in the db.
     pub fn slot_at(
-        &mut self, db: &StateDb, slot_loc: &SlotLocation
+        &self, db: &StateDb, slot_loc: &SlotLocation
     ) -> Option<SlotInfo> {
         if let Some(slot_info) = self.cached_slot_at(slot_loc) {
             return Some(slot_info);
         }
-        self.get_and_cache_slot(db, slot_loc)
+        Self::get_and_cache_slot(
+            &mut self.slot_cache.write(),
+            slot_loc,
+            db
+        )
     }
 
     // Set a new signal info in cache.
@@ -1130,7 +1145,12 @@ impl OverlayAccount {
     ) -> DbResult<()> {
         if self.slot_tx_queue.is_none() {
             let slot_tx_queue = db.get_account_slot_tx_queue(&self.address)?;
-            self.slot_tx_queue = Some(slot_tx_queue.unwrap().clone());
+            if let Some(queue) = slot_tx_queue {
+                self.slot_tx_queue = Some(queue.clone());
+            }
+            else {
+                self.slot_tx_queue = Some(SlotTxQueue::new());
+            }   
         }
         Ok(())
     }
@@ -1139,6 +1159,34 @@ impl OverlayAccount {
     pub fn queue_slot_tx(&mut self, slot_tx: SlotTx) {
         self.slot_tx_queue.as_mut().unwrap().push(slot_tx);
     } 
+
+    // Add a slot to the slot list.
+    pub fn add_to_slot_list(&mut self, db: &StateDb, sig_loc: &SignalLocation, slot_info: &SlotInfo) {
+        let mut sig_info = self.signal_at(db, sig_loc).unwrap().clone();
+        sig_info.add_to_slot_list(slot_info);
+        self.set_signal(sig_loc, sig_info);
+    }
+
+    // Add a signal to the bind list.
+    pub fn add_to_bind_list(&mut self, db: &StateDb, slot_loc: &SlotLocation, sig_loc: &SignalLocation) {
+        let mut slot_info = self.slot_at(db, slot_loc).unwrap().clone();
+        slot_info.add_to_bind_list(sig_loc);
+        self.set_slot(slot_loc, slot_info);
+    }
+
+    // Remove a slot from the slot list.
+    pub fn remove_from_slot_list(&mut self, db: &StateDb, sig_loc: &SignalLocation, slot_loc: &SlotLocation) {
+        let mut sig_info = self.signal_at(db, sig_loc).unwrap().clone();
+        sig_info.remove_from_slot_list(slot_loc);
+        self.set_signal(sig_loc, sig_info);
+    }
+
+    // Remove a sig from the bind list.
+    pub fn remove_from_bind_list(&mut self, db: &StateDb, slot_loc: &SlotLocation, sig_loc: &SignalLocation) {
+        let mut slot_info = self.slot_at(db, slot_loc).unwrap().clone();
+        slot_info.remove_from_bind_list(sig_loc);
+        self.set_slot(slot_loc, slot_info);
+    }
 
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////

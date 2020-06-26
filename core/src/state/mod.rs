@@ -39,7 +39,7 @@ use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 use primitives::{
-    SlotTxQueue, SlotTx,
+    SlotTxQueue, SlotTx, SignalInfo, SlotInfo, SignalLocation, SlotLocation,
 };
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
@@ -1050,6 +1050,12 @@ impl State {
         self.precommit_make_dirty_accounts_list();
         self.commit_staking_state(debug_record.as_deref_mut())?;
 
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        self.commit_global_slot_tx_queue(debug_record.as_deref_mut())?;
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+
         let mut killed_addresses = Vec::new();
         for (address, entry) in self.dirty_accounts_to_commit.iter_mut() {
             entry.state = AccountState::Committed;
@@ -1548,29 +1554,107 @@ impl State {
         H256::from_slice(key)
     }
 
-    // Get signal info from the cache.
-    pub fn signal_at() {
+    // Create a signal.
+    pub fn create_signal(
+        &self, owner: &Address, signal_key: &Vec<u8>, arg_count: U256
+    ) -> DbResult<()> {
+        if let Some(_sig) = self.signal_at(owner, signal_key)? {
+            return Ok(());
+        }
+        let sig_loc = SignalLocation::new(owner, signal_key);
+        let sig_info = SignalInfo::new(owner, signal_key, arg_count);
+        self.require_exists(owner, false)?
+            .set_signal(&sig_loc, sig_info);
+        Ok(())
+    }
 
+    // Create a slot.
+    pub fn create_slot(
+        &self, owner: &Address, slot_key: &Vec<u8>, code_entry: U256, 
+        gas_limit: U256, numerator: U256, denominator: U256
+    ) -> DbResult<()> {
+        if let Some(_slot) = self.slot_at(owner, slot_key)? {
+            return Ok(());
+        }
+        let slot_loc = SlotLocation::new(owner, slot_key);
+        let slot_info = SlotInfo::new(
+            owner, slot_key, code_entry, gas_limit, numerator, denominator
+        );
+        self.require_exists(owner, false)?
+            .set_slot(&slot_loc, slot_info);
+        Ok(())
+    }
+
+    // Get signal info from the cache.
+    pub fn signal_at(
+        &self, address: &Address, key: &Vec<u8>,
+    ) -> DbResult<Option<SignalInfo>> {
+        let loc = SignalLocation::new(address, key);
+        self.ensure_cached(address, RequireCache::None, |acc| {
+            acc.map_or(None, |account| {
+                account.signal_at(&self.db, &loc)
+            })
+        })
     }
 
     // Get slot info from the cache.
-    pub fn slot_at() {
-
+    pub fn slot_at(
+        &self, address: &Address, key: &Vec<u8>,
+    ) -> DbResult<Option<SlotInfo>> {
+        let loc = SlotLocation::new(address, key);
+        self.ensure_cached(address, RequireCache::None, |acc| {
+            acc.map_or(None, |account| {
+                account.slot_at(&self.db, &loc)
+            })
+        })
     }
 
     // Bind a slot to a signal.
-    pub fn bind_slot_to_signal() {
-
+    pub fn bind_slot_to_signal(
+        &mut self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
+    ) -> DbResult<()> {
+        // Create a slot struct.
+        let slot_info = self.require_exists(&slot_loc.address, false)?
+                            .slot_at(&self.db, slot_loc)
+                            .unwrap();
+        // Signal account.
+        self.require_exists(&sig_loc.address, false)?
+            .add_to_slot_list(&self.db, sig_loc, &slot_info);
+        // Slot account.
+        self.require_exists(&slot_loc.address, false)?
+            .add_to_bind_list(&self.db, slot_loc, sig_loc);
+        Ok(())
     }
 
     // Detach a slot from a signal.
-    pub fn detach_slot_from_signal() {
-
+    pub fn detach_slot_from_signal(
+        &self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
+    ) -> DbResult<()> {
+        // Signal account.
+        self.require_exists(&sig_loc.address, false)?
+            .remove_from_slot_list(&self.db, sig_loc, slot_loc);
+        // Slot account.
+        self.require_exists(&slot_loc.address, false)?
+            .remove_from_bind_list(&self.db, slot_loc, sig_loc);
+        Ok(())
     }
 
     // Emit a signal.
-    pub fn emit_signal_and_queue_slot_tx() {
-
+    pub fn emit_signal_and_queue_slot_tx(
+        &mut self, sig_loc: &SignalLocation,
+        epoch_height: u64, argv: &Vec<Bytes>
+    ) -> DbResult<()> {
+        let sig_info = self.require_exists(&sig_loc.address, false)?
+                           .signal_at(&self.db, sig_loc)
+                           .unwrap();
+        // Go through the list of slots and form slot transactions
+        for slot in sig_info.get_slot_list() {
+            let tx = SlotTx::new(
+                slot, epoch_height, argv
+            );
+            self.queue_slot_tx_to_global_queue(tx)?;
+        }
+        Ok(())
     }
 
     // Bring the global slot queue to cache and changes.
@@ -1597,14 +1681,20 @@ impl State {
 
     // Queue a slot transaction to the queue.
     pub fn queue_slot_tx_to_global_queue(
-        &mut self, epoch_height: u64, slot_tx: SlotTx,
+        &mut self, slot_tx: SlotTx
     ) -> DbResult<()> {
+        let epoch_height = slot_tx.get_epoch_height();
         // Cache global_slot_tx_queue
         self.cache_global_slot_tx_queue_to_changes(epoch_height)?;
 
         // In changes and cache.
         if let Some(global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
             let mut global_queue = global_queue.clone();
+            global_queue.enqueue(slot_tx);
+            self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+        }
+        else {
+            let mut global_queue = SlotTxQueue::new();
             global_queue.enqueue(slot_tx);
             self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
         }
@@ -1627,11 +1717,34 @@ impl State {
             while !global_queue.is_empty() {
                 let slot_tx = global_queue.dequeue().unwrap();
                 let address = slot_tx.get_owner();
-                let mut account = self.require_exists(address, false)?;
-                account.cache_slot_tx_queue(&self.db)?;
-                account.queue_slot_tx(slot_tx);
+                self.require_exists(address, false)?
+                    .cache_slot_tx_queue(&self.db)?;
+                self.require_exists(address, false)?
+                    .queue_slot_tx(slot_tx);
             }
             self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+        }
+        Ok(())
+    }
+
+    // Commit global queue changes to the state db.
+    pub fn commit_global_slot_tx_queue(
+        &mut self, mut debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> DbResult<()> {
+        for (k, queue) in self.global_slot_tx_queue_changes.drain() {
+            if queue.is_empty() {
+                self.db.delete_global_slot_tx_queue(
+                    k,
+                    debug_record.as_deref_mut()
+                )?;
+            }
+            else {
+                self.db.set_global_slot_tx_queue(
+                    k, 
+                    &queue, 
+                    debug_record.as_deref_mut()
+                )?;
+            }
         }
         Ok(())
     }

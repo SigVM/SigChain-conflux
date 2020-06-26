@@ -365,6 +365,18 @@ impl StateDb {
         self.set::<SlotTxQueue>(key, queue, debug_record)
     }
 
+    pub fn delete_global_slot_tx_queue(
+        &mut self, epoch_height: u64,
+        debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        let buffer = epoch_height.to_le_bytes();
+        let key = StorageKey::new_storage_key(
+            &GLOBAL_SLOT_TX_QUEUE_ADDRESS, 
+            &buffer,
+        );
+        self.delete(key, debug_record)
+    }
+
     pub fn get_account_slot_tx_queue(
         &self, address: &Address
     ) -> Result<Option<SlotTxQueue>> {
@@ -382,16 +394,20 @@ impl StateDb {
         )
     }
 
+    pub fn delete_account_slot_tx_queue(
+        &mut self, address: &Address,
+        debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        self.delete(
+            StorageKey::new_slot_tx_queue_key(address),
+            debug_record,
+        )
+    }
+
     pub fn get_signal_info(
         &self, address: &Address, signal_key: &Vec<u8>,   
     ) -> Result<Option<SignalInfo>> {
         self.get::<SignalInfo>(StorageKey::new_signal_key(address, signal_key))
-    }
-
-    pub fn get_slot_info(
-        &self, address: &Address, slot_key: &Vec<u8>,   
-    ) -> Result<Option<SlotInfo>> {
-        self.get::<SlotInfo>(StorageKey::new_slot_key(address, slot_key))
     }
 
     pub fn set_signal_info(
@@ -405,6 +421,22 @@ impl StateDb {
         )
     }
 
+    pub fn delete_signal_info(
+        &mut self, address: &Address, signal_key: &Vec<u8>,
+        debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        self.delete(
+            StorageKey::new_signal_key(address, signal_key),
+            debug_record,
+        )
+    }
+
+    pub fn get_slot_info(
+        &self, address: &Address, slot_key: &Vec<u8>,   
+    ) -> Result<Option<SlotInfo>> {
+        self.get::<SlotInfo>(StorageKey::new_slot_key(address, slot_key))
+    }
+
     pub fn set_slot_info(
         &mut self, address: &Address, slot_key: &Vec<u8>, slot_info: &SlotInfo,
         debug_record: Option<&mut ComputeEpochDebugRecord>,
@@ -412,6 +444,16 @@ impl StateDb {
         self.set::<SlotInfo>(
             StorageKey::new_slot_key(address, slot_key),
             slot_info,
+            debug_record,
+        )
+    }
+
+    pub fn delete_slot_info(
+        &mut self, address: &Address, slot_key: &Vec<u8>,
+        debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        self.delete(
+            StorageKey::new_slot_key(address, slot_key),
             debug_record,
         )
     }
