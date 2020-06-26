@@ -9,9 +9,10 @@
 // slot transactions, which are described by SlotTx.
 
 use crate::{bytes::Bytes};
-use cfx_types::{Address, U256};
+use cfx_types::{Address, U256, H256};
+use crate::storage_key::StorageKey;
 
-// SignalLocation and SlotLocation. 
+// SignalLocation and SlotLocation.
 // Structs that keeps track of the location of a signal or slot on the network.
 // The two types are the same. We keep them seperate just for readability.
 #[derive(
@@ -87,13 +88,20 @@ impl SignalInfo {
     pub fn remove_from_slot_list(&mut self, loc: &SlotLocation) {
         self.slot_list.retain(|s| (s.location.address != loc.address || s.location.slot_key != loc.slot_key));
     }
+
+    pub fn get_key(&mut self) -> Vec<u8> {
+        StorageKey::new_signal_key(
+            &self.location.address,
+            &self.location.signal_key
+        ).to_key_bytes()
+    }
 }
 
 // SlotInfo. Holds the information that the owner of the slot needs maintain.
 // Whereas Slot is maintained by the owner of the signal that we binded to,
 // SlotInfo is owned by the owner contract who implements the handler. As a
 // result a few things are different, most notably, we need to keep a list
-// of the signals this slot is binded to. 
+// of the signals this slot is binded to.
 #[derive(
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
@@ -101,7 +109,9 @@ pub struct SlotInfo {
     // Location on the network. Used to identify this slot uniquely.
     location: SlotLocation,
     // Pointer to the entry point of this slot.
-    code_entry: U256,
+    code_entry: H256,
+    // Number of arguments expected from a binded signal
+    arg_count: U256,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
@@ -116,12 +126,14 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], code_entry: U256, gas_limit: U256, numerator: U256, denominator: U256
+        owner: &Address, slot_key: &[u8], code_entry: H256, arg_count: U256,
+        gas_limit: U256, numerator: U256, denominator: U256
     ) -> Self {
         let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
             location:              loc,
             code_entry:            code_entry,
+            arg_count:             arg_count,
             gas_limit:             gas_limit,
             gas_ratio_numerator:   numerator,
             gas_ratio_denominator: denominator,
@@ -138,9 +150,16 @@ impl SlotInfo {
     pub fn remove_from_bind_list(&mut self, loc: &SignalLocation) {
         self.bind_list.retain(|s| (s.address != loc.address || s.signal_key != loc.signal_key));
     }
+
+    pub fn get_key(&mut self) -> Vec<u8> {
+        StorageKey::new_slot_key(
+            &self.location.address,
+            &self.location.slot_key
+        ).to_key_bytes()
+    }
 }
 
-// Slot. Holds the information that the signal needs to maintain. Helps in the creation of 
+// Slot. Holds the information that the signal needs to maintain. Helps in the creation of
 // construction of a Slot Transaction upon the emission of a signal. Although almost all
 // information is derived from the SlotInfo, we need the address of the owner of the slot as
 // well as a unique id to be provided. This id allows us to parse through the list of slots
@@ -152,7 +171,7 @@ pub struct Slot {
     // Address of contract that owns this slot.
     location: SlotLocation,
     // Pointer to the entry point of this slot.
-    code_entry: U256,
+    code_entry: H256,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
@@ -164,7 +183,7 @@ impl Slot {
     // Create a new slot out of a SlotInfo.
     pub fn new(slot_info: &SlotInfo) -> Self {
         let new = Slot {
-            location:              slot_info.location.clone(),                   
+            location:              slot_info.location.clone(),
             code_entry:            slot_info.code_entry.clone(),
             gas_limit:             slot_info.gas_limit.clone(),
             gas_ratio_numerator:   slot_info.gas_ratio_numerator.clone(),

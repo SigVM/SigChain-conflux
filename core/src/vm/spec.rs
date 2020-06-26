@@ -142,12 +142,6 @@ pub struct Spec {
     pub wasm: Option<WasmCosts>,
 
     /* Signal and Slots begin */
-    /// Does it have a signal call
-    pub have_signal_call: bool,
-    /// Does it have a slot call
-    pub have_slot_call: bool,
-    /// Reward ratio for a slot call
-    pub slot_special_ratio: usize,
     /// Gas for registering new signal
     pub sig_create_gas: usize,
     /// Gas for registering new slot
@@ -289,9 +283,6 @@ impl Spec {
             keep_unsigned_nonce: false,
             wasm: None,
             /* Signal and Slots begin */
-            have_signal_call: false,
-            have_slot_call: false,
-            slot_special_ratio: 120,
             sig_create_gas: 20000,
             slot_create_gas: 20000,
             slot_bind_gas: 5000,

@@ -450,24 +450,27 @@ impl<'a> ContextTrait for Context<'a> {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    // Create a new signal definition, gas is hardcoded for now
+    // TODO: rethink about error handling
     fn create_sig(
         &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
-        _num_arg: &U256
+        _num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        // TODO
-        Ok(SignalSlotOpResult::Failed)
+        let id = self.state.create_signal(_sender_address, _signal_key, _num_arg);
+        
+        Ok(SignalSlotOpResult::SuccessWithId(id))
     }
 
     // Create a new slot definition
-    // gas_ratio is out of 100, gas is hardcoded for now
+    // TODO: rethink about error handling
     fn create_slot(
         &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
-        _num_arg: &U256, _gas_limit: &U256, _gas_ratio: &U256,
+        _num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
         _code: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        // TODO
-        Ok(SignalSlotOpResult::Failed)
+        let id = self.state.create_slot(_sender_address, _slot_key, _num_arg,
+        _code, _gas_limit, _gas_ratio, U256::from_dec_str("100").unwrap());
+
+        Ok(SignalSlotOpResult::SuccessWithId(id))
     }
 
     // Bind a slot to a signal, gas is hardcoded for now

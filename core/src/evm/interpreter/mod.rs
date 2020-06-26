@@ -1536,12 +1536,12 @@ impl<Cost: CostType> Interpreter<Cost> {
                     context.create_sig(
                         &self.params.address,
                         &sig_key,
-                        &sig_argc,
+                        sig_argc,
                     );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithId(sig_key)) => {
-                        self.stack.push(sig_key);
+                    Ok(SignalSlotOpResult::SuccessWithId(sig_id)) => {
+                        self.stack.push(h256_to_u256(sig_id));
                     }
                     _ => {
                         self.stack.push(U256::zero());
@@ -1562,15 +1562,15 @@ impl<Cost: CostType> Interpreter<Cost> {
                     context.create_slot(
                         &self.params.address,
                         &slot_key,
-                        &slot_argc,
-                        &gas_limit,
-                        &gas_ratio,
+                        slot_argc,
+                        gas_limit,
+                        gas_ratio,
                         slot_code,
                     );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithId(slot_key)) => {
-                        self.stack.push(slot_key);
+                    Ok(SignalSlotOpResult::SuccessWithId(slot_id)) => {
+                        self.stack.push(h256_to_u256(slot_id));
                     }
                     _ => {
                         self.stack.push(U256::zero());
@@ -1733,6 +1733,9 @@ fn u256_to_address(value: &U256) -> Address {
 
 #[inline]
 fn address_to_u256(value: Address) -> U256 { H256::from(value).into_uint() }
+
+#[inline]
+fn h256_to_u256(value: H256) -> U256 { value.into_uint() }
 
 #[cfg(test)]
 mod tests {

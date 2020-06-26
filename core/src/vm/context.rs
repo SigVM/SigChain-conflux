@@ -64,7 +64,7 @@ pub enum MessageCallResult {
 pub enum SignalSlotOpResult {
     /// Returned when the creation was successfull.
     /// return along the signal/slot storage id
-    SuccessWithId(U256),
+    SuccessWithId(H256),
     /// Returned when the operation was successfull.
     Success,
     /// Returned when message call failed.
@@ -201,14 +201,14 @@ pub trait Context {
     // Create a new signal definition
     fn create_sig(
         &mut self, sender_address: &Address, signal_key: &Vec<u8>,
-        num_arg: &U256
+        num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Create a new slot definition
     // gas_ratio is out of 100
     fn create_slot(
         &mut self, sender_address: &Address, slot_key: &Vec<u8>,
-        num_arg: &U256, gas_limit: &U256, gas_ratio: &U256,
+        num_arg: U256, gas_limit: U256, gas_ratio: U256,
         code: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 

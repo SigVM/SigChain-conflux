@@ -17,7 +17,8 @@ use crate::{
     vm_factory::VmFactory,
 };
 use cfx_types::{address_util::AddressUtil, Address, H256, U256};
-use primitives::{Account, EpochId, StorageKey, StorageLayout, StorageValue};
+use primitives::{Account, EpochId, StorageKey, StorageLayout, StorageValue,
+    SignalInfo, SignalLocation, SlotInfo, SlotLocation};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
@@ -109,7 +110,7 @@ pub struct State {
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
     global_slot_tx_queue_cache: RwLock<HashMap<u64, SlotTxQueue>>,
-    global_slot_tx_queue_changes: HashMap<u64, SlotTxQueue>, 
+    global_slot_tx_queue_changes: HashMap<u64, SlotTxQueue>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -1488,14 +1489,68 @@ impl State {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    
+
     // This section provides an API to be called by context.rs in the executive directory.
     // All operations done here are first done on cache, then commiting to the StateDb in
-    // the commit functions found under State as well as in OverlayAccount.  
+    // the commit functions found under State as well as in OverlayAccount.
+
+    // Create an new signal definition.
+    pub fn create_signal_internal(
+        &mut self, address: &Address, location: &SignalLocation, sig_info: SignalInfo
+    ) -> DbResult<()> {
+        self.require_exists(address, false)?
+            .set_signal(location, sig_info);
+
+        Ok(())
+    }
+
+    // TODO: rethink about error handling
+    pub fn create_signal(
+        &mut self, address: &Address, signal_key: &Vec<u8>, num_arg: U256
+    ) -> H256 {
+        let location = SignalLocation::new(&address, &signal_key);
+        let mut sig_info = SignalInfo::new(&address, &signal_key, num_arg);
+        let key: &[u8] = &sig_info.get_key();
+        self.create_signal_internal(address, &location, sig_info);
+
+        H256::from_slice(key)
+    }
+
+    // Create an new slot definition.
+    pub fn create_slot_internal(
+        &mut self, address: &Address, location: &SlotLocation, slot_info: SlotInfo
+    ) -> DbResult<()> {
+        self.require_exists(address, false)?
+            .set_slot(location, slot_info);
+
+        Ok(())
+    }
+
+    // TODO: rethink about error handling
+    pub fn create_slot(
+        &mut self, address: &Address, slot_key: &Vec<u8>, num_arg: U256,
+        code_entry: &[u8], gas_limit: U256, numerator: U256, denominator: U256
+    ) -> H256 {
+        let location = SlotLocation::new(&address, &slot_key);
+        let mut slot_info = SlotInfo::new(
+            &address,
+            &slot_key,
+            H256::from_slice(code_entry),
+            num_arg,
+            gas_limit,
+            numerator,
+            denominator
+        );
+
+        let key: &[u8] = &slot_info.get_key();
+        self.create_slot_internal(address, &location, slot_info);
+
+        H256::from_slice(key)
+    }
 
     // Get signal info from the cache.
     pub fn signal_at() {
-        
+
     }
 
     // Get slot info from the cache.
@@ -1505,7 +1560,7 @@ impl State {
 
     // Bind a slot to a signal.
     pub fn bind_slot_to_signal() {
- 
+
     }
 
     // Detach a slot from a signal.
@@ -1515,7 +1570,7 @@ impl State {
 
     // Emit a signal.
     pub fn emit_signal_and_queue_slot_tx() {
-        
+
     }
 
     // Bring the global slot queue to cache and changes.
@@ -1538,7 +1593,7 @@ impl State {
             return Ok(());
         }
         Ok(())
-    }   
+    }
 
     // Queue a slot transaction to the queue.
     pub fn queue_slot_tx_to_global_queue(
@@ -1562,7 +1617,7 @@ impl State {
     // it should be used by the consensus executor.
     pub fn drain_global_slot_transaction_queue(
         &mut self, epoch_height: u64,
-    ) -> DbResult<()> { 
+    ) -> DbResult<()> {
         // Cache global queue.
         self.cache_global_slot_tx_queue_to_changes(epoch_height)?;
 
