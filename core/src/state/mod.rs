@@ -17,8 +17,7 @@ use crate::{
     vm_factory::VmFactory,
 };
 use cfx_types::{address_util::AddressUtil, Address, H256, U256};
-use primitives::{Account, EpochId, StorageKey, StorageLayout, StorageValue,
-    SignalInfo, SignalLocation, SlotInfo, SlotLocation};
+use primitives::{Account, EpochId, StorageKey, StorageLayout, StorageValue};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
@@ -1499,6 +1498,43 @@ impl State {
     // This section provides an API to be called by context.rs in the executive directory.
     // All operations done here are first done on cache, then commiting to the StateDb in
     // the commit functions found under State as well as in OverlayAccount.
+    
+    // Mentioned below that error handling should be rethought. I think this would be a better
+    // way to handle errors. One other thing, I feel like it would be important to check if
+    // an instance of a signal already exists. Not sure if we want to override it and potentially
+    // lose the list of listeners. I left the code below as is because otherwise context doesn't compile.
+    // But see if this implementation makes more sense or not.
+
+    // // Create a signal.
+    // pub fn create_signal(
+    //     &self, owner: &Address, signal_key: &Vec<u8>, arg_count: U256
+    // ) -> DbResult<()> {
+    //     if let Some(_sig) = self.signal_at(owner, signal_key)? {
+    //         return Ok(());
+    //     }
+    //     let sig_loc = SignalLocation::new(owner, signal_key);
+    //     let sig_info = SignalInfo::new(owner, signal_key, arg_count);
+    //     self.require_exists(owner, false)?
+    //         .set_signal(&sig_loc, sig_info);
+    //     Ok(())
+    // }
+
+    // // Create a slot.
+    // pub fn create_slot(
+    //     &self, owner: &Address, slot_key: &Vec<u8>, code_entry: U256, 
+    //     gas_limit: U256, numerator: U256, denominator: U256
+    // ) -> DbResult<()> {
+    //     if let Some(_slot) = self.slot_at(owner, slot_key)? {
+    //         return Ok(());
+    //     }
+    //     let slot_loc = SlotLocation::new(owner, slot_key);
+    //     let slot_info = SlotInfo::new(
+    //         owner, slot_key, code_entry, gas_limit, numerator, denominator
+    //     );
+    //     self.require_exists(owner, false)?
+    //         .set_slot(&slot_loc, slot_info);
+    //     Ok(())
+    // }
 
     // Create an new signal definition.
     pub fn create_signal_internal(
@@ -1552,37 +1588,6 @@ impl State {
         self.create_slot_internal(address, &location, slot_info);
 
         H256::from_slice(key)
-    }
-
-    // Create a signal.
-    pub fn create_signal(
-        &self, owner: &Address, signal_key: &Vec<u8>, arg_count: U256
-    ) -> DbResult<()> {
-        if let Some(_sig) = self.signal_at(owner, signal_key)? {
-            return Ok(());
-        }
-        let sig_loc = SignalLocation::new(owner, signal_key);
-        let sig_info = SignalInfo::new(owner, signal_key, arg_count);
-        self.require_exists(owner, false)?
-            .set_signal(&sig_loc, sig_info);
-        Ok(())
-    }
-
-    // Create a slot.
-    pub fn create_slot(
-        &self, owner: &Address, slot_key: &Vec<u8>, code_entry: U256, 
-        gas_limit: U256, numerator: U256, denominator: U256
-    ) -> DbResult<()> {
-        if let Some(_slot) = self.slot_at(owner, slot_key)? {
-            return Ok(());
-        }
-        let slot_loc = SlotLocation::new(owner, slot_key);
-        let slot_info = SlotInfo::new(
-            owner, slot_key, code_entry, gas_limit, numerator, denominator
-        );
-        self.require_exists(owner, false)?
-            .set_slot(&slot_loc, slot_info);
-        Ok(())
     }
 
     // Get signal info from the cache.
