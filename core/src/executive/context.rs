@@ -21,7 +21,7 @@ use crate::{
     },
 };
 use cfx_types::{Address, H256, U256};
-use primitives::{transaction::UNSIGNED_SENDER, StorageLayout};
+use primitives::{transaction::UNSIGNED_SENDER, StorageLayout,SignalLocation,SlotLocation};
 use std::sync::Arc;
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -478,8 +478,15 @@ impl<'a> ContextTrait for Context<'a> {
         &mut self, _sender_address: &Address,
         _signal_address: &Address, _signal_id: U256, _slot_id: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        // TODO
-        Ok(SignalSlotOpResult::Failed)
+        // TODO: add check success
+        let mut sig_key = vec![0; 32];
+        _signal_id.to_big_endian(sig_key.as_mut());
+        let sig_loc = SignalLocation::new(&_signal_address, &sig_key);
+        let mut slt_key = vec![0; 32];
+        _slot_id.to_big_endian(slt_key.as_mut());
+        let slt_loc = SlotLocation::new(&_sender_address, &slt_key);
+        self.state.bind_slot_to_signal(&sig_loc, &slt_loc);
+        Ok(SignalSlotOpResult::Success)
     }
 
     // Detach a slot from a signal, gas is hardcoded for now
@@ -487,8 +494,15 @@ impl<'a> ContextTrait for Context<'a> {
         &mut self, _sender_address: &Address,
         _signal_address: &Address, _signal_id: U256, _slot_id: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        // TODO
-        Ok(SignalSlotOpResult::Failed)
+        // TODO: add check success
+        let mut sig_key = vec![0; 32];
+        _signal_id.to_big_endian(sig_key.as_mut());
+        let sig_loc = SignalLocation::new(&_signal_address, &sig_key);
+        let mut slt_key = vec![0; 32];
+        _slot_id.to_big_endian(slt_key.as_mut());
+        let slt_loc = SlotLocation::new(&_sender_address, &slt_key);
+        self.state.detach_slot_from_signal(&sig_loc, &slt_loc);
+        Ok(SignalSlotOpResult::Success)
     }
 
     // Emit a new signal instance, gas is hardcoded for now
@@ -496,8 +510,13 @@ impl<'a> ContextTrait for Context<'a> {
         &mut self, _sender_address: &Address,
         _signal_id: &U256, _blocks_delayed: &U256, _data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        // TODO
-        Ok(SignalSlotOpResult::Failed)
+        // TODO: add check success
+        let mut sig_key = vec![0; 32];
+        _signal_id.to_big_endian(sig_key.as_mut());
+        let sig_loc = SignalLocation::new(&_sender_address, &sig_key);
+        let data_vec: Vec<Bytes> = [Bytes::from(_data)].to_vec();
+        self.state.emit_signal_and_queue_slot_tx(&sig_loc,self.env.epoch_height, &data_vec);
+        Ok(SignalSlotOpResult::Success)
     }
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
