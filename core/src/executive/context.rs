@@ -19,7 +19,6 @@ use crate::{
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
     },
-    statedb::{ErrorKind as DbErrorKind, Result as DbResult, StateDb},
 };
 use cfx_types::{Address, H256, U256};
 use primitives::{transaction::UNSIGNED_SENDER, StorageLayout,SignalLocation,SlotLocation};
@@ -456,9 +455,11 @@ impl<'a> ContextTrait for Context<'a> {
         &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
         _num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let id = self.state.create_signal(_sender_address, _signal_key, _num_arg);
-        
-        Ok(SignalSlotOpResult::SuccessWithId(id))
+        let result = self.state.create_signal(_sender_address, _signal_key, _num_arg);
+        match result {
+            Ok(Some(id)) => Ok(SignalSlotOpResult::SuccessWithId(id)),
+            _ => Ok(SignalSlotOpResult::Failed)
+        }
     }
 
     // Create a new slot definition
@@ -466,12 +467,14 @@ impl<'a> ContextTrait for Context<'a> {
     fn create_slot(
         &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
         _num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
-        _code: &[u8]
+        _code: &Address
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let id = self.state.create_slot(_sender_address, _slot_key, _num_arg,
+        let result = self.state.create_slot(_sender_address, _slot_key, _num_arg,
         _code, _gas_limit, _gas_ratio, U256::from_dec_str("100").unwrap());
-
-        Ok(SignalSlotOpResult::SuccessWithId(id))
+        match result {
+            Ok(Some(id)) => Ok(SignalSlotOpResult::SuccessWithId(id)),
+            _ => Ok(SignalSlotOpResult::Failed)
+        }
     }
 
     // Bind a slot to a signal, gas is hardcoded for now
@@ -489,7 +492,7 @@ impl<'a> ContextTrait for Context<'a> {
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
             _ => Ok(SignalSlotOpResult::Failed)
-        }  
+        }
     }
 
     // Detach a slot from a signal, gas is hardcoded for now

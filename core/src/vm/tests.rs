@@ -257,7 +257,7 @@ impl Context for MockContext {
     fn create_slot(
         &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
         _num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
-        _code: &[u8]
+        _code: &Address
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)

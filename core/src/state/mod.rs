@@ -1498,86 +1498,34 @@ impl State {
     // This section provides an API to be called by context.rs in the executive directory.
     // All operations done here are first done on cache, then commiting to the StateDb in
     // the commit functions found under State as well as in OverlayAccount.
-    
+
     // Mentioned below that error handling should be rethought. I think this would be a better
     // way to handle errors. One other thing, I feel like it would be important to check if
     // an instance of a signal already exists. Not sure if we want to override it and potentially
     // lose the list of listeners. I left the code below as is because otherwise context doesn't compile.
     // But see if this implementation makes more sense or not.
 
-    // // Create a signal.
-    // pub fn create_signal(
-    //     &self, owner: &Address, signal_key: &Vec<u8>, arg_count: U256
-    // ) -> DbResult<()> {
-    //     if let Some(_sig) = self.signal_at(owner, signal_key)? {
-    //         return Ok(());
-    //     }
-    //     let sig_loc = SignalLocation::new(owner, signal_key);
-    //     let sig_info = SignalInfo::new(owner, signal_key, arg_count);
-    //     self.require_exists(owner, false)?
-    //         .set_signal(&sig_loc, sig_info);
-    //     Ok(())
-    // }
-
-    // // Create a slot.
-    // pub fn create_slot(
-    //     &self, owner: &Address, slot_key: &Vec<u8>, code_entry: U256, 
-    //     gas_limit: U256, numerator: U256, denominator: U256
-    // ) -> DbResult<()> {
-    //     if let Some(_slot) = self.slot_at(owner, slot_key)? {
-    //         return Ok(());
-    //     }
-    //     let slot_loc = SlotLocation::new(owner, slot_key);
-    //     let slot_info = SlotInfo::new(
-    //         owner, slot_key, code_entry, gas_limit, numerator, denominator
-    //     );
-    //     self.require_exists(owner, false)?
-    //         .set_slot(&slot_loc, slot_info);
-    //     Ok(())
-    // }
-
     // Create an new signal definition.
-    pub fn create_signal_internal(
-        &mut self, address: &Address, location: &SignalLocation, sig_info: SignalInfo
-    ) -> DbResult<()> {
-        self.require_exists(address, false)?
-            .set_signal(location, sig_info);
-
-        Ok(())
-    }
-
-    // TODO: rethink about error handling
     pub fn create_signal(
         &mut self, address: &Address, signal_key: &Vec<u8>, num_arg: U256
-    ) -> H256 {
-        let location = SignalLocation::new(&address, &signal_key);
+    ) -> DbResult<Option<H256>> {
         let mut sig_info = SignalInfo::new(&address, &signal_key, num_arg);
         let key: &[u8] = &sig_info.get_key();
-        self.create_signal_internal(address, &location, sig_info);
+        self.require_exists(address, false)?
+            .set_signal(sig_info);
 
-        H256::from_slice(key)
+        Ok(Some(H256::from_slice(key)))
     }
 
     // Create an new slot definition.
-    pub fn create_slot_internal(
-        &mut self, address: &Address, location: &SlotLocation, slot_info: SlotInfo
-    ) -> DbResult<()> {
-        self.require_exists(address, false)?
-            .set_slot(location, slot_info);
-
-        Ok(())
-    }
-
-    // TODO: rethink about error handling
     pub fn create_slot(
         &mut self, address: &Address, slot_key: &Vec<u8>, num_arg: U256,
-        code_entry: &[u8], gas_limit: U256, numerator: U256, denominator: U256
-    ) -> H256 {
-        let location = SlotLocation::new(&address, &slot_key);
+        code_entry: &Address, gas_limit: U256, numerator: U256, denominator: U256
+    ) -> DbResult<Option<H256>> {
         let mut slot_info = SlotInfo::new(
             &address,
             &slot_key,
-            H256::from_slice(code_entry),
+            code_entry,
             num_arg,
             gas_limit,
             numerator,
@@ -1585,9 +1533,10 @@ impl State {
         );
 
         let key: &[u8] = &slot_info.get_key();
-        self.create_slot_internal(address, &location, slot_info);
+        self.require_exists(address, false)?
+            .set_slot(slot_info);
 
-        H256::from_slice(key)
+        Ok(Some(H256::from_slice(key)))
     }
 
     // Get signal info from the cache.
@@ -1745,8 +1694,8 @@ impl State {
             }
             else {
                 self.db.set_global_slot_tx_queue(
-                    k, 
-                    &queue, 
+                    k,
+                    &queue,
                     debug_record.as_deref_mut()
                 )?;
             }

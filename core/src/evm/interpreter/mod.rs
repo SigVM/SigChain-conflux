@@ -1550,13 +1550,11 @@ impl<Cost: CostType> Interpreter<Cost> {
             }
             instructions::CREATESLOT => {
                 let slot_argc = self.stack.pop_back(); // 0
-                let code_off = self.stack.pop_back();  // 1
-                let code_size = self.stack.pop_back(); // 2
-                let gas_ratio = self.stack.pop_back(); // 3, not used yet
-                let gas_limit = self.stack.pop_back(); // 4
-                let mut slot_key = vec![0; 32];        // 5
+                let gas_ratio = self.stack.pop_back(); // 1
+                let gas_limit = self.stack.pop_back(); // 2
+                let code_entry = self.stack.pop_back();  // 3
+                let mut slot_key = vec![0; 32];        // 4
                 self.stack.pop_back().to_big_endian(slot_key.as_mut());
-                let slot_code = self.mem.read_slice(code_off, code_size);
 
                 let call_result =
                     context.create_slot(
@@ -1565,7 +1563,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                         slot_argc,
                         gas_limit,
                         gas_ratio,
-                        slot_code,
+                        &u256_to_address(&code_entry),
                     );
 
                 match call_result {

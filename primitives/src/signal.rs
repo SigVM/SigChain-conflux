@@ -9,7 +9,7 @@
 // slot transactions, which are described by SlotTx.
 
 use crate::{bytes::Bytes};
-use cfx_types::{Address, U256, H256};
+use cfx_types::{Address, U256};
 use crate::storage_key::StorageKey;
 
 // SignalLocation and SlotLocation.
@@ -78,6 +78,11 @@ impl SignalInfo {
         &self.slot_list
     }
 
+    // Get location.
+    pub fn get_signal_loc(&self) -> &SignalLocation {
+        &self.location
+    }
+
     // Bind a slot to this signal.
     pub fn add_to_slot_list(&mut self, slot_info: &SlotInfo) {
         let slot = Slot::new(slot_info);
@@ -108,8 +113,9 @@ impl SignalInfo {
 pub struct SlotInfo {
     // Location on the network. Used to identify this slot uniquely.
     location: SlotLocation,
+    // Note: slot is currently treated as a function within its contract
     // Pointer to the entry point of this slot.
-    code_entry: H256,
+    code_entry: Address,
     // Number of arguments expected from a binded signal
     arg_count: U256,
     // Gas limit for slot execution.
@@ -126,13 +132,13 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], code_entry: H256, arg_count: U256,
+        owner: &Address, slot_key: &[u8], code_entry: &Address, arg_count: U256,
         gas_limit: U256, numerator: U256, denominator: U256
     ) -> Self {
         let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
             location:              loc,
-            code_entry:            code_entry,
+            code_entry:            code_entry.clone(),
             arg_count:             arg_count,
             gas_limit:             gas_limit,
             gas_ratio_numerator:   numerator,
@@ -157,6 +163,11 @@ impl SlotInfo {
             &self.location.slot_key
         ).to_key_bytes()
     }
+
+    // Get location.
+    pub fn get_slot_loc(&self) -> &SlotLocation {
+        &self.location
+    }
 }
 
 // Slot. Holds the information that the signal needs to maintain. Helps in the creation of
@@ -171,7 +182,7 @@ pub struct Slot {
     // Address of contract that owns this slot.
     location: SlotLocation,
     // Pointer to the entry point of this slot.
-    code_entry: H256,
+    code_entry: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
