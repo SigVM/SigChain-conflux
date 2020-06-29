@@ -50,11 +50,6 @@ enum RequireCache {
     Code,
     DepositList,
     VoteStakeList,
-    //////////////////////////////////////////////////////////////////////
-    /* Signal and Slots begin */
-    SlotTxQueue,
-    /* Signal and Slots end */
-    //////////////////////////////////////////////////////////////////////
 }
 
 /// Mode of dealing with null accounts.
@@ -108,8 +103,12 @@ pub struct State {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
+    // Keep track of the changes to the global slot tx queue.
+    // As a refresher, the changes are stored as a mapping between epoch number
+    // and slot transaction queue. This mapping of changes are also stored
+    // in checkpoints along with staking state and account info.
+    global_slot_tx_queue_cache_checkpoints: RwLock<Vec<HashMap<u64, SlotTxQueue>>>,
     global_slot_tx_queue_cache: RwLock<HashMap<u64, SlotTxQueue>>,
-    global_slot_tx_queue_changes: HashMap<u64, SlotTxQueue>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -159,8 +158,8 @@ impl State {
             dirty_accounts_to_commit: Default::default(),
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
+            global_slot_tx_queue_cache_checkpoints: Default::default(),
             global_slot_tx_queue_cache: Default::default(),
-            global_slot_tx_queue_changes: HashMap::new(),
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
         }
@@ -171,6 +170,11 @@ impl State {
     /// Increase block number and calculate the current secondary reward.
     pub fn increase_block_number(&mut self) -> U256 {
         assert!(self.staking_state_checkpoints.get_mut().is_empty());
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        assert!(self.global_slot_tx_queue_cache.get_mut().is_empty());
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
         self.block_number += 1;
         //self.account_start_nonce +=
         //    ESTIMATED_MAX_BLOCK_SIZE_IN_TRANSACTION_COUNT.into();
@@ -209,6 +213,13 @@ impl State {
         self.staking_state_checkpoints
             .get_mut()
             .push(self.staking_state.clone());
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        self.global_slot_tx_queue_cache_checkpoints
+            .get_mut()
+            .push(self.global_slot_tx_queue_cache.read().clone());
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
         let checkpoints = self.checkpoints.get_mut();
         let index = checkpoints.len();
         checkpoints.push(HashMap::new());
@@ -351,6 +362,11 @@ impl State {
         let last = self.checkpoints.get_mut().pop();
         if let Some(mut checkpoint) = last {
             self.staking_state_checkpoints.get_mut().pop();
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            self.global_slot_tx_queue_cache_checkpoints.get_mut().pop();
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////           
             if let Some(ref mut prev) = self.checkpoints.get_mut().last_mut() {
                 if prev.is_empty() {
                     **prev = checkpoint;
@@ -371,6 +387,16 @@ impl State {
                 .get_mut()
                 .pop()
                 .expect("staking_state_checkpoint should exist");
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            let tx_checkpoint = self.global_slot_tx_queue_cache_checkpoints
+                                    .get_mut()
+                                    .pop()
+                                    .expect("global slot tx queue cache checkpoint should exist");
+            let tx_checkpoint = RwLock::new(tx_checkpoint);
+            self.global_slot_tx_queue_cache = tx_checkpoint;
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
             for (k, v) in checkpoint.drain() {
                 match v {
                     Some(v) => match self.cache.get_mut().entry(k) {
@@ -908,11 +934,6 @@ impl State {
             RequireCache::Code | RequireCache::CodeSize => !account.is_cached(),
             RequireCache::DepositList => account.deposit_list().is_none(),
             RequireCache::VoteStakeList => account.vote_stake_list().is_none(),
-            //////////////////////////////////////////////////////////////////////
-            /* Signal and Slots begin */
-            RequireCache::SlotTxQueue => account.slot_tx_queue().is_none(),
-            /* Signal and Slots end */
-            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -940,13 +961,6 @@ impl State {
                     db,
                 )
                 .is_ok(),
-            //////////////////////////////////////////////////////////////////////
-            /* Signal and Slots begin */
-            RequireCache::SlotTxQueue => account
-                .cache_slot_tx_queue(db)
-                .is_ok(),
-            /* Signal and Slots end */
-            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -1051,6 +1065,7 @@ impl State {
 
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
+        assert!(self.global_slot_tx_queue_cache_checkpoints.get_mut().is_empty());
         self.commit_global_slot_tx_queue(debug_record.as_deref_mut())?;
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
@@ -1612,23 +1627,15 @@ impl State {
     }
 
     // Bring the global slot queue to cache and changes.
-    pub fn cache_global_slot_tx_queue_to_changes(
+    pub fn cache_global_slot_tx_queue(
         &mut self, epoch_height: u64,
     ) -> DbResult<()> {
-        if let Some(_global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
-            return Ok(());
-        }
-        if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
-            self.global_slot_tx_queue_changes
-                .insert(epoch_height, global_queue.clone());
+        if let Some(_global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
             return Ok(());
         }
         if let Some(global_queue) = self.db.get_global_slot_tx_queue(epoch_height)? {
             self.global_slot_tx_queue_cache.write()
                 .insert(epoch_height, global_queue.clone());
-            self.global_slot_tx_queue_changes
-                .insert(epoch_height, global_queue.clone());
-            return Ok(());
         }
         Ok(())
     }
@@ -1638,19 +1645,21 @@ impl State {
         &mut self, slot_tx: SlotTx
     ) -> DbResult<()> {
         let epoch_height = slot_tx.get_epoch_height();
-        // Cache global_slot_tx_queue
-        self.cache_global_slot_tx_queue_to_changes(epoch_height)?;
+        // Cache global_slot_tx_queue.
+        self.cache_global_slot_tx_queue(epoch_height)?;
 
-        // In changes and cache.
-        if let Some(global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
+        // Perform queueing.
+        if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
             let mut global_queue = global_queue.clone();
             global_queue.enqueue(slot_tx);
-            self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+            self.global_slot_tx_queue_cache.write()
+                .insert(epoch_height, global_queue);
         }
         else {
             let mut global_queue = SlotTxQueue::new();
             global_queue.enqueue(slot_tx);
-            self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+            self.global_slot_tx_queue_cache.write()
+                .insert(epoch_height, global_queue);
         }
         Ok(())
     }
@@ -1663,10 +1672,10 @@ impl State {
         &mut self, epoch_height: u64,
     ) -> DbResult<()> {
         // Cache global queue.
-        self.cache_global_slot_tx_queue_to_changes(epoch_height)?;
+        self.cache_global_slot_tx_queue(epoch_height)?;
 
-        // In changes and cache.
-        if let Some(global_queue) = self.global_slot_tx_queue_changes.get(&epoch_height) {
+        // Dequeue and distribute to individual accounts.
+        if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
             let mut global_queue = global_queue.clone();
             while !global_queue.is_empty() {
                 let slot_tx = global_queue.dequeue().unwrap();
@@ -1676,7 +1685,8 @@ impl State {
                 self.require_exists(address, false)?
                     .queue_slot_tx(slot_tx);
             }
-            self.global_slot_tx_queue_changes.insert(epoch_height, global_queue);
+            assert!(global_queue.is_empty());
+            self.global_slot_tx_queue_cache.write().insert(epoch_height, global_queue);
         }
         Ok(())
     }
@@ -1685,7 +1695,7 @@ impl State {
     pub fn commit_global_slot_tx_queue(
         &mut self, mut debug_record: Option<&mut ComputeEpochDebugRecord>,
     ) -> DbResult<()> {
-        for (k, queue) in self.global_slot_tx_queue_changes.drain() {
+        for (k, queue) in self.global_slot_tx_queue_cache.write().drain() {
             if queue.is_empty() {
                 self.db.delete_global_slot_tx_queue(
                     k,
