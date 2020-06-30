@@ -37,6 +37,9 @@ use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
+#[cfg(test)]
+mod signal_tests;
+
 use primitives::{
     SlotTxQueue, SlotTx, SignalInfo, SlotInfo, SignalLocation, SlotLocation,
 };
@@ -1520,24 +1523,40 @@ impl State {
     // lose the list of listeners. I left the code below as is because otherwise context doesn't compile.
     // But see if this implementation makes more sense or not.
 
-    // Create an new signal definition.
+    // Create a new signal definition.
+    // If the signal already exists do nothing.
     pub fn create_signal(
         &mut self, address: &Address, signal_key: &Vec<u8>, num_arg: U256
     ) -> DbResult<Option<H256>> {
-        let mut sig_info = SignalInfo::new(&address, &signal_key, num_arg);
-        let key: &[u8] = &sig_info.get_key();
+        // Make sure account is cached.
+        let empty_sig = self.signal_at(address, signal_key).expect("Caching should not fail.");
+        if !empty_sig.is_none() {
+            return Ok(None);
+        }
+        // Create new signal instance.
+        let sig_info = SignalInfo::new(
+            &address, 
+            &signal_key, 
+            num_arg
+        );
         self.require_exists(address, false)?
             .set_signal(sig_info);
 
-        Ok(Some(H256::from_slice(key)))
+        Ok(Some(H256::zero()))
     }
 
-    // Create an new slot definition.
+    // Create a new slot definition.
     pub fn create_slot(
         &mut self, address: &Address, slot_key: &Vec<u8>, num_arg: U256,
-        code_entry: &Address, gas_limit: U256, numerator: U256, denominator: U256
+        code_entry: U256, gas_limit: U256, numerator: U256, denominator: U256
     ) -> DbResult<Option<H256>> {
-        let mut slot_info = SlotInfo::new(
+        // Make sure account is cached.
+        let empty_slot = self.slot_at(address, slot_key).expect("Caching should not fail.");
+        if !empty_slot.is_none() {
+            return Ok(None);
+        }
+        // Create new slot instance.
+        let slot_info = SlotInfo::new(
             &address,
             &slot_key,
             code_entry,
@@ -1546,12 +1565,10 @@ impl State {
             numerator,
             denominator
         );
-
-        let key: &[u8] = &slot_info.get_key();
         self.require_exists(address, false)?
             .set_slot(slot_info);
 
-        Ok(Some(H256::from_slice(key)))
+        Ok(Some(H256::zero()))
     }
 
     // Get signal info from the cache.

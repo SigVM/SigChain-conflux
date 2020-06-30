@@ -467,7 +467,7 @@ impl<'a> ContextTrait for Context<'a> {
     fn create_slot(
         &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
         _num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
-        _code: &Address
+        _code: U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let result = self.state.create_slot(_sender_address, _slot_key, _num_arg,
         _code, _gas_limit, _gas_ratio, U256::from_dec_str("100").unwrap());

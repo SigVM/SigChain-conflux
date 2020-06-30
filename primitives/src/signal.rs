@@ -115,7 +115,7 @@ pub struct SlotInfo {
     location: SlotLocation,
     // Note: slot is currently treated as a function within its contract
     // Pointer to the entry point of this slot.
-    code_entry: Address,
+    code_entry: U256,
     // Number of arguments expected from a binded signal
     arg_count: U256,
     // Gas limit for slot execution.
@@ -132,13 +132,13 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], code_entry: &Address, arg_count: U256,
+        owner: &Address, slot_key: &[u8], code_entry: U256, arg_count: U256,
         gas_limit: U256, numerator: U256, denominator: U256
     ) -> Self {
         let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
             location:              loc,
-            code_entry:            code_entry.clone(),
+            code_entry:            code_entry,
             arg_count:             arg_count,
             gas_limit:             gas_limit,
             gas_ratio_numerator:   numerator,
@@ -182,7 +182,7 @@ pub struct Slot {
     // Address of contract that owns this slot.
     location: SlotLocation,
     // Pointer to the entry point of this slot.
-    code_entry: Address,
+    code_entry: U256,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.

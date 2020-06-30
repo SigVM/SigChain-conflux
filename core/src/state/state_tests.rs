@@ -17,7 +17,7 @@ use crate::{
 use cfx_types::{address_util::AddressUtil, Address, BigEndianHash, U256};
 use primitives::{EpochId, StorageLayout};
 
-fn get_state(storage_manager: &StorageManager, epoch_id: EpochId) -> State {
+pub fn get_state(storage_manager: &StorageManager, epoch_id: EpochId) -> State {
     State::new(
         StateDb::new(
             storage_manager
@@ -33,7 +33,7 @@ fn get_state(storage_manager: &StorageManager, epoch_id: EpochId) -> State {
     )
 }
 
-fn get_state_for_genesis_write(storage_manager: &StorageManager) -> State {
+pub fn get_state_for_genesis_write(storage_manager: &StorageManager) -> State {
     State::new(
         StateDb::new(storage_manager.get_state_for_genesis_write()),
         VmFactory::default(),
@@ -42,7 +42,7 @@ fn get_state_for_genesis_write(storage_manager: &StorageManager) -> State {
     )
 }
 
-fn u256_to_vec(val: &U256) -> Vec<u8> {
+pub fn u256_to_vec(val: &U256) -> Vec<u8> {
     let mut key = vec![0; 32];
     val.to_big_endian(key.as_mut());
     key

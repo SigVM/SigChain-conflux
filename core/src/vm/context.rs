@@ -209,7 +209,7 @@ pub trait Context {
     fn create_slot(
         &mut self, sender_address: &Address, slot_key: &Vec<u8>,
         num_arg: U256, gas_limit: U256, gas_ratio: U256,
-        code: &Address
+        code: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Bind a slot to a signal

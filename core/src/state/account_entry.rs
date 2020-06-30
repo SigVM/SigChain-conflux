@@ -216,6 +216,15 @@ impl OverlayAccount {
             code_owner: Address::zero(),
             is_newly_created_contract: true,
             is_contract: true,
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            signal_cache: Default::default(),
+            signal_changes: HashMap::new(),
+            slot_cache: Default::default(),
+            slot_changes: HashMap::new(),
+            slot_tx_queue: None,
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
