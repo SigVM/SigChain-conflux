@@ -450,20 +450,18 @@ impl<'a> ContextTrait for Context<'a> {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    // TODO: rethink about error handling
     fn create_sig(
         &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
         num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let result = self.state.create_signal(_sender_address, _signal_key, &num_arg);
         match result {
-            Ok(Some(id)) => Ok(SignalSlotOpResult::SuccessWithId(id)),
+            Ok(_created) => Ok(SignalSlotOpResult::Success),
             _ => Ok(SignalSlotOpResult::Failed)
         }
     }
 
     // Create a new slot definition
-    // TODO: rethink about error handling
     fn create_slot(
         &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
         num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
@@ -474,7 +472,7 @@ impl<'a> ContextTrait for Context<'a> {
             &code, &_gas_limit, &_gas_ratio, &U256::from_dec_str("100").unwrap()
         );
         match result {
-            Ok(Some(id)) => Ok(SignalSlotOpResult::SuccessWithId(id)),
+            Ok(_created) => Ok(SignalSlotOpResult::Success),
             _ => Ok(SignalSlotOpResult::Failed)
         }
     }
@@ -482,14 +480,10 @@ impl<'a> ContextTrait for Context<'a> {
     // Bind a slot to a signal, gas is hardcoded for now
     fn bind_slot(
         &mut self, _sender_address: &Address,
-        _signal_address: &Address, _signal_id: U256, _slot_id: U256
+        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let mut sig_key = vec![0; 32];
-        _signal_id.to_big_endian(sig_key.as_mut());
-        let sig_loc = SignalLocation::new(&_signal_address, &sig_key);
-        let mut slt_key = vec![0; 32];
-        _slot_id.to_big_endian(slt_key.as_mut());
-        let slt_loc = SlotLocation::new(&_sender_address, &slt_key);
+        let sig_loc = SignalLocation::new(&_signal_address, _signal_id);
+        let slt_loc = SlotLocation::new(&_sender_address, _slot_id);
         let result = self.state.bind_slot_to_signal(&sig_loc, &slt_loc);
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -500,14 +494,10 @@ impl<'a> ContextTrait for Context<'a> {
     // Detach a slot from a signal, gas is hardcoded for now
     fn detach_slot(
         &mut self, _sender_address: &Address,
-        _signal_address: &Address, _signal_id: U256, _slot_id: U256
+        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let mut sig_key = vec![0; 32];
-        _signal_id.to_big_endian(sig_key.as_mut());
-        let sig_loc = SignalLocation::new(&_signal_address, &sig_key);
-        let mut slt_key = vec![0; 32];
-        _slot_id.to_big_endian(slt_key.as_mut());
-        let slt_loc = SlotLocation::new(&_sender_address, &slt_key);
+        let sig_loc = SignalLocation::new(&_signal_address, _signal_id);
+        let slt_loc = SlotLocation::new(&_sender_address, _slot_id);
         let result = self.state.detach_slot_from_signal(&sig_loc, &slt_loc);
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -518,11 +508,9 @@ impl<'a> ContextTrait for Context<'a> {
     // Emit a new signal instance, gas is hardcoded for now
     fn emit_sig(
         &mut self, _sender_address: &Address,
-        _signal_id: &U256, _blocks_delayed: &U256, _data: &[u8]
+        _signal_id: &Vec<u8>, _blocks_delayed: &U256, _data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let mut sig_key = vec![0; 32];
-        _signal_id.to_big_endian(sig_key.as_mut());
-        let sig_loc = SignalLocation::new(&_sender_address, &sig_key);
+        let sig_loc = SignalLocation::new(_sender_address, _signal_id);
         let data_vec: Vec<Bytes> = [Bytes::from(_data)].to_vec();
         let result = self.state.emit_signal_and_queue_slot_tx(&sig_loc,self.env.epoch_height, &data_vec);
         match result {
@@ -548,7 +536,7 @@ mod tests {
         test_helpers::get_state_for_genesis_write,
         vm::{
             CallType, Context as ContextTrait, ContractCreateResult,
-            CreateContractAddress, Env, Spec,
+            CreateContractAddress, Env, Spec, SignalSlotOpResult,
         },
     };
     use cfx_types::{address_util::AddressUtil, Address, H256, U256};
@@ -605,7 +593,7 @@ mod tests {
 
             let mut setup = Self {
                 storage_manager: None,
-                state: None,
+                state: Some(get_state_for_genesis_write(&storage_manager)),
                 machine,
                 internal_contract_map,
                 spec,
@@ -930,11 +918,22 @@ mod tests {
                 .unwrap()
         );
     }
+    fn check_sig_slot_result(result : SignalSlotOpResult) {
+        match result {
+            SignalSlotOpResult::Success => {},
+            _ => panic!(
+                "Test create failed; expected Created, got Failed/Reverted."
+            ),
+        };
+    }
 
     #[test]
     fn can_do_sig_slot_ops() {
         let mut setup = TestSetup::new();
         let state = &mut setup.state.unwrap();
+        state
+            .new_contract(&Address::zero(), U256::zero(), U256::one())
+            .unwrap();
         let origin = get_test_origin();
 
         let mut ctx = Context::new(
@@ -951,45 +950,50 @@ mod tests {
             &setup.internal_contract_map,
         );
 
-        ctx.create_sig(
+        let result = ctx.create_sig(
             &Address::zero(),
             &vec![std::u8::MIN],
             U256::zero()
         ).ok()
         .unwrap();
+        check_sig_slot_result(result);
 
-        ctx.create_slot(
+        let result = ctx.create_slot(
             &Address::zero(),
-            &vec![std::u8::MIN],
+            &vec![std::u8::MAX],
             U256::zero(),
             U256::zero(),
             U256::zero(),
             Address::zero(),
         ).ok()
         .unwrap();
+        check_sig_slot_result(result);
 
-        ctx.bind_slot(
+        let result = ctx.bind_slot(
             &Address::zero(),
             &Address::zero(),
-            U256::zero(),
-            U256::zero(),
+            &vec![std::u8::MIN],
+            &vec![std::u8::MAX],
         ).ok()
         .unwrap();
+        check_sig_slot_result(result);
 
-        ctx.detach_slot(
+        let result = ctx.detach_slot(
             &Address::zero(),
             &Address::zero(),
-            U256::zero(),
-            U256::zero(),
+            &vec![std::u8::MIN],
+            &vec![std::u8::MAX],
         ).ok()
         .unwrap();
+        check_sig_slot_result(result);
 
-        ctx.emit_sig(
+        let result = ctx.emit_sig(
             &Address::zero(),
-            &U256::zero(),
+            &vec![std::u8::MIN],
             &U256::zero(),
             &vec![std::u8::MIN],
         ).ok()
         .unwrap();
+        check_sig_slot_result(result);
     }
 }

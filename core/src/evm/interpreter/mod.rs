@@ -1540,8 +1540,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                     );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithId(sig_id)) => {
-                        self.stack.push(h256_to_u256(sig_id));
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
                     }
                     _ => {
                         self.stack.push(U256::zero());
@@ -1552,7 +1552,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let slot_argc = self.stack.pop_back(); // 0
                 let gas_ratio = self.stack.pop_back(); // 1
                 let gas_limit = self.stack.pop_back(); // 2
-                let code_entry = self.stack.pop_back();  // 3
+                let code_entry = self.stack.pop_back();// 3
                 let mut slot_key = vec![0; 32];        // 4
                 self.stack.pop_back().to_big_endian(slot_key.as_mut());
 
@@ -1567,8 +1567,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                     );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithId(slot_id)) => {
-                        self.stack.push(h256_to_u256(slot_id));
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
                     }
                     _ => {
                         self.stack.push(U256::zero());
@@ -1578,15 +1578,17 @@ impl<Cost: CostType> Interpreter<Cost> {
             }
             instructions::BINDSLOT => {
                 let emitter = self.stack.pop_back(); // 0
-                let sig_id = self.stack.pop_back();  // 1
-                let slot_id = self.stack.pop_back(); // 2
+                let mut sig_id = vec![0; 32];        // 1
+                self.stack.pop_back().to_big_endian(sig_id.as_mut());
+                let mut slot_id = vec![0; 32];       // 2
+                self.stack.pop_back().to_big_endian(slot_id.as_mut());
 
                 let call_result =
                     context.bind_slot(
                         &self.params.address,
                         &u256_to_address(&emitter),
-                        sig_id,
-                        slot_id,
+                        &sig_id,
+                        &slot_id,
                     );
 
                 match call_result {
@@ -1600,15 +1602,17 @@ impl<Cost: CostType> Interpreter<Cost> {
             }
             instructions::DETACHSLOT => {
                 let emitter = self.stack.pop_back(); // 0
-                let sig_id = self.stack.pop_back();  // 1
-                let slot_id = self.stack.pop_back(); // 2
+                let mut sig_id = vec![0; 32];        // 1
+                self.stack.pop_back().to_big_endian(sig_id.as_mut());
+                let mut slot_id = vec![0; 32];       // 2
+                self.stack.pop_back().to_big_endian(slot_id.as_mut());
 
                 let call_result =
                     context.detach_slot(
                         &self.params.address,
                         &u256_to_address(&emitter),
-                        sig_id,
-                        slot_id,
+                        &sig_id,
+                        &slot_id,
                     );
 
                 match call_result {
@@ -1622,7 +1626,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 
             }
             instructions::EMITSIG => {
-                let sig_id = self.stack.pop_back();    // 0
+                let mut sig_id = vec![0; 32];          // 0
+                self.stack.pop_back().to_big_endian(sig_id.as_mut());
                 let blk_delay = self.stack.pop_back(); // 1
                 let arg_off = self.stack.pop_back();   // 2
                 let arg_size = self.stack.pop_back();  // 3

@@ -49,6 +49,9 @@ impl SlotLocation {
         };
         new
     }
+    pub fn get_slot_key(&self) -> &Bytes {
+        &self.slot_key
+    }
 }
 
 // SignalInfo. Holds the mapping of a signal to a list of slots that are subscribed to it. This info
@@ -188,6 +191,11 @@ impl Slot {
         };
         new
     }
+
+    // Returns the method id of the slot
+    pub fn get_method_id(&self) -> Bytes {
+        self.location.get_slot_key()[0..4].to_vec()
+    }
 }
 
 // SlotTx. Transactions that execute a slot. It holds a slot as well as the block number for execution and
@@ -223,6 +231,17 @@ impl SlotTx {
     pub fn get_epoch_height(&self) -> u64 {
         self.epoch_height
     }
+
+    // Returns the call data of the slot transaction
+    // pub fn get_call_data(&self) -> Bytes {
+    //     let mut data = self.slot.get_method_id().clone();         // 4 bytes
+    //     let param = concat!(self.argv);         // 32 bytes each
+    //
+    //     data.extend(param);
+    //
+    //     println!("{:?}", data);
+    //     data
+    // }
 }
 
 /* Signal and Slots end */

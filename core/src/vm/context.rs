@@ -214,19 +214,19 @@ pub trait Context {
     // Bind a slot to a signal
     fn bind_slot(
         &mut self, sender_address: &Address,
-        signal_address: &Address, signal_id: U256, slot_id: U256
+        signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Detach a slot from a signal
     fn detach_slot(
         &mut self, sender_address: &Address,
-        signal_address: &Address, signal_id: U256, slot_id: U256
+        signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Emit a new signal instance
     fn emit_sig(
         &mut self, sender_address: &Address,
-        signal_id: &U256, blocks_delayed: &U256, data: &[u8]
+        signal_id: &Vec<u8>, blocks_delayed: &U256, data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
     /* Signal and Slots end */
 }

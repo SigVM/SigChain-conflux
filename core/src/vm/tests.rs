@@ -266,7 +266,7 @@ impl Context for MockContext {
     // Bind a slot to a signal
     fn bind_slot(
         &mut self, _sender_address: &Address,
-        _signal_address: &Address, _signal_id: U256, _slot_id: U256
+        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
@@ -275,7 +275,7 @@ impl Context for MockContext {
     // Detach a slot from a signal
     fn detach_slot(
         &mut self, _sender_address: &Address,
-        _signal_address: &Address, _signal_id: U256, _slot_id: U256
+        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)
@@ -284,7 +284,7 @@ impl Context for MockContext {
     // Emit a new signal instance
     fn emit_sig(
         &mut self, _sender_address: &Address,
-        _signal_id: &U256, _blocks_delayed: &U256, _data: &[u8]
+        _signal_id: &Vec<u8>, _blocks_delayed: &U256, _data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Failed)

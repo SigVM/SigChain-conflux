@@ -369,7 +369,7 @@ impl State {
             /* Signal and Slots begin */
             self.global_slot_tx_queue_cache_checkpoints.get_mut().pop();
             /* Signal and Slots end */
-            //////////////////////////////////////////////////////////////////////           
+            //////////////////////////////////////////////////////////////////////
             if let Some(ref mut prev) = self.checkpoints.get_mut().last_mut() {
                 if prev.is_empty() {
                     **prev = checkpoint;
@@ -1527,33 +1527,33 @@ impl State {
     // If the signal already exists do nothing.
     pub fn create_signal(
         &mut self, address: &Address, signal_key: &Vec<u8>, argc: &U256
-    ) -> DbResult<Option<H256>> {
+    ) -> DbResult<bool> {
         // Make sure account is cached.
         let empty_sig = self.signal_at(address, signal_key).expect("Caching should not fail.");
         if !empty_sig.is_none() {
-            return Ok(None);
+            return Ok(false);
         }
         // Create new signal instance.
         let sig_info = SignalInfo::new(
-            address, 
-            signal_key, 
+            address,
+            signal_key,
             argc,
         );
         self.require_exists(address, false)?
             .set_signal(sig_info);
 
-        Ok(Some(H256::zero()))
+        Ok(true)
     }
 
     // Create a new slot definition.
     pub fn create_slot(
         &mut self, address: &Address, slot_key: &Vec<u8>, argc: &U256,
         code_entry: &Address, gas_limit: &U256, numerator: &U256, denominator: &U256
-    ) -> DbResult<Option<H256>> {
+    ) -> DbResult<bool> {
         // Make sure account is cached.
         let empty_slot = self.slot_at(address, slot_key).expect("Caching should not fail.");
         if !empty_slot.is_none() {
-            return Ok(None);
+            return Ok(false);
         }
         // Create new slot instance.
         let slot_info = SlotInfo::new(
@@ -1568,7 +1568,7 @@ impl State {
         self.require_exists(address, false)?
             .set_slot(slot_info);
 
-        Ok(Some(H256::zero()))
+        Ok(true)
     }
 
     // Get signal info from the cache.
