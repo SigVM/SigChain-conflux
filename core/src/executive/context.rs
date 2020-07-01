@@ -548,7 +548,7 @@ mod tests {
         test_helpers::get_state_for_genesis_write,
         vm::{
             CallType, Context as ContextTrait, ContractCreateResult,
-            CreateContractAddress, Env, Spec, 
+            CreateContractAddress, Env, Spec,
         },
     };
     use cfx_types::{address_util::AddressUtil, Address, H256, U256};
@@ -933,8 +933,6 @@ mod tests {
 
     #[test]
     fn can_do_sig_slot_ops() {
-        use std::str::FromStr;
-
         let mut setup = TestSetup::new();
         let state = &mut setup.state.unwrap();
         let origin = get_test_origin();

@@ -93,13 +93,6 @@ impl SignalInfo {
     pub fn remove_from_slot_list(&mut self, loc: &SlotLocation) {
         self.slot_list.retain(|s| (s.location.address != loc.address || s.location.slot_key != loc.slot_key));
     }
-
-    pub fn get_key(&mut self) -> Vec<u8> {
-        StorageKey::new_signal_key(
-            &self.location.address,
-            &self.location.signal_key
-        ).to_key_bytes()
-    }
 }
 
 // SlotInfo. Holds the information that the owner of the slot needs maintain.
@@ -155,13 +148,6 @@ impl SlotInfo {
     // Remove a signal from the bind list.
     pub fn remove_from_bind_list(&mut self, loc: &SignalLocation) {
         self.bind_list.retain(|s| (s.address != loc.address || s.signal_key != loc.signal_key));
-    }
-
-    pub fn get_key(&mut self) -> Vec<u8> {
-        StorageKey::new_slot_key(
-            &self.location.address,
-            &self.location.slot_key
-        ).to_key_bytes()
     }
 
     // Get location.
