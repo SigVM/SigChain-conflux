@@ -197,7 +197,6 @@ pub trait Context {
     fn is_static(&self) -> bool;
 
     /* Signal and Slots begin */
-    //TODO: may want to define new Result
     // Create a new signal definition
     fn create_sig(
         &mut self, sender_address: &Address, signal_key: &Vec<u8>,

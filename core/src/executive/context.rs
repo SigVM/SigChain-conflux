@@ -548,7 +548,7 @@ mod tests {
         test_helpers::get_state_for_genesis_write,
         vm::{
             CallType, Context as ContextTrait, ContractCreateResult,
-            CreateContractAddress, Env, Spec,
+            CreateContractAddress, Env, Spec, 
         },
     };
     use cfx_types::{address_util::AddressUtil, Address, H256, U256};
@@ -931,4 +931,67 @@ mod tests {
         );
     }
 
+    #[test]
+    fn can_do_sig_slot_ops() {
+        use std::str::FromStr;
+
+        let mut setup = TestSetup::new();
+        let state = &mut setup.state.unwrap();
+        let origin = get_test_origin();
+
+        let mut ctx = Context::new(
+            state,
+            &setup.env,
+            &setup.machine,
+            &setup.spec,
+            0,
+            0,
+            &origin,
+            &mut setup.substate,
+            OutputPolicy::InitContract,
+            false,
+            &setup.internal_contract_map,
+        );
+
+        ctx.create_sig(
+            &Address::zero(),
+            &vec![std::u8::MIN],
+            U256::zero()
+        ).ok()
+        .unwrap();
+
+        ctx.create_slot(
+            &Address::zero(),
+            &vec![std::u8::MIN],
+            U256::zero(),
+            U256::zero(),
+            U256::zero(),
+            Address::zero(),
+        ).ok()
+        .unwrap();
+
+        ctx.bind_slot(
+            &Address::zero(),
+            &Address::zero(),
+            U256::zero(),
+            U256::zero(),
+        ).ok()
+        .unwrap();
+
+        ctx.detach_slot(
+            &Address::zero(),
+            &Address::zero(),
+            U256::zero(),
+            U256::zero(),
+        ).ok()
+        .unwrap();
+
+        ctx.emit_sig(
+            &Address::zero(),
+            &U256::zero(),
+            &U256::zero(),
+            &vec![std::u8::MIN],
+        ).ok()
+        .unwrap();
+    }
 }

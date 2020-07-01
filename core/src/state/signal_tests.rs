@@ -2,7 +2,7 @@
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 
-// A collection of tests for signals and slots in the state. 
+// A collection of tests for signals and slots in the state.
 // Makes sure that creation, bind, and emit, as well queueing of slot transactions
 // works as planned.
 // Unused imports will be cleaned up later when the tests are all written.
@@ -20,8 +20,8 @@ use crate::{
     },
     vm::Spec,
     vm_factory::VmFactory,
-    state::state_tests::get_state, 
-    state::state_tests::get_state_for_genesis_write, 
+    state::state_tests::get_state,
+    state::state_tests::get_state_for_genesis_write,
     state::state_tests::u256_to_vec,
 };
 #[allow(unused_imports)]
@@ -42,7 +42,7 @@ fn signal_creation() {
         .new_contract(&address, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_signal(&address, &key, argc)
+        .create_signal(&address, &key, &argc)
         .expect("Signal creation should not fail.");
 
     let signal = state.signal_at(&address, &key)
@@ -62,7 +62,7 @@ fn slot_creation() {
 
     let key = vec![0x31u8, 0x32u8, 0x33u8];
     let argc = U256::from(3);
-    let entry = U256::from(500);
+    let entry = Address::zero();
     let gas_limit = U256::from(1000);
     let numerator = U256::from(3);
     let denominator = U256::from(2);
@@ -71,7 +71,7 @@ fn slot_creation() {
         .new_contract(&address, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&address, &key, argc, entry, gas_limit, numerator, denominator)
+        .create_slot(&address, &key, &argc, &entry, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     let slot = state.slot_at(&address, &key)
