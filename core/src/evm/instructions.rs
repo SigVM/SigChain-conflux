@@ -553,10 +553,10 @@ lazy_static! {
         /* Signal and Slots begin */
         // Because the price of the data passed into by EMITSIG varies, the tier is special. Bind involves
         // manipulating storage so the tier is also special.
-        arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 1, 1, GasPriceTier::Special));
-		arr[CREATESLOT as usize] = Some(InstructionInfo::new("CREATESLOT", 1, 1, GasPriceTier::Special));
-        arr[BINDSLOT as usize] = Some(InstructionInfo::new("BINDSLOT", 5, 1, GasPriceTier::Special));
-		arr[DETACHSLOT as usize] = Some(InstructionInfo::new("DETACHSLOT", 5, 1, GasPriceTier::Special));
+        arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 2, 1, GasPriceTier::Special));
+		arr[CREATESLOT as usize] = Some(InstructionInfo::new("CREATESLOT", 5, 1, GasPriceTier::Special));
+        arr[BINDSLOT as usize] = Some(InstructionInfo::new("BINDSLOT", 3, 1, GasPriceTier::Special));
+		arr[DETACHSLOT as usize] = Some(InstructionInfo::new("DETACHSLOT", 3, 1, GasPriceTier::Special));
         arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
