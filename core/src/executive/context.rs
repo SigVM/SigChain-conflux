@@ -453,9 +453,9 @@ impl<'a> ContextTrait for Context<'a> {
     // TODO: rethink about error handling
     fn create_sig(
         &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
-        _num_arg: U256
+        num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let result = self.state.create_signal(_sender_address, _signal_key, _num_arg);
+        let result = self.state.create_signal(_sender_address, _signal_key, &num_arg);
         match result {
             Ok(Some(id)) => Ok(SignalSlotOpResult::SuccessWithId(id)),
             _ => Ok(SignalSlotOpResult::Failed)
@@ -466,11 +466,13 @@ impl<'a> ContextTrait for Context<'a> {
     // TODO: rethink about error handling
     fn create_slot(
         &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
-        _num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
-        _code: U256,
+        num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
+        code: Address,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let result = self.state.create_slot(_sender_address, _slot_key, _num_arg,
-        _code, _gas_limit, _gas_ratio, U256::from_dec_str("100").unwrap());
+        let result = self.state.create_slot(
+            _sender_address, _slot_key, &num_arg,
+            &code, &_gas_limit, &_gas_ratio, &U256::from_dec_str("100").unwrap()
+        );
         match result {
             Ok(Some(id)) => Ok(SignalSlotOpResult::SuccessWithId(id)),
             _ => Ok(SignalSlotOpResult::Failed)

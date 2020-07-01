@@ -1563,7 +1563,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                         slot_argc,
                         gas_limit,
                         gas_ratio,
-                        code_entry,
+                        u256_to_address(&code_entry),
                     );
 
                 match call_result {

@@ -64,10 +64,10 @@ pub struct SignalInfo {
 
 impl SignalInfo {
     // Return a fresh SignalInfo.
-    pub fn new(owner: &Address, signal_key: &[u8], arg_count: U256) -> Self {
+    pub fn new(owner: &Address, signal_key: &[u8], arg_count: &U256) -> Self {
         let new = SignalInfo {
             location:  SignalLocation::new(owner, signal_key),
-            arg_count: arg_count,
+            arg_count: arg_count.clone(),
             slot_list: Vec::new(),
         };
         new
@@ -115,7 +115,7 @@ pub struct SlotInfo {
     location: SlotLocation,
     // Note: slot is currently treated as a function within its contract
     // Pointer to the entry point of this slot.
-    code_entry: U256,
+    code_entry: Address,
     // Number of arguments expected from a binded signal
     arg_count: U256,
     // Gas limit for slot execution.
@@ -132,17 +132,17 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], code_entry: U256, arg_count: U256,
-        gas_limit: U256, numerator: U256, denominator: U256
+        owner: &Address, slot_key: &[u8], code_entry: &Address, arg_count: &U256,
+        gas_limit: &U256, numerator: &U256, denominator: &U256
     ) -> Self {
         let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
             location:              loc,
-            code_entry:            code_entry,
-            arg_count:             arg_count,
-            gas_limit:             gas_limit,
-            gas_ratio_numerator:   numerator,
-            gas_ratio_denominator: denominator,
+            code_entry:            code_entry.clone(),
+            arg_count:             arg_count.clone(),
+            gas_limit:             gas_limit.clone(),
+            gas_ratio_numerator:   numerator.clone(),
+            gas_ratio_denominator: denominator.clone(),
             bind_list:             Vec::new(),
         };
         new
@@ -182,7 +182,7 @@ pub struct Slot {
     // Address of contract that owns this slot.
     location: SlotLocation,
     // Pointer to the entry point of this slot.
-    code_entry: U256,
+    code_entry: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
@@ -220,11 +220,11 @@ pub struct SlotTx {
 
 impl SlotTx {
     pub fn new(
-        slot: &Slot, epoch_height: u64, argv: &Vec::<Bytes>
+        slot: &Slot, epoch_height: &u64, argv: &Vec::<Bytes>
     ) -> Self {
         let new = SlotTx {
             slot:         slot.clone(),
-            epoch_height: epoch_height,
+            epoch_height: epoch_height.clone(),
             argv:         argv.clone(),
         };
         new

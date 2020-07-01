@@ -1526,7 +1526,7 @@ impl State {
     // Create a new signal definition.
     // If the signal already exists do nothing.
     pub fn create_signal(
-        &mut self, address: &Address, signal_key: &Vec<u8>, num_arg: U256
+        &mut self, address: &Address, signal_key: &Vec<u8>, argc: &U256
     ) -> DbResult<Option<H256>> {
         // Make sure account is cached.
         let empty_sig = self.signal_at(address, signal_key).expect("Caching should not fail.");
@@ -1535,9 +1535,9 @@ impl State {
         }
         // Create new signal instance.
         let sig_info = SignalInfo::new(
-            &address, 
-            &signal_key, 
-            num_arg
+            address, 
+            signal_key, 
+            argc,
         );
         self.require_exists(address, false)?
             .set_signal(sig_info);
@@ -1547,8 +1547,8 @@ impl State {
 
     // Create a new slot definition.
     pub fn create_slot(
-        &mut self, address: &Address, slot_key: &Vec<u8>, num_arg: U256,
-        code_entry: U256, gas_limit: U256, numerator: U256, denominator: U256
+        &mut self, address: &Address, slot_key: &Vec<u8>, argc: &U256,
+        code_entry: &Address, gas_limit: &U256, numerator: &U256, denominator: &U256
     ) -> DbResult<Option<H256>> {
         // Make sure account is cached.
         let empty_slot = self.slot_at(address, slot_key).expect("Caching should not fail.");
@@ -1557,10 +1557,10 @@ impl State {
         }
         // Create new slot instance.
         let slot_info = SlotInfo::new(
-            &address,
-            &slot_key,
+            address,
+            slot_key,
             code_entry,
-            num_arg,
+            argc,
             gas_limit,
             numerator,
             denominator
@@ -1636,7 +1636,7 @@ impl State {
         // Go through the list of slots and form slot transactions
         for slot in sig_info.get_slot_list() {
             let tx = SlotTx::new(
-                slot, epoch_height, argv
+                slot, &epoch_height, argv
             );
             self.queue_slot_tx_to_global_queue(tx)?;
         }
