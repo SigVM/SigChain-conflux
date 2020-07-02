@@ -1528,6 +1528,7 @@ impl<Cost: CostType> Interpreter<Cost> {
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             instructions::CREATESIG => {
+                println!("reach createsig instr\n");
                 let sig_argc = self.stack.pop_back();  // 0
                 let mut sig_key = vec![0; 32];         // 1
                 self.stack.pop_back().to_big_endian(sig_key.as_mut());
@@ -1542,6 +1543,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {
                         self.stack.push(U256::one());
+                        println!("reach here success\n");
                     }
                     _ => {
                         self.stack.push(U256::zero());

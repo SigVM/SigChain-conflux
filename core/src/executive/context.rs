@@ -454,6 +454,7 @@ impl<'a> ContextTrait for Context<'a> {
         &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
         num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        println!("reach here success\n");
         let result = self.state.create_signal(_sender_address, _signal_key, &num_arg);
         match result {
             Ok(_created) => Ok(SignalSlotOpResult::Success),
