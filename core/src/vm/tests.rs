@@ -249,7 +249,7 @@ impl Context for MockContext {
         _num_arg: U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(SignalSlotOpResult::Failed)
+        Ok(SignalSlotOpResult::Success)
     }
 
     // Create a new slot definition
@@ -260,7 +260,7 @@ impl Context for MockContext {
         _code: Address,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(SignalSlotOpResult::Failed)
+        Ok(SignalSlotOpResult::Success)
     }
 
     // Bind a slot to a signal
@@ -269,7 +269,7 @@ impl Context for MockContext {
         _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(SignalSlotOpResult::Failed)
+        Ok(SignalSlotOpResult::Success)
     }
 
     // Detach a slot from a signal
@@ -278,7 +278,7 @@ impl Context for MockContext {
         _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(SignalSlotOpResult::Failed)
+        Ok(SignalSlotOpResult::Success)
     }
 
     // Emit a new signal instance
@@ -287,7 +287,7 @@ impl Context for MockContext {
         _signal_id: &Vec<u8>, _blocks_delayed: &U256, _data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
-        Ok(SignalSlotOpResult::Failed)
+        Ok(SignalSlotOpResult::Success)
     }
     /* Signal and Slots end */
     /////////////////////////////////////////////////////////////////////

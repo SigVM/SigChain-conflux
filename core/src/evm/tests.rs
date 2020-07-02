@@ -1303,18 +1303,66 @@ fn should_create_sig(factory: super::Factory) {
         let vm = factory.create(params, ctx.spec(), ctx.depth());
         test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
     };
+}
 
-    // assert_store(
-    //     &ctx,
-    //     0,
-    //     "0000000000000000000000000000000000000000000000000000000000000fff",
-    // );
-    // assert_store(
-    //     &ctx,
-    //     1,
-    //     "00000000000000000000000000000000000000000000000000000000000000ff",
-    // );
-    // assert_eq!(gas_left, U256::from(89_972));
+evm_test! {should_create_slot: should_create_slot_int}
+fn should_create_slot(factory: super::Factory) {
+    let code = "60096020602160226023c1".from_hex().unwrap();
+
+    let mut params = ActionParams::default();
+    params.gas = U256::from(100_000);
+    params.code = Some(Arc::new(code));
+    let mut ctx = MockContext::new();
+
+    let gas_left = {
+        let vm = factory.create(params, ctx.spec(), ctx.depth());
+        test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
+    };
+}
+
+evm_test! {should_bind: should_bind_int}
+fn should_bind(factory: super::Factory) {
+    let code = "600960206021c2".from_hex().unwrap();
+
+    let mut params = ActionParams::default();
+    params.gas = U256::from(100_000);
+    params.code = Some(Arc::new(code));
+    let mut ctx = MockContext::new();
+
+    let gas_left = {
+        let vm = factory.create(params, ctx.spec(), ctx.depth());
+        test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
+    };
+}
+
+evm_test! {should_detach: should_detach_int}
+fn should_detach(factory: super::Factory) {
+    let code = "600960206021c3".from_hex().unwrap();
+
+    let mut params = ActionParams::default();
+    params.gas = U256::from(100_000);
+    params.code = Some(Arc::new(code));
+    let mut ctx = MockContext::new();
+
+    let gas_left = {
+        let vm = factory.create(params, ctx.spec(), ctx.depth());
+        test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
+    };
+}
+
+evm_test! {should_emit: should_emit_int}
+fn should_emit(factory: super::Factory) {
+    let code = "6009602060216022c4".from_hex().unwrap();
+
+    let mut params = ActionParams::default();
+    params.gas = U256::from(100_000);
+    params.code = Some(Arc::new(code));
+    let mut ctx = MockContext::new();
+
+    let gas_left = {
+        let vm = factory.create(params, ctx.spec(), ctx.depth());
+        test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
+    };
 }
 
 fn assert_set_contains<T: Debug + Eq + PartialEq + Hash>(
