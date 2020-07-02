@@ -1596,18 +1596,53 @@ impl State {
     }
 
     // Bind a slot to a signal.
+    // Incomplete database error is returned if either the signal or slot cannot
+    // be retrieved from the database.
+    // Error is also returned if signal and slots don't match in argument count.
+    // TODO: Figure out if we should throw an error if argument counts between the signal
+    // and slots don't match or not. If they don't should an error be thrown?
     pub fn bind_slot_to_signal(
         &mut self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<()> {
-        // Create a slot struct.
-        let slot_info = self.require_exists(&slot_loc.address, false)?
-                            .slot_at(&self.db, slot_loc)
-                            .unwrap();
+        // Get signal info, make sure it exists.
+        let sig_info = self.require_exists(&sig_loc.address(), false)?
+                           .signal_at(&self.db, sig_loc);
+        let sig_info = match sig_info {
+            Some(s) => s,
+            None => {
+                return Err(DbErrorKind::IncompleteDatabase(
+                    sig_loc.address().clone(),
+                )
+                .into());
+            }
+        };
+
+        // Get slot info, make sure it exists.
+        let slot_info = self.require_exists(&slot_loc.address(), false)?
+                            .slot_at(&self.db, slot_loc);
+        let slot_info = match slot_info {
+            Some(s) => s,
+            None => {
+                return Err(DbErrorKind::IncompleteDatabase(
+                    slot_loc.address().clone(),
+                )
+                .into());
+            }
+        };
+
+        // Check if argument counts match.
+        if slot_info.arg_count() != sig_info.arg_count() {
+            return Err(DbErrorKind::IncompleteDatabase(
+                slot_loc.address().clone(),
+            )
+            .into());
+        }
+
         // Signal account.
-        self.require_exists(&sig_loc.address, false)?
+        self.require_exists(&sig_loc.address(), false)?
             .add_to_slot_list(&self.db, sig_loc, &slot_info);
         // Slot account.
-        self.require_exists(&slot_loc.address, false)?
+        self.require_exists(&slot_loc.address(), false)?
             .add_to_bind_list(&self.db, slot_loc, sig_loc);
         Ok(())
     }
@@ -1617,10 +1652,10 @@ impl State {
         &self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<()> {
         // Signal account.
-        self.require_exists(&sig_loc.address, false)?
+        self.require_exists(&sig_loc.address(), false)?
             .remove_from_slot_list(&self.db, sig_loc, slot_loc);
         // Slot account.
-        self.require_exists(&slot_loc.address, false)?
+        self.require_exists(&slot_loc.address(), false)?
             .remove_from_bind_list(&self.db, slot_loc, sig_loc);
         Ok(())
     }
@@ -1630,11 +1665,11 @@ impl State {
         &mut self, sig_loc: &SignalLocation,
         epoch_height: u64, argv: &Vec<Bytes>
     ) -> DbResult<()> {
-        let sig_info = self.require_exists(&sig_loc.address, false)?
+        let sig_info = self.require_exists(&sig_loc.address(), false)?
                            .signal_at(&self.db, sig_loc)
                            .unwrap();
         // Go through the list of slots and form slot transactions
-        for slot in sig_info.get_slot_list() {
+        for slot in sig_info.slot_list() {
             let tx = SlotTx::new(
                 slot, &epoch_height, argv
             );

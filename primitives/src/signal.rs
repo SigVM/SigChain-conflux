@@ -10,7 +10,6 @@
 
 use crate::{bytes::Bytes};
 use cfx_types::{Address, U256};
-use crate::storage_key::StorageKey;
 
 // SignalLocation and SlotLocation.
 // Structs that keeps track of the location of a signal or slot on the network.
@@ -19,8 +18,8 @@ use crate::storage_key::StorageKey;
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
 pub struct SignalLocation {
-    pub address: Address,
-    pub signal_key: Bytes,
+    address: Address,
+    signal_key: Bytes,
 }
 
 impl SignalLocation {
@@ -31,14 +30,21 @@ impl SignalLocation {
         };
         new
     }
+    // Getters
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+    pub fn signal_key(&self) -> &Bytes {
+        &self.signal_key
+    }
 }
 
 #[derive(
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
 )]
 pub struct SlotLocation {
-    pub address: Address,
-    pub slot_key: Bytes,
+    address: Address,
+    slot_key: Bytes,
 }
 
 impl SlotLocation {
@@ -49,7 +55,11 @@ impl SlotLocation {
         };
         new
     }
-    pub fn get_slot_key(&self) -> &Bytes {
+    // Getters
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+    pub fn slot_key(&self) -> &Bytes {
         &self.slot_key
     }
 }
@@ -76,16 +86,6 @@ impl SignalInfo {
         new
     }
 
-    // Get the slot_list.
-    pub fn get_slot_list(&self) -> &Vec::<Slot> {
-        &self.slot_list
-    }
-
-    // Get location.
-    pub fn get_signal_loc(&self) -> &SignalLocation {
-        &self.location
-    }
-
     // Bind a slot to this signal.
     pub fn add_to_slot_list(&mut self, slot_info: &SlotInfo) {
         let slot = Slot::new(slot_info);
@@ -95,6 +95,17 @@ impl SignalInfo {
     // Removes a slot given a location.
     pub fn remove_from_slot_list(&mut self, loc: &SlotLocation) {
         self.slot_list.retain(|s| (s.location.address != loc.address || s.location.slot_key != loc.slot_key));
+    }
+
+    // Getters
+    pub fn location(&self) -> &SignalLocation {
+        &self.location
+    }
+    pub fn arg_count(&self) -> &U256 {
+        &self.arg_count
+    }
+    pub fn slot_list(&self) -> &Vec::<Slot> {
+        &self.slot_list
     }
 }
 
@@ -153,9 +164,27 @@ impl SlotInfo {
         self.bind_list.retain(|s| (s.address != loc.address || s.signal_key != loc.signal_key));
     }
 
-    // Get location.
-    pub fn get_slot_loc(&self) -> &SlotLocation {
+    // Getters
+    pub fn location(&self) -> &SlotLocation {
         &self.location
+    }
+    pub fn code_entry(&self) -> &Address {
+        &self.code_entry
+    }
+    pub fn arg_count(&self) -> &U256 {
+        &self.arg_count
+    }
+    pub fn gas_limit(&self) -> &U256 {
+        &self.gas_limit
+    }
+    pub fn gas_ratio_numerator(&self) -> &U256 {
+        &self.gas_ratio_numerator
+    }
+    pub fn gas_ratio_denominator(&self) -> &U256 {
+        &self.gas_ratio_denominator
+    }  
+    pub fn bind_list(&self) -> &Vec<SignalLocation> {
+        &self.bind_list
     }
 }
 
@@ -194,8 +223,25 @@ impl Slot {
 
     // Returns the method id of the slot
     pub fn get_method_id(&self) -> Bytes {
-        self.location.get_slot_key()[0..4].to_vec()
+        self.location.slot_key()[0..4].to_vec()
     }
+
+    // Getters.
+    pub fn location(&self) -> &SlotLocation {
+        &self.location
+    }
+    pub fn code_entry(&self) -> &Address {
+        &self.code_entry
+    }
+    pub fn gas_limit(&self) -> &U256 {
+        &self.gas_limit
+    }
+    pub fn gas_ratio_numerator(&self) -> &U256 {
+        &self.gas_ratio_numerator
+    }
+    pub fn gas_ratio_denominator(&self) -> &U256 {
+        &self.gas_ratio_denominator
+    }   
 }
 
 // SlotTx. Transactions that execute a slot. It holds a slot as well as the block number for execution and

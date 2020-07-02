@@ -1052,9 +1052,9 @@ impl OverlayAccount {
         signal_cache: &mut HashMap<Vec<u8>, SignalInfo>,
         sig_loc: &SignalLocation, db: &StateDb
     ) -> Option<SignalInfo> {
-        match db.get_signal_info(&sig_loc.address, &sig_loc.signal_key) {
+        match db.get_signal_info(&sig_loc.address(), &sig_loc.signal_key()) {
             Ok(Some(sig_info)) => {
-                signal_cache.insert(sig_loc.signal_key.clone(), sig_info.clone());
+                signal_cache.insert(sig_loc.signal_key().clone(), sig_info.clone());
                 Some(sig_info.clone())
             }
             _ => {
@@ -1068,9 +1068,9 @@ impl OverlayAccount {
         slot_cache: &mut HashMap<Vec<u8>, SlotInfo>,
         slot_loc: &SlotLocation, db: &StateDb
     ) -> Option<SlotInfo> {
-        match db.get_slot_info(&slot_loc.address, &slot_loc.slot_key) {
+        match db.get_slot_info(&slot_loc.address(), &slot_loc.slot_key()) {
             Ok(Some(slot_info)) => {
-                slot_cache.insert(slot_loc.slot_key.clone(), slot_info.clone());
+                slot_cache.insert(slot_loc.slot_key().clone(), slot_info.clone());
                 Some(slot_info.clone())
             }
             _ => {
@@ -1083,10 +1083,10 @@ impl OverlayAccount {
     pub fn cached_signal_at(
         &self, sig_loc: &SignalLocation
     ) -> Option<SignalInfo> {
-        if let Some(sig_info) = self.signal_changes.get(&sig_loc.signal_key) {
+        if let Some(sig_info) = self.signal_changes.get(sig_loc.signal_key()) {
             return Some(sig_info.clone());
         }
-        if let Some(sig_info) = self.signal_cache.read().get(&sig_loc.signal_key) {
+        if let Some(sig_info) = self.signal_cache.read().get(sig_loc.signal_key()) {
             return Some(sig_info.clone());
         }
         None
@@ -1096,10 +1096,10 @@ impl OverlayAccount {
     pub fn cached_slot_at(
         &self, slot_loc: &SlotLocation
     ) -> Option<SlotInfo> {
-        if let Some(slot_info) = self.slot_changes.get(&slot_loc.slot_key) {
+        if let Some(slot_info) = self.slot_changes.get(slot_loc.slot_key()) {
             return Some(slot_info.clone());
         }
-        if let Some(slot_info) = self.slot_cache.read().get(&slot_loc.slot_key) {
+        if let Some(slot_info) = self.slot_cache.read().get(slot_loc.slot_key()) {
             return Some(slot_info.clone());
         }
         None
@@ -1135,12 +1135,12 @@ impl OverlayAccount {
 
     // Set a new signal info in cache.
     pub fn set_signal(&mut self, sig_info: SignalInfo) {
-        self.signal_changes.insert(sig_info.get_signal_loc().signal_key.clone(), sig_info);
+        self.signal_changes.insert(sig_info.location().signal_key().clone(), sig_info);
     }
 
     // Set a new slot info in cache.
     pub fn set_slot(&mut self, slot_info: SlotInfo) {
-        self.slot_changes.insert(slot_info.get_slot_loc().slot_key.clone(), slot_info);
+        self.slot_changes.insert(slot_info.location().slot_key().clone(), slot_info);
     }
 
     // Get slot transaction queue.

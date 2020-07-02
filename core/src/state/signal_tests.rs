@@ -27,7 +27,7 @@ use crate::{
 #[allow(unused_imports)]
 use cfx_types::{address_util::AddressUtil, Address, BigEndianHash, U256};
 #[allow(unused_imports)]
-use primitives::{EpochId, StorageLayout};
+use primitives::{EpochId, StorageLayout, SignalLocation, SlotLocation};
 
 #[test]
 fn signal_creation() {
@@ -49,8 +49,8 @@ fn signal_creation() {
                       .expect("Signal should exist.")
                       .unwrap();
 
-    assert_eq!(signal.get_signal_loc().address, address);
-    assert_eq!(signal.get_signal_loc().signal_key, key);
+    assert_eq!(*signal.location().address(), address);
+    assert_eq!(*signal.location().signal_key(), key);
 }
 
 #[test]
@@ -78,12 +78,73 @@ fn slot_creation() {
                       .expect("Slot should exist.")
                       .unwrap();
 
-    assert_eq!(slot.get_slot_loc().address, address);
-    assert_eq!(slot.get_slot_loc().slot_key, key);
+    assert_eq!(*slot.location().address(), address);
+    assert_eq!(*slot.location().slot_key(), key);
 }
 
 #[test]
 fn slot_bind() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+    let mut emitter = Address::from_low_u64_be(1);
+    let mut listener = Address::from_low_u64_be(2);
+    emitter.set_contract_type_bits();
+    listener.set_contract_type_bits();
+
+    // Information to initialize signal.
+    let sig_argc = U256::from(3);
+    let sig_key = vec![0x41u8, 0x42u8, 0x43u8];
+    let sig_loc = SignalLocation::new(&emitter, &sig_key);
+
+    // Information to initialize slot.
+    let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
+    let slot_argc = U256::from(3);
+    let entry = Address::zero();
+    let gas_limit = U256::from(1000);
+    let numerator = U256::from(3);
+    let denominator = U256::from(2);
+    let slot_loc = SlotLocation::new(&listener, &slot_key);
+
+    // Create signal.
+    state
+        .new_contract(&emitter, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_signal(&emitter, &sig_key, &sig_argc)
+        .expect("Signal creation should not fail.");
+    // Create slot.
+    state
+        .new_contract(&listener, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&listener, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .expect("Slot creation should not fail.");
+    // Bind slot to signal.
+    state
+        .bind_slot_to_signal(&sig_loc, &slot_loc)
+        .expect("Bind should not fail.");
+    
+    // Check to see that the lists are properly updated.
+    let sig = state  
+                .signal_at(&emitter, &sig_key)
+                .expect("Signal info retrieval should not fail")
+                .unwrap();
+    let slot = sig.slot_list().last().unwrap().clone();
+
+    assert_eq!(*slot.location(), slot_loc);
+    assert_eq!(*slot.gas_limit(), gas_limit);
+
+    let slot = state
+                .slot_at(&listener, &slot_key)
+                .expect("Slot info retrieval should not fail")
+                .unwrap();
+    let sig = slot.bind_list().last().unwrap().clone();
+
+    assert_eq!(sig, sig_loc);
+}
+
+#[test]
+fn slot_detach() {
 
 }
 
