@@ -507,12 +507,22 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Emit a new signal instance, gas is hardcoded for now
     fn emit_sig(
-        &mut self, _sender_address: &Address,
-        _signal_id: &Vec<u8>, _blocks_delayed: &U256, _data: &[u8]
-    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let sig_loc = SignalLocation::new(_sender_address, _signal_id);
-        let data_vec: Vec<Bytes> = [Bytes::from(_data)].to_vec();
-        let result = self.state.emit_signal_and_queue_slot_tx(&sig_loc,self.env.epoch_height, &data_vec);
+        &mut self, sender_address: &Address,
+        signal_id: &Vec<u8>, epochs_delayed: &U256, data: &[u8]
+    ) -> Result<SignalSlotOpResult, TrapKind> {
+        // Get signal location.
+        let sig_loc = SignalLocation::new(
+            sender_address, signal_id
+        );
+        // Get data vector.
+        let data_vec: Vec<Bytes> = [Bytes::from(data)].to_vec();
+        // Change the state to reflect emission of signal.
+        let result = self.state.emit_signal_and_queue_slot_tx(
+            &sig_loc, 
+            self.env.epoch_height, 
+            epochs_delayed.as_u64(), 
+            &data_vec
+        );
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
             _ => Ok(SignalSlotOpResult::Failed)

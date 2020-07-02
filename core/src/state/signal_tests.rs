@@ -29,6 +29,7 @@ use cfx_types::{address_util::AddressUtil, Address, BigEndianHash, U256};
 #[allow(unused_imports)]
 use primitives::{EpochId, StorageLayout, SignalLocation, SlotLocation};
 
+// Create a signal and check if its found in cache.
 #[test]
 fn signal_creation() {
     let storage_manager = new_state_manager_for_unit_test();
@@ -53,6 +54,7 @@ fn signal_creation() {
     assert_eq!(*signal.location().signal_key(), key);
 }
 
+// Create a slot and check if its in cache.
 #[test]
 fn slot_creation() {
     let storage_manager = new_state_manager_for_unit_test();
@@ -82,8 +84,11 @@ fn slot_creation() {
     assert_eq!(*slot.location().slot_key(), key);
 }
 
+// Create two contract accounts, one with a signal and one with a slot.
+// Bind the slot to the signal and check if lists are updated correctly.
+// Detach the slot from the signal and check if lists are updated correctly.
 #[test]
-fn slot_bind() {
+fn slot_bind_and_detach() {
     let storage_manager = new_state_manager_for_unit_test();
     let mut state = get_state_for_genesis_write(&storage_manager);
     let mut emitter = Address::from_low_u64_be(1);
@@ -124,29 +129,44 @@ fn slot_bind() {
         .bind_slot_to_signal(&sig_loc, &slot_loc)
         .expect("Bind should not fail.");
     
-    // Check to see that the lists are properly updated.
+    // Check to see if signal info is correct.
     let sig = state  
                 .signal_at(&emitter, &sig_key)
                 .expect("Signal info retrieval should not fail")
                 .unwrap();
     let slot = sig.slot_list().last().unwrap().clone();
-
     assert_eq!(*slot.location(), slot_loc);
     assert_eq!(*slot.gas_limit(), gas_limit);
 
+    // Check to see if slot info is correct.
     let slot = state
                 .slot_at(&listener, &slot_key)
                 .expect("Slot info retrieval should not fail")
                 .unwrap();
     let sig = slot.bind_list().last().unwrap().clone();
-
     assert_eq!(sig, sig_loc);
+
+    // Detach slot from signal.
+    state
+        .detach_slot_from_signal(&sig_loc, &slot_loc)
+        .expect("Detach should not fail.");
+   
+    // Check to see if signal info is correct.
+    let sig = state  
+        .signal_at(&emitter, &sig_key)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    assert!(sig.slot_list().is_empty());
+
+    // Check to see if slot info is correct.
+    let slot = state
+            .slot_at(&listener, &slot_key)
+            .expect("Slot info retrieval should not fail")
+            .unwrap();
+    assert!(slot.bind_list().is_empty());
 }
 
-#[test]
-fn slot_detach() {
-
-}
+// Test to see if signal emission works as intended.
 
 #[test]
 fn signal_emit() {
@@ -155,6 +175,16 @@ fn signal_emit() {
 
 #[test]
 fn slot_tx_distribution() {
+
+}
+
+#[test]
+fn checkpoint_signal_and_slots() {
+
+}
+
+#[test]
+fn commit_signal_and_slots() {
 
 }
 

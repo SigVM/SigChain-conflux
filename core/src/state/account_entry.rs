@@ -106,7 +106,7 @@ pub struct OverlayAccount {
     slot_cache: RwLock<HashMap<Vec<u8>, SlotInfo>>,
     slot_changes: HashMap<Vec<u8>, SlotInfo>,
     // Slot transaction queue. If it's None it means it has
-    // not been cached in from the db.
+    // not been cached from the db.
     slot_tx_queue: Option<SlotTxQueue>,
 
     /* Signal and Slots end */
@@ -1164,9 +1164,24 @@ impl OverlayAccount {
         Ok(())
     }
 
-    // Push a slot tx to the slot transaction list.
-    pub fn queue_slot_tx(&mut self, slot_tx: SlotTx) {
-        self.slot_tx_queue.as_mut().unwrap().push(slot_tx);
+    // Enqueue a slot tx to the slot transaction queue.
+    pub fn enqueue_slot_tx(&mut self, slot_tx: SlotTx) {
+        self.slot_tx_queue.as_mut().unwrap().enqueue(slot_tx);
+    }
+
+    // Dequeue a slot tx from the slot transaction queue.
+    pub fn dequeue_slot_tx(&mut self) -> Option<SlotTx> {
+        self.slot_tx_queue.as_mut().unwrap().dequeue()
+    }
+
+    // Return a copy of the slot tx queue.
+    pub fn get_copy_of_slot_tx_queue(&self) -> SlotTxQueue {
+        self.slot_tx_queue.as_ref().unwrap().clone()
+    }
+
+    // Is the slot tx queue empty.
+    pub fn is_slot_tx_queue_empty(&self) -> bool {
+        self.slot_tx_queue.as_ref().unwrap().is_empty()
     }
 
     // Add a slot to the slot list.

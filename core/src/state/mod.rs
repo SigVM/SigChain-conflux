@@ -1529,7 +1529,7 @@ impl State {
         &mut self, address: &Address, signal_key: &Vec<u8>, argc: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
-        let empty_sig = self.signal_at(address, signal_key).expect("Caching should not fail.");
+        let empty_sig = self.signal_at(address, signal_key)?;
         if !empty_sig.is_none() {
             return Ok(false);
         }
@@ -1551,7 +1551,7 @@ impl State {
         code_entry: &Address, gas_limit: &U256, numerator: &U256, denominator: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
-        let empty_slot = self.slot_at(address, slot_key).expect("Caching should not fail.");
+        let empty_slot = self.slot_at(address, slot_key)?;
         if !empty_slot.is_none() {
             return Ok(false);
         }
@@ -1605,9 +1605,9 @@ impl State {
         &mut self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<()> {
         // Get signal info, make sure it exists.
-        let sig_info = self.require_exists(&sig_loc.address(), false)?
+        let _sig_info = self.require_exists(&sig_loc.address(), false)?
                            .signal_at(&self.db, sig_loc);
-        let sig_info = match sig_info {
+        let _sig_info = match _sig_info {
             Some(s) => s,
             None => {
                 return Err(DbErrorKind::IncompleteDatabase(
@@ -1631,12 +1631,13 @@ impl State {
         };
 
         // Check if argument counts match.
-        if slot_info.arg_count() != sig_info.arg_count() {
-            return Err(DbErrorKind::IncompleteDatabase(
-                slot_loc.address().clone(),
-            )
-            .into());
-        }
+        // if slot_info.arg_count() != sig_info.arg_count() {
+        //     // Probably want to create a new type of error...
+        //     return Err(DbErrorKind::IncompleteDatabase(
+        //         slot_loc.address().clone(),
+        //     )
+        //     .into());
+        // }
 
         // Signal account.
         self.require_exists(&sig_loc.address(), false)?
@@ -1663,17 +1664,44 @@ impl State {
     // Emit a signal.
     pub fn emit_signal_and_queue_slot_tx(
         &mut self, sig_loc: &SignalLocation,
-        epoch_height: u64, argv: &Vec<Bytes>
+        current_epoch_height: u64, epoch_height_delay: u64, 
+        argv: &Vec<Bytes>,
     ) -> DbResult<()> {
+        // Get signal info.
         let sig_info = self.require_exists(&sig_loc.address(), false)?
-                           .signal_at(&self.db, sig_loc)
-                           .unwrap();
-        // Go through the list of slots and form slot transactions
-        for slot in sig_info.slot_list() {
-            let tx = SlotTx::new(
-                slot, &epoch_height, argv
-            );
-            self.queue_slot_tx_to_global_queue(tx)?;
+                           .signal_at(&self.db, sig_loc);
+        let sig_info = match sig_info {
+            Some(s) => s,
+            None => {
+                return Err(DbErrorKind::IncompleteDatabase(
+                    sig_loc.address().clone(),
+                )
+                .into());
+            }
+        };
+        // Create and queue slot transactions. If the delay is not 0, then the slot
+        // transaction is queued on the global queue. If it is 0, we queue it directly
+        // to the individual account queues.
+        let target_epoch_height = current_epoch_height + epoch_height_delay;
+        if epoch_height_delay == 0 {
+            for slot in sig_info.slot_list() {
+                let tx = SlotTx::new(
+                    slot, &target_epoch_height, argv
+                );
+                let address = tx.get_owner();
+                self.require_exists(address, false)?
+                    .cache_slot_tx_queue(&self.db)?;
+                self.require_exists(address, false)?
+                    .enqueue_slot_tx(tx);
+            }
+        }
+        else {
+            for slot in sig_info.slot_list() {
+                let tx = SlotTx::new(
+                    slot, &target_epoch_height, argv
+                );
+                self.enqueue_slot_tx_to_global_queue(tx)?;
+            }
         }
         Ok(())
     }
@@ -1693,7 +1721,7 @@ impl State {
     }
 
     // Queue a slot transaction to the queue.
-    pub fn queue_slot_tx_to_global_queue(
+    pub fn enqueue_slot_tx_to_global_queue(
         &mut self, slot_tx: SlotTx
     ) -> DbResult<()> {
         let epoch_height = slot_tx.get_epoch_height();
@@ -1730,12 +1758,13 @@ impl State {
         if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
             let mut global_queue = global_queue.clone();
             while !global_queue.is_empty() {
+                // unwrap is okay to use here because queue is not empty
                 let slot_tx = global_queue.dequeue().unwrap();
                 let address = slot_tx.get_owner();
                 self.require_exists(address, false)?
                     .cache_slot_tx_queue(&self.db)?;
                 self.require_exists(address, false)?
-                    .queue_slot_tx(slot_tx);
+                    .enqueue_slot_tx(slot_tx);
             }
             assert!(global_queue.is_empty());
             self.global_slot_tx_queue_cache.write().insert(epoch_height, global_queue);
@@ -1763,6 +1792,35 @@ impl State {
             }
         }
         Ok(())
+    }
+
+    // Dequeue a slot transaction from an account.
+    pub fn dequeue_slot_tx_from_account(
+        &self, address: &Address,
+    ) -> DbResult<Option<SlotTx>> {
+        self.require_exists(address, false)?.cache_slot_tx_queue(&self.db)?;
+        Ok(self.require_exists(address, false)?
+               .dequeue_slot_tx())
+    }
+
+    // Get a copy of the full slot transaction queue from an account.
+    pub fn get_account_slot_tx_queue(
+        &self, address: &Address,
+    ) -> DbResult<SlotTxQueue> {
+        self.require_exists(address, false)?
+            .cache_slot_tx_queue(&self.db)?;
+        Ok(self.require_exists(address, false)?
+               .get_copy_of_slot_tx_queue())
+    }
+
+    // Check if a particular account's slot transaction queue is empty.
+    pub fn is_account_slot_tx_queue_empty(
+        &self, address: &Address,
+    ) -> DbResult<bool> {
+        self.require_exists(address, false)?
+            .cache_slot_tx_queue(&self.db)?;
+        Ok(self.require_exists(address, false)?
+               .is_slot_tx_queue_empty())
     }
 
     /* Signal and Slots end */
