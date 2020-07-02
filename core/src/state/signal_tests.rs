@@ -47,8 +47,8 @@ fn signal_creation() {
         .expect("Signal creation should not fail.");
 
     let signal = state.signal_at(&address, &key)
-                      .expect("Signal should exist.")
-                      .unwrap();
+        .expect("Signal should exist.")
+        .unwrap();
 
     assert_eq!(*signal.location().address(), address);
     assert_eq!(*signal.location().signal_key(), key);
@@ -77,8 +77,8 @@ fn slot_creation() {
         .expect("Slot creation should not fail.");
 
     let slot = state.slot_at(&address, &key)
-                      .expect("Slot should exist.")
-                      .unwrap();
+        .expect("Slot should exist.")
+        .unwrap();
 
     assert_eq!(*slot.location().address(), address);
     assert_eq!(*slot.location().slot_key(), key);
@@ -131,18 +131,18 @@ fn slot_bind_and_detach() {
     
     // Check to see if signal info is correct.
     let sig = state  
-                .signal_at(&emitter, &sig_key)
-                .expect("Signal info retrieval should not fail")
-                .unwrap();
+        .signal_at(&emitter, &sig_key)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
     let slot = sig.slot_list().last().unwrap().clone();
     assert_eq!(*slot.location(), slot_loc);
     assert_eq!(*slot.gas_limit(), gas_limit);
 
     // Check to see if slot info is correct.
     let slot = state
-                .slot_at(&listener, &slot_key)
-                .expect("Slot info retrieval should not fail")
-                .unwrap();
+        .slot_at(&listener, &slot_key)
+        .expect("Slot info retrieval should not fail")
+        .unwrap();
     let sig = slot.bind_list().last().unwrap().clone();
     assert_eq!(sig, sig_loc);
 
@@ -167,15 +167,152 @@ fn slot_bind_and_detach() {
 }
 
 // Test to see if signal emission works as intended.
-
+// Create a emitter contract account as well as several listeners.
+// Emit once with zero delay and look into each of slot transaction queues.
+// Emit another time with a delay to queue slot transactions into the global slot transaction queue.
+// Drain from the global slot transaction queue and bring them to individual account slot transaction queues.
+// Dequeue the account slot transaction queues and check if the ordering is correct.
 #[test]
-fn signal_emit() {
+fn signal_emit_and_slot_tx_distribution() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+    let mut emitter = Address::from_low_u64_be(1);
+    let mut listener1 = Address::from_low_u64_be(2);
+    let mut listener2 = Address::from_low_u64_be(3);
+    emitter.set_contract_type_bits();
+    listener1.set_contract_type_bits();
+    listener2.set_contract_type_bits();
 
-}
+    // Information to initialize signal.
+    let sig_argc = U256::from(3);
+    let sig_key = vec![0x41u8, 0x42u8, 0x43u8];
+    let sig_loc = SignalLocation::new(&emitter, &sig_key);
+    let sig_data1 = vec![
+        vec![0x01u8, 0x02u8, 0x03u8], 
+        vec![0x04u8, 0x05u8, 0x06u8], 
+        vec![0x07u8, 0x08u8, 0x09u8], 
+    ];
+    let sig_data2 = vec![
+        vec![0x09u8, 0x08u8, 0x07u8], 
+        vec![0x06u8, 0x05u8, 0x04u8], 
+        vec![0x03u8, 0x02u8, 0x01u8], 
+    ];
 
-#[test]
-fn slot_tx_distribution() {
+    // Information to initialize slot.
+    let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
+    let slot_argc = U256::from(3);
+    let entry = Address::zero();
+    let gas_limit = U256::from(1000);
+    let numerator = U256::from(3);
+    let denominator = U256::from(2);
+    let slot_loc_1 = SlotLocation::new(&listener1, &slot_key);
+    let slot_loc_2 = SlotLocation::new(&listener2, &slot_key);
 
+    // Create signal.
+    state
+        .new_contract(&emitter, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_signal(&emitter, &sig_key, &sig_argc)
+        .expect("Signal creation should not fail.");
+
+    // Create slot 1.
+    state
+        .new_contract(&listener1, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&listener1, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .expect("Slot creation should not fail.");
+
+    // Create slot 2.
+    state
+        .new_contract(&listener2, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&listener2, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .expect("Slot creation should not fail.");
+
+    // Bind slots to signal.
+    state
+        .bind_slot_to_signal(&sig_loc, &slot_loc_1)
+        .expect("Bind should not fail.");
+    state
+        .bind_slot_to_signal(&sig_loc, &slot_loc_2)
+        .expect("Bind should not fail.");
+    
+    // Emit the signal.
+    state
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data1)
+        .expect("Emit signal should not fail.");
+    
+    // Check slot transaction queues. 
+    let queue = state
+        .get_account_slot_tx_queue(&listener1)
+        .expect("Getting account queue should not fail");
+    let slot_tx = queue.peek(0).unwrap().clone();
+    assert_eq!(*slot_tx.get_owner(), listener1);
+
+    let queue = state
+        .get_account_slot_tx_queue(&listener2)
+        .expect("Getting account queue should not fail");
+    let slot_tx = queue.peek(0).unwrap().clone();
+    assert_eq!(*slot_tx.get_owner(), listener2);
+
+    // Emit signal again, but with delay.
+    state
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 1, &sig_data2)
+        .expect("Emit signal should not fail.");
+
+    // Make sure queues still only have one element.
+    let queue = state
+        .get_account_slot_tx_queue(&listener1)
+        .expect("Getting account queue should not fail");
+    let slot_tx = queue.peek(1);
+    assert!(slot_tx.is_none());
+
+    let queue = state
+        .get_account_slot_tx_queue(&listener2)
+        .expect("Getting account queue should not fail");
+    let slot_tx = queue.peek(1);
+    assert!(slot_tx.is_none());
+
+    // Drain the global slot tx queue.
+    state
+        .drain_global_slot_transaction_queue(1)
+        .expect("Global slot tx queue drain should not fail.");
+
+    // Assert that slot tx queues are not empty.
+    assert!(!state
+        .is_account_slot_tx_queue_empty(&listener1)
+        .expect("Failed when checking if queue is empty.")
+    );
+    assert!(!state
+        .is_account_slot_tx_queue_empty(&listener2)
+        .expect("Failed when checking if queue is empty.")
+    );
+
+    // Dequeue both slot transactions and make sure the ordering is correct.
+    let slot_tx = state
+        .dequeue_slot_tx_from_account(&listener1)
+        .expect("Dequeue 1 should not fail.")
+        .unwrap();
+    assert_eq!(slot_tx.argv().clone(), sig_data1);
+    let slot_tx = state
+        .dequeue_slot_tx_from_account(&listener1)
+        .expect("Dequeue 2 should not fail.")
+        .unwrap();
+    assert_eq!(slot_tx.argv().clone(), sig_data2);
+    
+    let slot_tx = state
+        .dequeue_slot_tx_from_account(&listener2)
+        .expect("Dequeue 1 should not fail.")
+        .unwrap();
+    assert_eq!(slot_tx.argv().clone(), sig_data1);
+    let slot_tx = state
+        .dequeue_slot_tx_from_account(&listener2)
+        .expect("Dequeue 2 should not fail.")
+        .unwrap();
+    assert_eq!(slot_tx.argv().clone(), sig_data2);
 }
 
 #[test]

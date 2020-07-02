@@ -277,6 +277,10 @@ impl SlotTx {
     pub fn get_epoch_height(&self) -> u64 {
         self.epoch_height
     }
+    // Get argument vector.
+    pub fn argv(&self) -> &Vec<Bytes> {
+        &self.argv
+    }
 
     // Returns the call data of the slot transaction
     // pub fn get_call_data(&self) -> Bytes {

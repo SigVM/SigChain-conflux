@@ -1721,6 +1721,7 @@ impl State {
     }
 
     // Queue a slot transaction to the queue.
+    // TODO: Bug somewhere in this line of calls.
     pub fn enqueue_slot_tx_to_global_queue(
         &mut self, slot_tx: SlotTx
     ) -> DbResult<()> {

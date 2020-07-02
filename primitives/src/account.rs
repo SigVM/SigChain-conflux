@@ -134,6 +134,13 @@ impl SlotTxQueue {
         Some(self.0.remove(last_item_index))
     }
 
+    pub fn peek(&self, idx: usize) -> Option<&SlotTx> {
+        if idx < self.0.len() {
+            return self.0.get(idx);
+        }
+        None
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
