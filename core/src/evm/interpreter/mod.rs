@@ -1747,6 +1747,7 @@ fn u256_to_address(value: &U256) -> Address {
 #[inline]
 fn address_to_u256(value: Address) -> U256 { H256::from(value).into_uint() }
 
+#[allow(dead_code)]
 #[inline]
 fn h256_to_u256(value: H256) -> U256 { value.into_uint() }
 

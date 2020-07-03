@@ -73,7 +73,7 @@ fn slot_creation() {
         .new_contract(&address, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&address, &key, &argc, &entry, &gas_limit, &numerator, &denominator)
+        .create_slot(&address, &key, &entry, &argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     let slot = state.slot_at(&address, &key)
@@ -122,7 +122,7 @@ fn slot_bind_and_detach() {
         .new_contract(&listener, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
     // Bind slot to signal.
     state
@@ -221,7 +221,7 @@ fn signal_emit_and_slot_tx_distribution() {
         .new_contract(&listener1, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener1, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener1, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Create slot 2.
@@ -229,7 +229,7 @@ fn signal_emit_and_slot_tx_distribution() {
         .new_contract(&listener2, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener2, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener2, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Bind slots to signal.
@@ -366,7 +366,7 @@ fn commit_signal_and_slots() {
         .new_contract(&listener1, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener1, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener1, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Create slot 2.
@@ -374,7 +374,7 @@ fn commit_signal_and_slots() {
         .new_contract(&listener2, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener2, &slot_key, &slot_argc, &entry, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener2, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Bind slots to signal.

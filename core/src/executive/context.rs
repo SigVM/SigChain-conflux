@@ -973,7 +973,7 @@ mod tests {
         let result = ctx.create_sig(
             &Address::zero(),
             &vec![std::u8::MIN],
-            U256::zero()
+            &U256::zero()
         ).ok()
         .unwrap();
         check_sig_slot_result(result);
@@ -981,10 +981,11 @@ mod tests {
         let result = ctx.create_slot(
             &Address::zero(),
             &vec![std::u8::MAX],
-            U256::zero(),
-            U256::zero(),
-            U256::zero(),
-            Address::zero(),
+            &Address::zero(),
+            &U256::zero(),
+            &U256::zero(),
+            &U256::zero(),
+            &U256::zero(),
         ).ok()
         .unwrap();
         check_sig_slot_result(result);

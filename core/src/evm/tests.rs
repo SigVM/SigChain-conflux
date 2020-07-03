@@ -1299,7 +1299,7 @@ fn should_create_sig(factory: super::Factory) {
     params.code = Some(Arc::new(code));
     let mut ctx = MockContext::new();
 
-    let gas_left = {
+    let _gas_left = {
         let vm = factory.create(params, ctx.spec(), ctx.depth());
         test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
     };
@@ -1314,7 +1314,7 @@ fn should_create_slot(factory: super::Factory) {
     params.code = Some(Arc::new(code));
     let mut ctx = MockContext::new();
 
-    let gas_left = {
+    let _gas_left = {
         let vm = factory.create(params, ctx.spec(), ctx.depth());
         test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
     };
@@ -1329,7 +1329,7 @@ fn should_bind(factory: super::Factory) {
     params.code = Some(Arc::new(code));
     let mut ctx = MockContext::new();
 
-    let gas_left = {
+    let _gas_left = {
         let vm = factory.create(params, ctx.spec(), ctx.depth());
         test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
     };
@@ -1344,7 +1344,7 @@ fn should_detach(factory: super::Factory) {
     params.code = Some(Arc::new(code));
     let mut ctx = MockContext::new();
 
-    let gas_left = {
+    let _gas_left = {
         let vm = factory.create(params, ctx.spec(), ctx.depth());
         test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
     };
@@ -1359,7 +1359,7 @@ fn should_emit(factory: super::Factory) {
     params.code = Some(Arc::new(code));
     let mut ctx = MockContext::new();
 
-    let gas_left = {
+    let _gas_left = {
         let vm = factory.create(params, ctx.spec(), ctx.depth());
         test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
     };
