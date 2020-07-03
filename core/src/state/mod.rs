@@ -1710,38 +1710,36 @@ impl State {
     pub fn cache_global_slot_tx_queue(
         &mut self, epoch_height: u64,
     ) -> DbResult<()> {
-        if let Some(_global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
+        // Found in cache already.
+        let cache_read = self.global_slot_tx_queue_cache.read();
+        if let Some(_global_queue) = cache_read.get(&epoch_height) {
             return Ok(());
         }
+        drop(cache_read);
+        // If in db load it in, otherwise create new queue in cache.
+        let mut cache_write = self.global_slot_tx_queue_cache.write();
         if let Some(global_queue) = self.db.get_global_slot_tx_queue(epoch_height)? {
-            self.global_slot_tx_queue_cache.write()
-                .insert(epoch_height, global_queue.clone());
+            cache_write.insert(epoch_height, global_queue.clone());
+        }
+        else {
+            cache_write.insert(epoch_height, SlotTxQueue::new());
         }
         Ok(())
     }
 
     // Queue a slot transaction to the queue.
-    // TODO: Bug somewhere in this line of calls.
     pub fn enqueue_slot_tx_to_global_queue(
         &mut self, slot_tx: SlotTx
     ) -> DbResult<()> {
         let epoch_height = slot_tx.get_epoch_height();
         // Cache global_slot_tx_queue.
         self.cache_global_slot_tx_queue(epoch_height)?;
+        let mut cache = self.global_slot_tx_queue_cache.write();
 
         // Perform queueing.
-        if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
-            let mut global_queue = global_queue.clone();
-            global_queue.enqueue(slot_tx);
-            self.global_slot_tx_queue_cache.write()
-                .insert(epoch_height, global_queue);
-        }
-        else {
-            let mut global_queue = SlotTxQueue::new();
-            global_queue.enqueue(slot_tx);
-            self.global_slot_tx_queue_cache.write()
-                .insert(epoch_height, global_queue);
-        }
+        let mut global_queue = cache.get(&epoch_height).unwrap().clone();
+        global_queue.enqueue(slot_tx);
+        cache.insert(epoch_height, global_queue);
         Ok(())
     }
 
@@ -1754,9 +1752,10 @@ impl State {
     ) -> DbResult<()> {
         // Cache global queue.
         self.cache_global_slot_tx_queue(epoch_height)?;
+        let mut cache = self.global_slot_tx_queue_cache.write();
 
         // Dequeue and distribute to individual accounts.
-        if let Some(global_queue) = self.global_slot_tx_queue_cache.read().get(&epoch_height) {
+        if let Some(global_queue) = cache.get(&epoch_height) {
             let mut global_queue = global_queue.clone();
             while !global_queue.is_empty() {
                 // unwrap is okay to use here because queue is not empty
@@ -1768,7 +1767,7 @@ impl State {
                     .enqueue_slot_tx(slot_tx);
             }
             assert!(global_queue.is_empty());
-            self.global_slot_tx_queue_cache.write().insert(epoch_height, global_queue);
+            cache.insert(epoch_height, global_queue);
         }
         Ok(())
     }

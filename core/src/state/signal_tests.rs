@@ -267,29 +267,28 @@ fn signal_emit_and_slot_tx_distribution() {
     let queue = state
         .get_account_slot_tx_queue(&listener1)
         .expect("Getting account queue should not fail");
-    let slot_tx = queue.peek(1);
-    assert!(slot_tx.is_none());
+    assert_eq!(queue.len(), 1);
 
     let queue = state
         .get_account_slot_tx_queue(&listener2)
         .expect("Getting account queue should not fail");
-    let slot_tx = queue.peek(1);
-    assert!(slot_tx.is_none());
+    assert_eq!(queue.len(), 1);
 
     // Drain the global slot tx queue.
     state
         .drain_global_slot_transaction_queue(1)
         .expect("Global slot tx queue drain should not fail.");
 
-    // Assert that slot tx queues are not empty.
-    assert!(!state
-        .is_account_slot_tx_queue_empty(&listener1)
-        .expect("Failed when checking if queue is empty.")
-    );
-    assert!(!state
-        .is_account_slot_tx_queue_empty(&listener2)
-        .expect("Failed when checking if queue is empty.")
-    );
+    // Make sure queues now have 2 elements.
+    let queue = state
+        .get_account_slot_tx_queue(&listener1)
+        .expect("Getting account queue should not fail");
+    assert_eq!(queue.len(), 2);
+
+    let queue = state
+        .get_account_slot_tx_queue(&listener2)
+        .expect("Getting account queue should not fail");
+    assert_eq!(queue.len(), 2);
 
     // Dequeue both slot transactions and make sure the ordering is correct.
     let slot_tx = state

@@ -104,45 +104,42 @@ impl DerefMut for VoteStakeList {
     Eq,
     PartialEq,
 )]
-pub struct SlotTxQueue(pub Vec<SlotTx>);
-
-impl Deref for SlotTxQueue {
-    type Target = Vec<SlotTx>;
-
-    fn deref(&self) -> &Self::Target { &self.0 }
-}
-
-impl DerefMut for SlotTxQueue {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+pub struct SlotTxQueue {
+    list: Vec<SlotTx>,
 }
 
 impl SlotTxQueue {
     pub fn new() -> Self {
-        let new = SlotTxQueue(Vec::new());
+        let new = SlotTxQueue {
+            list: Vec::new(),
+        };
         new
     }
 
     pub fn enqueue(&mut self, slot_tx: SlotTx) {
-        self.0.push(slot_tx);
+        self.list.push(slot_tx);
     }
 
     pub fn dequeue(&mut self) -> Option<SlotTx> {
-        if self.0.is_empty() {
+        if self.list.is_empty() {
             return None;
         }
-        let last_item_index = self.0.len() - 1;
-        Some(self.0.remove(last_item_index))
+        Some(self.list.remove(0))
     }
 
     pub fn peek(&self, idx: usize) -> Option<&SlotTx> {
-        if idx < self.0.len() {
-            return self.0.get(idx);
+        if idx < self.list.len() {
+            return self.list.get(idx);
         }
         None
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.list.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.list.len()
     }
 }
 
