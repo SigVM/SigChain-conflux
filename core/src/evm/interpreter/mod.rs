@@ -1528,15 +1528,15 @@ impl<Cost: CostType> Interpreter<Cost> {
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             instructions::CREATESIG => {
-                let sig_argc = self.stack.pop_back();  // 0
-                let mut sig_key = vec![0; 32];         // 1
-                self.stack.pop_back().to_big_endian(sig_key.as_mut());
+                let argc = self.stack.pop_back();  // 0
+                let mut key = vec![0; 32];         // 1
+                self.stack.pop_back().to_big_endian(key.as_mut());
 
                 let call_result =
                     context.create_sig(
                         &self.params.address,
-                        &sig_key,
-                        sig_argc,
+                        &key,
+                        &argc,
                     );
 
                 match call_result {
@@ -1549,21 +1549,32 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
             }
             instructions::CREATESLOT => {
-                let slot_argc = self.stack.pop_back(); // 0
-                let gas_ratio = self.stack.pop_back(); // 1
-                let gas_limit = self.stack.pop_back(); // 2
-                let code_entry = self.stack.pop_back();// 3
-                let mut slot_key = vec![0; 32];        // 4
-                self.stack.pop_back().to_big_endian(slot_key.as_mut());
+                // Argument count
+                let argc = self.stack.pop_back(); // 0
 
+                // Gas ratio and limit, the denominator is always 100.
+                let gas_ratio_numerator = self.stack.pop_back(); // 1
+                let gas_ratio_denominator = U256::from(100);
+                let gas_limit = self.stack.pop_back(); // 2
+
+                // Code entry point, convert to address.
+                let code = self.stack.pop_back(); // 3
+                let code = &u256_to_address(&code);
+
+                // Slot key.
+                let mut key = vec![0; 32];
+                self.stack.pop_back().to_big_endian(key.as_mut()); // 4
+
+                // Call context trait api to do the rest of the work.
                 let call_result =
                     context.create_slot(
                         &self.params.address,
-                        &slot_key,
-                        slot_argc,
-                        gas_limit,
-                        gas_ratio,
-                        u256_to_address(&code_entry),
+                        &key,
+                        &code,
+                        &argc,
+                        &gas_limit,
+                        &gas_ratio_numerator,
+                        &gas_ratio_denominator,
                     );
 
                 match call_result {
@@ -1574,7 +1585,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                         self.stack.push(U256::zero());
                     }
                 };
-
             }
             instructions::BINDSLOT => {
                 let emitter = self.stack.pop_back(); // 0

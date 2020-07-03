@@ -197,18 +197,20 @@ pub trait Context {
     fn is_static(&self) -> bool;
 
     /* Signal and Slots begin */
+
     // Create a new signal definition
     fn create_sig(
-        &mut self, sender_address: &Address, signal_key: &Vec<u8>,
-        num_arg: U256
+        &mut self, sender_address: &Address, 
+        signal_key: &Vec<u8>, argc: &U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Create a new slot definition
     // gas_ratio is out of 100
     fn create_slot(
-        &mut self, sender_address: &Address, slot_key: &Vec<u8>,
-        num_arg: U256, gas_limit: U256, gas_ratio: U256,
-        code: Address,
+        &mut self, sender_address: &Address, 
+        slot_key: &Vec<u8>, code: &Address,
+        argc: &U256, gas_limit: &U256, 
+        numerator: &U256, denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Bind a slot to a signal
@@ -228,5 +230,6 @@ pub trait Context {
         &mut self, sender_address: &Address,
         signal_id: &Vec<u8>, blocks_delayed: &U256, data: &[u8]
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
+
     /* Signal and Slots end */
 }

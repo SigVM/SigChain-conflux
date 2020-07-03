@@ -246,7 +246,7 @@ impl Context for MockContext {
     // Create a new signal definition
     fn create_sig(
         &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
-        _num_arg: U256
+        _num_arg: &U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Success)
@@ -255,9 +255,10 @@ impl Context for MockContext {
     // Create a new slot definition
     // gas_ratio is out of 100
     fn create_slot(
-        &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
-        _num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
-        _code: Address,
+        &mut self, _sender_address: &Address, 
+        _slot_key: &Vec<u8>, _code: &Address,
+        _argc: &U256, _gas_limit: &U256, 
+        _numerator: &U256, _denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Success)

@@ -1533,7 +1533,8 @@ impl State {
     // Create a new signal definition.
     // If the signal already exists do nothing.
     pub fn create_signal(
-        &mut self, address: &Address, signal_key: &Vec<u8>, argc: &U256
+        &mut self, address: &Address, 
+        signal_key: &Vec<u8>, argc: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
         let empty_sig = self.signal_at(address, signal_key)?;
@@ -1554,8 +1555,10 @@ impl State {
 
     // Create a new slot definition.
     pub fn create_slot(
-        &mut self, address: &Address, slot_key: &Vec<u8>, argc: &U256,
-        code_entry: &Address, gas_limit: &U256, numerator: &U256, denominator: &U256
+        &mut self, address: &Address, 
+        slot_key: &Vec<u8>, code: &Address, 
+        argc: &U256, gas_limit: &U256, 
+        numerator: &U256, denominator: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
         let empty_slot = self.slot_at(address, slot_key)?;
@@ -1566,7 +1569,7 @@ impl State {
         let slot_info = SlotInfo::new(
             address,
             slot_key,
-            code_entry,
+            code,
             argc,
             gas_limit,
             numerator,

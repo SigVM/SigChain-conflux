@@ -451,10 +451,14 @@ impl<'a> ContextTrait for Context<'a> {
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
     fn create_sig(
-        &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
-        num_arg: U256
+        &mut self, sender_address: &Address, signal_key: &Vec<u8>,
+        argc: &U256
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let result = self.state.create_signal(_sender_address, _signal_key, &num_arg);
+        let result = self.state.create_signal(
+            sender_address, 
+            signal_key, 
+            argc
+        );
         match result {
             Ok(_created) => Ok(SignalSlotOpResult::Success),
             _ => Ok(SignalSlotOpResult::Failed)
@@ -463,13 +467,19 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Create a new slot definition
     fn create_slot(
-        &mut self, _sender_address: &Address, _slot_key: &Vec<u8>,
-        num_arg: U256, _gas_limit: U256, _gas_ratio: U256,
-        code: Address,
+        &mut self, sender_address: &Address, 
+        slot_key: &Vec<u8>, code: &Address,
+        argc: &U256, gas_limit: &U256, 
+        numerator: &U256, denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let result = self.state.create_slot(
-            _sender_address, _slot_key, &num_arg,
-            &code, &_gas_limit, &_gas_ratio, &U256::from_dec_str("100").unwrap()
+            sender_address, 
+            slot_key,
+            code, 
+            argc,
+            gas_limit, 
+            numerator, 
+            denominator,
         );
         match result {
             Ok(_created) => Ok(SignalSlotOpResult::Success),
