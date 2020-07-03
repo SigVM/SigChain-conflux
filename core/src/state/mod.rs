@@ -1508,6 +1508,13 @@ impl State {
             self.db.get_total_staking_tokens().expect("No db error");
         self.staking_state.total_storage_tokens =
             self.db.get_total_storage_tokens().expect("No db error");
+        
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        assert!(self.global_slot_tx_queue_cache_checkpoints.get_mut().is_empty());
+        self.global_slot_tx_queue_cache.get_mut().clear();
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
     }
 
     //////////////////////////////////////////////////////////////////////
