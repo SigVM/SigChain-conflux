@@ -19,9 +19,11 @@ use primitives::{
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 use primitives::{
-    SlotTxQueue, SignalInfo, SlotInfo,
+    SlotTxQueue, SignalInfo, SlotInfo, SlotTxAddressList
 };
-use crate::signal::GLOBAL_SLOT_TX_QUEUE_ADDRESS;
+use crate::signal::{
+    GLOBAL_SLOT_TX_QUEUE_ADDRESS, GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS
+};
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
 
@@ -341,13 +343,32 @@ impl StateDb {
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
 
+    // Retrieve the list of contract addresses with pending slot transaction ready to be handled
+    pub fn get_addresses_with_ready_slot_tx(&self)
+    -> Result<Option<SlotTxAddressList>> {
+        let key = StorageKey::new_storage_root_key(
+            &GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS,
+        );
+        self.get::<SlotTxAddressList>(key)
+    }
+
+    pub fn set_addresses_with_ready_slot_tx(
+        &mut self, accounts: &SlotTxAddressList,
+        debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        let key = StorageKey::new_storage_root_key(
+            &GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS,
+        );
+        self.set::<SlotTxAddressList>(key, accounts, debug_record)
+    }
+
     // Given an epoch number, retrieve the queue.
     pub fn get_global_slot_tx_queue(
         &self, epoch_height: u64,
     ) -> Result<Option<SlotTxQueue>> {
         let buffer = epoch_height.to_le_bytes();
         let key = StorageKey::new_storage_key(
-            &GLOBAL_SLOT_TX_QUEUE_ADDRESS, 
+            &GLOBAL_SLOT_TX_QUEUE_ADDRESS,
             &buffer,
         );
         self.get::<SlotTxQueue>(key)
@@ -359,7 +380,7 @@ impl StateDb {
     ) -> Result<()> {
         let buffer = epoch_height.to_le_bytes();
         let key = StorageKey::new_storage_key(
-            &GLOBAL_SLOT_TX_QUEUE_ADDRESS, 
+            &GLOBAL_SLOT_TX_QUEUE_ADDRESS,
             &buffer,
         );
         self.set::<SlotTxQueue>(key, queue, debug_record)
@@ -371,7 +392,7 @@ impl StateDb {
     ) -> Result<()> {
         let buffer = epoch_height.to_le_bytes();
         let key = StorageKey::new_storage_key(
-            &GLOBAL_SLOT_TX_QUEUE_ADDRESS, 
+            &GLOBAL_SLOT_TX_QUEUE_ADDRESS,
             &buffer,
         );
         self.delete(key, debug_record)
@@ -405,7 +426,7 @@ impl StateDb {
     }
 
     pub fn get_signal_info(
-        &self, address: &Address, signal_key: &Vec<u8>,   
+        &self, address: &Address, signal_key: &Vec<u8>,
     ) -> Result<Option<SignalInfo>> {
         self.get::<SignalInfo>(StorageKey::new_signal_key(address, signal_key))
     }
@@ -432,7 +453,7 @@ impl StateDb {
     }
 
     pub fn get_slot_info(
-        &self, address: &Address, slot_key: &Vec<u8>,   
+        &self, address: &Address, slot_key: &Vec<u8>,
     ) -> Result<Option<SlotInfo>> {
         self.get::<SlotInfo>(StorageKey::new_slot_key(address, slot_key))
     }

@@ -16,6 +16,9 @@ lazy_static! {
     // Last 20 digits of keccak256(Boundless!!!)
     pub static ref GLOBAL_SLOT_TX_QUEUE_ADDRESS: Address =
         Address::from_str("db73c9d8eeaac3e5de3f83b71fb7aa4e41764d09").unwrap();
+
+    pub static ref GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS: Address =
+        Address::from_str("bab69eae9ea958e501ea40b8c6dc27a9614a5b9b").unwrap();
 }
 
 /* Signal and Slots end */

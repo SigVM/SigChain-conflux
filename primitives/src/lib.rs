@@ -35,7 +35,7 @@ pub mod signal;
 pub use crate::{
     account::{
         Account, CodeInfo, DepositInfo, DepositList, SponsorInfo,
-        VoteStakeInfo, VoteStakeList, SlotTxQueue,
+        VoteStakeInfo, VoteStakeList, SlotTxQueue, SlotTxAddressList,
     },
     block::{Block, BlockNumber},
     block_header::{BlockHeader, BlockHeaderBuilder},

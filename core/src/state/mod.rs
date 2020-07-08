@@ -42,6 +42,7 @@ mod signal_tests;
 
 use primitives::{
     SlotTxQueue, SlotTx, SignalInfo, SlotInfo, SignalLocation, SlotLocation,
+    SlotTxAddressList,
 };
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
@@ -109,9 +110,14 @@ pub struct State {
     // Keep track of the changes to the global slot tx queue.
     // As a refresher, the changes are stored as a mapping between epoch number
     // and slot transaction queue. This mapping of changes are also stored
-    // in checkpoints along with staking state and account info.
+    // in checkpoints along with staking state, account info, and slot tx accounts.
     global_slot_tx_queue_cache_checkpoints: RwLock<Vec<HashMap<u64, SlotTxQueue>>>,
     global_slot_tx_queue_cache: RwLock<HashMap<u64, SlotTxQueue>>,
+
+    // Keep track of the changes to the list of accounts with slot tx ready to be handled.
+    // This list is also stored in checkpoints.
+    ready_slot_tx_accounts_cache_checkpoints: RwLock<Vec<SlotTxAddressList>>,
+    ready_slot_tx_accounts_cache: RwLock<SlotTxAddressList>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -163,6 +169,8 @@ impl State {
             /* Signal and Slots begin */
             global_slot_tx_queue_cache_checkpoints: Default::default(),
             global_slot_tx_queue_cache: Default::default(),
+            ready_slot_tx_accounts_cache_checkpoints: Default::default(),
+            ready_slot_tx_accounts_cache: Default::default(),
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
         }
@@ -221,6 +229,9 @@ impl State {
         self.global_slot_tx_queue_cache_checkpoints
             .get_mut()
             .push(self.global_slot_tx_queue_cache.read().clone());
+        self.ready_slot_tx_accounts_cache_checkpoints
+            .get_mut()
+            .push(self.ready_slot_tx_accounts_cache.read().clone());
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
         let checkpoints = self.checkpoints.get_mut();
@@ -368,6 +379,7 @@ impl State {
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             self.global_slot_tx_queue_cache_checkpoints.get_mut().pop();
+            self.ready_slot_tx_accounts_cache_checkpoints.get_mut().pop();
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
             if let Some(ref mut prev) = self.checkpoints.get_mut().last_mut() {
@@ -398,6 +410,14 @@ impl State {
                                     .expect("global slot tx queue cache checkpoint should exist");
             let tx_checkpoint = RwLock::new(tx_checkpoint);
             self.global_slot_tx_queue_cache = tx_checkpoint;
+
+            let slot_tx_accounts_checkpoint = self.ready_slot_tx_accounts_cache_checkpoints
+                                    .get_mut()
+                                    .pop()
+                                    .expect("ready slot tx accounts checkpoint should exist");
+            let slot_tx_accounts_checkpoint = RwLock::new(slot_tx_accounts_checkpoint);
+            self.ready_slot_tx_accounts_cache = slot_tx_accounts_checkpoint;
+
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
             for (k, v) in checkpoint.drain() {
@@ -1070,6 +1090,9 @@ impl State {
         /* Signal and Slots begin */
         assert!(self.global_slot_tx_queue_cache_checkpoints.get_mut().is_empty());
         self.commit_global_slot_tx_queue(debug_record.as_deref_mut())?;
+
+        assert!(self.ready_slot_tx_accounts_cache_checkpoints.get_mut().is_empty());
+        self.commit_ready_slot_tx_accounts(debug_record.as_deref_mut())?;
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
 
@@ -1508,11 +1531,14 @@ impl State {
             self.db.get_total_staking_tokens().expect("No db error");
         self.staking_state.total_storage_tokens =
             self.db.get_total_storage_tokens().expect("No db error");
-        
+
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
         assert!(self.global_slot_tx_queue_cache_checkpoints.get_mut().is_empty());
         self.global_slot_tx_queue_cache.get_mut().clear();
+
+        assert!(self.ready_slot_tx_accounts_cache_checkpoints.get_mut().is_empty());
+        self.ready_slot_tx_accounts_cache.get_mut().clear();
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
     }
@@ -1533,7 +1559,7 @@ impl State {
     // Create a new signal definition.
     // If the signal already exists do nothing.
     pub fn create_signal(
-        &mut self, address: &Address, 
+        &mut self, address: &Address,
         signal_key: &Vec<u8>, argc: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
@@ -1555,9 +1581,9 @@ impl State {
 
     // Create a new slot definition.
     pub fn create_slot(
-        &mut self, address: &Address, 
-        slot_key: &Vec<u8>, code: &Address, 
-        argc: &U256, gas_limit: &U256, 
+        &mut self, address: &Address,
+        slot_key: &Vec<u8>, code: &Address,
+        argc: &U256, gas_limit: &U256,
         numerator: &U256, denominator: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
@@ -1674,7 +1700,7 @@ impl State {
     // Emit a signal.
     pub fn emit_signal_and_queue_slot_tx(
         &mut self, sig_loc: &SignalLocation,
-        current_epoch_height: u64, epoch_height_delay: u64, 
+        current_epoch_height: u64, epoch_height_delay: u64,
         argv: &Vec<Bytes>,
     ) -> DbResult<()> {
         // Get signal info.
@@ -1691,18 +1717,19 @@ impl State {
         };
         // Create and queue slot transactions. If the delay is not 0, then the slot
         // transaction is queued on the global queue. If it is 0, we queue it directly
-        // to the individual account queues.
+        // to the individual account queues + add address to the ready slot tx address list.
         let target_epoch_height = current_epoch_height + epoch_height_delay;
         if epoch_height_delay == 0 {
             for slot in sig_info.slot_list() {
                 let tx = SlotTx::new(
                     slot, &target_epoch_height, argv
                 );
-                let address = tx.get_owner();
-                self.require_exists(address, false)?
+                let address = tx.get_owner().clone();
+                self.require_exists(&address, false)?
                     .cache_slot_tx_queue(&self.db)?;
-                self.require_exists(address, false)?
+                self.require_exists(&address, false)?
                     .enqueue_slot_tx(tx);
+                self.mark_address_with_ready_slot_tx(&address)?;
             }
         }
         else {
@@ -1713,6 +1740,63 @@ impl State {
                 self.enqueue_slot_tx_to_global_queue(tx)?;
             }
         }
+        Ok(())
+    }
+
+    pub fn cache_ready_slot_tx_accounts(&mut self) -> DbResult<()> {
+        let mut new_list = SlotTxAddressList::new();
+        let mut cache = self.ready_slot_tx_accounts_cache.write();
+        // Always read from the state db
+        if let Some(addresses) = self.db.get_addresses_with_ready_slot_tx()? {
+            new_list.merge(addresses.clone());
+        }
+
+        new_list.merge((*cache).clone());
+        *cache = new_list;
+
+        Ok(())
+    }
+
+    pub fn get_addresses_with_ready_slot_tx(
+        &mut self
+    ) -> DbResult<SlotTxAddressList> {
+        self.cache_ready_slot_tx_accounts()?;
+        let addresses = self.ready_slot_tx_accounts_cache.read().clone();
+        Ok(addresses)
+    }
+
+    // Add a list of accounts to the ready slot tx account list.
+    pub fn mark_addresses_with_ready_slot_tx(
+        &mut self, addresses: Vec<Address>
+    ) -> DbResult<()> {
+        let mut new_list = SlotTxAddressList::new();
+        let mut cache = self.ready_slot_tx_accounts_cache.write();
+        // Always read from the state db within the same write lock
+        if let Some(addresses) = self.db.get_addresses_with_ready_slot_tx()? {
+            new_list.merge(addresses.clone());
+        }
+
+        new_list.merge((*cache).clone());
+        new_list.append(&addresses);
+        *cache = new_list;
+
+        Ok(())
+    }
+
+    // Add an account to the ready slot tx account list.
+    pub fn mark_address_with_ready_slot_tx(
+        &mut self, address: &Address
+    ) -> DbResult<()> {
+        let mut new_list = SlotTxAddressList::new();
+        let mut cache = self.ready_slot_tx_accounts_cache.write();
+        // Always read from the state db within the same write lock
+        if let Some(addresses) = self.db.get_addresses_with_ready_slot_tx()? {
+            new_list.merge(addresses.clone());
+        }
+        new_list.merge((*cache).clone());
+        new_list.add(&address);
+        *cache = new_list;
+
         Ok(())
     }
 
@@ -1762,23 +1846,49 @@ impl State {
     ) -> DbResult<()> {
         // Cache global queue.
         self.cache_global_slot_tx_queue(epoch_height)?;
-        let mut cache = self.global_slot_tx_queue_cache.write();
+        let mut ready_addresses = Vec::new();
+        {
+            let mut cache = self.global_slot_tx_queue_cache.write();
 
-        // Dequeue and distribute to individual accounts.
-        if let Some(global_queue) = cache.get(&epoch_height) {
-            let mut global_queue = global_queue.clone();
-            while !global_queue.is_empty() {
-                // unwrap is okay to use here because queue is not empty
-                let slot_tx = global_queue.dequeue().unwrap();
-                let address = slot_tx.get_owner();
-                self.require_exists(address, false)?
-                    .cache_slot_tx_queue(&self.db)?;
-                self.require_exists(address, false)?
-                    .enqueue_slot_tx(slot_tx);
+            // Dequeue and distribute to individual accounts.
+            if let Some(global_queue) = cache.get(&epoch_height) {
+                let mut global_queue = global_queue.clone();
+
+                while !global_queue.is_empty() {
+                    // unwrap is okay to use here because queue is not empty
+                    let slot_tx = global_queue.dequeue().unwrap();
+                    let address = slot_tx.get_owner().clone();
+                    self.require_exists(&address, false)?
+                        .cache_slot_tx_queue(&self.db)?;
+                    self.require_exists(&address, false)?
+                        .enqueue_slot_tx(slot_tx);
+                    // add the address to the ready list
+                    ready_addresses.push(address);
+                }
+                assert!(global_queue.is_empty());
+                cache.insert(epoch_height, global_queue);
             }
-            assert!(global_queue.is_empty());
-            cache.insert(epoch_height, global_queue);
         }
+        self.mark_addresses_with_ready_slot_tx(ready_addresses)?;
+        Ok(())
+    }
+
+    // Commit ready slot tx accounts changes to the state db.
+    pub fn commit_ready_slot_tx_accounts(
+        &mut self, mut debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> DbResult<()> {
+        let mut addresses = SlotTxAddressList::new();
+        let mut cache = self.ready_slot_tx_accounts_cache.write();
+        if let Some(x) = self.db.get_addresses_with_ready_slot_tx()? {
+            addresses = x.clone();
+        }
+        addresses.merge(cache.clone());
+        self.db.set_addresses_with_ready_slot_tx(
+            &addresses,
+            debug_record.as_deref_mut()
+        )?;
+        (*cache).clear();
+
         Ok(())
     }
 

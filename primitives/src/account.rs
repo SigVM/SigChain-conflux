@@ -143,6 +143,71 @@ impl SlotTxQueue {
     }
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    RlpDecodableWrapper,
+    RlpEncodableWrapper,
+    Ord,
+    PartialOrd,
+    Eq,
+    PartialEq,
+)]
+pub struct SlotTxAddressList {
+    addresses: Vec<Address>,
+}
+
+impl SlotTxAddressList {
+    pub fn new() -> Self {
+        let new = SlotTxAddressList {
+            addresses: Vec::new(),
+        };
+        new
+    }
+
+    pub fn get_list(&mut self) -> &Vec<Address> {
+        &self.addresses
+    }
+
+    pub fn add(&mut self, address: &Address) {
+        if !self.contains(&address) {
+            self.addresses.push(address.clone());
+        }
+    }
+
+    pub fn append(&mut self, addresses: &Vec<Address>) {
+        for address in addresses {
+            self.add(&address);
+        }
+    }
+
+    pub fn merge(&mut self, mut address_list: SlotTxAddressList) {
+        self.append(address_list.get_list());
+    }
+
+    pub fn contains(&mut self, address: &Address) -> bool {
+        self.addresses.contains(address)
+    }
+
+    pub fn get_all(&mut self) -> Vec<Address> {
+        self.addresses.clone()
+    }
+
+    pub fn clear(&mut self) {
+        self.addresses.clear();
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.addresses.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.addresses.len()
+    }
+}
+
+
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
 
