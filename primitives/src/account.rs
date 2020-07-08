@@ -190,6 +190,12 @@ impl SlotTxAddressList {
         self.addresses.contains(address)
     }
 
+    pub fn remove(&mut self, address: &Address) {
+        // Will panic if the address doesn't exit
+        let index = self.addresses.iter().position(|x| x == address).unwrap();
+        self.addresses.remove(index);
+    }
+
     pub fn get_all(&mut self) -> Vec<Address> {
         self.addresses.clone()
     }

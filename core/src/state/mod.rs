@@ -116,8 +116,8 @@ pub struct State {
 
     // Keep track of the changes to the list of accounts with slot tx ready to be handled.
     // This list is also stored in checkpoints.
-    ready_slot_tx_accounts_cache_checkpoints: RwLock<Vec<SlotTxAddressList>>,
-    ready_slot_tx_accounts_cache: RwLock<SlotTxAddressList>,
+    ready_slot_tx_addresses_cache_checkpoints: RwLock<Vec<SlotTxAddressList>>,
+    ready_slot_tx_addresses_cache: RwLock<Option<SlotTxAddressList>>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -169,8 +169,8 @@ impl State {
             /* Signal and Slots begin */
             global_slot_tx_queue_cache_checkpoints: Default::default(),
             global_slot_tx_queue_cache: Default::default(),
-            ready_slot_tx_accounts_cache_checkpoints: Default::default(),
-            ready_slot_tx_accounts_cache: Default::default(),
+            ready_slot_tx_addresses_cache_checkpoints: Default::default(),
+            ready_slot_tx_addresses_cache: Default::default(),
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
         }
@@ -229,9 +229,11 @@ impl State {
         self.global_slot_tx_queue_cache_checkpoints
             .get_mut()
             .push(self.global_slot_tx_queue_cache.read().clone());
-        self.ready_slot_tx_accounts_cache_checkpoints
+        self.check_ready_slot_tx_addresses_cache(true)
+            .expect("Failed to check ready slot tx addresses cache");
+        self.ready_slot_tx_addresses_cache_checkpoints
             .get_mut()
-            .push(self.ready_slot_tx_accounts_cache.read().clone());
+            .push(self.ready_slot_tx_addresses_cache.read().as_ref().unwrap().clone());
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
         let checkpoints = self.checkpoints.get_mut();
@@ -379,7 +381,7 @@ impl State {
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             self.global_slot_tx_queue_cache_checkpoints.get_mut().pop();
-            self.ready_slot_tx_accounts_cache_checkpoints.get_mut().pop();
+            self.ready_slot_tx_addresses_cache_checkpoints.get_mut().pop();
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
             if let Some(ref mut prev) = self.checkpoints.get_mut().last_mut() {
@@ -411,12 +413,12 @@ impl State {
             let tx_checkpoint = RwLock::new(tx_checkpoint);
             self.global_slot_tx_queue_cache = tx_checkpoint;
 
-            let slot_tx_accounts_checkpoint = self.ready_slot_tx_accounts_cache_checkpoints
+            let slot_tx_accounts_checkpoint = self.ready_slot_tx_addresses_cache_checkpoints
                                     .get_mut()
                                     .pop()
                                     .expect("ready slot tx accounts checkpoint should exist");
-            let slot_tx_accounts_checkpoint = RwLock::new(slot_tx_accounts_checkpoint);
-            self.ready_slot_tx_accounts_cache = slot_tx_accounts_checkpoint;
+            let slot_tx_accounts_checkpoint = RwLock::new(Some(slot_tx_accounts_checkpoint));
+            self.ready_slot_tx_addresses_cache = slot_tx_accounts_checkpoint;
 
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
@@ -1091,8 +1093,8 @@ impl State {
         assert!(self.global_slot_tx_queue_cache_checkpoints.get_mut().is_empty());
         self.commit_global_slot_tx_queue(debug_record.as_deref_mut())?;
 
-        assert!(self.ready_slot_tx_accounts_cache_checkpoints.get_mut().is_empty());
-        self.commit_ready_slot_tx_accounts(debug_record.as_deref_mut())?;
+        assert!(self.ready_slot_tx_addresses_cache_checkpoints.get_mut().is_empty());
+        self.commit_ready_slot_tx_addresses(debug_record.as_deref_mut())?;
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
 
@@ -1537,8 +1539,8 @@ impl State {
         assert!(self.global_slot_tx_queue_cache_checkpoints.get_mut().is_empty());
         self.global_slot_tx_queue_cache.get_mut().clear();
 
-        assert!(self.ready_slot_tx_accounts_cache_checkpoints.get_mut().is_empty());
-        self.ready_slot_tx_accounts_cache.get_mut().clear();
+        assert!(self.ready_slot_tx_addresses_cache_checkpoints.get_mut().is_empty());
+        self.ready_slot_tx_addresses_cache = RwLock::new(None);
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
     }
@@ -1743,42 +1745,55 @@ impl State {
         Ok(())
     }
 
-    pub fn cache_ready_slot_tx_accounts(&mut self) -> DbResult<()> {
+    // Discard current cached addresses, and read from the Db.
+    pub fn cache_ready_slot_tx_addresses(&mut self) -> DbResult<()> {
         let mut new_list = SlotTxAddressList::new();
-        let mut cache = self.ready_slot_tx_accounts_cache.write();
+        let mut cache = self.ready_slot_tx_addresses_cache.write();
         // Always read from the state db
         if let Some(addresses) = self.db.get_addresses_with_ready_slot_tx()? {
-            new_list.merge(addresses.clone());
+            new_list = addresses.clone();
         }
-
-        new_list.merge((*cache).clone());
-        *cache = new_list;
+        *cache = Some(new_list);
 
         Ok(())
     }
 
-    pub fn get_addresses_with_ready_slot_tx(
+    // Check if the address list is cached; cache from db if it is not and as requested.
+    pub fn check_ready_slot_tx_addresses_cache(&mut self, do_update : bool) -> DbResult<bool> {
+        let cached : bool;
+        {
+            // cached set to false if the list is None
+            cached = !(self.ready_slot_tx_addresses_cache.read().is_none());
+        }
+        // Update the cache if cache is empty + as requested
+        if !cached && do_update {
+            self.cache_ready_slot_tx_addresses()?;
+        }
+
+        Ok(cached)
+    }
+
+    // Function to read the cached address list.
+    // If the list is not set, return the newest list from db.
+    pub fn get_cached_addresses_with_ready_slot_tx(
         &mut self
     ) -> DbResult<SlotTxAddressList> {
-        self.cache_ready_slot_tx_accounts()?;
-        let addresses = self.ready_slot_tx_accounts_cache.read().clone();
+        self.check_ready_slot_tx_addresses_cache(true)?;
+        let addresses = self.ready_slot_tx_addresses_cache.read().as_ref().unwrap().clone();
         Ok(addresses)
     }
 
-    // Add a list of accounts to the ready slot tx account list.
+    // Add a list of addresses to the ready slot tx account list.
     pub fn mark_addresses_with_ready_slot_tx(
         &mut self, addresses: Vec<Address>
     ) -> DbResult<()> {
-        let mut new_list = SlotTxAddressList::new();
-        let mut cache = self.ready_slot_tx_accounts_cache.write();
-        // Always read from the state db within the same write lock
-        if let Some(addresses) = self.db.get_addresses_with_ready_slot_tx()? {
-            new_list.merge(addresses.clone());
-        }
+        self.check_ready_slot_tx_addresses_cache(true)?;
 
-        new_list.merge((*cache).clone());
+        let mut cache = self.ready_slot_tx_addresses_cache.write();
+        let new_list = (*cache).clone();
+        let mut new_list = new_list.unwrap();
         new_list.append(&addresses);
-        *cache = new_list;
+        *cache = Some(new_list);
 
         Ok(())
     }
@@ -1787,15 +1802,28 @@ impl State {
     pub fn mark_address_with_ready_slot_tx(
         &mut self, address: &Address
     ) -> DbResult<()> {
-        let mut new_list = SlotTxAddressList::new();
-        let mut cache = self.ready_slot_tx_accounts_cache.write();
-        // Always read from the state db within the same write lock
-        if let Some(addresses) = self.db.get_addresses_with_ready_slot_tx()? {
-            new_list.merge(addresses.clone());
-        }
-        new_list.merge((*cache).clone());
-        new_list.add(&address);
-        *cache = new_list;
+        self.check_ready_slot_tx_addresses_cache(true)?;
+
+        let mut cache = self.ready_slot_tx_addresses_cache.write();
+        let new_list = (*cache).clone();
+        let mut new_list = new_list.unwrap();
+        new_list.add(address);
+        *cache = Some(new_list);
+
+        Ok(())
+    }
+
+    // Remove an account from the ready slot tx account list.
+    pub fn remove_address_with_ready_slot_tx(
+        &mut self, address: &Address
+    ) -> DbResult<()> {
+        self.check_ready_slot_tx_addresses_cache(true)?;
+
+        let mut cache = self.ready_slot_tx_addresses_cache.write();
+        let new_list = (*cache).clone();
+        let mut new_list = new_list.unwrap();
+        new_list.remove(&address);
+        *cache = Some(new_list);
 
         Ok(())
     }
@@ -1873,21 +1901,20 @@ impl State {
         Ok(())
     }
 
-    // Commit ready slot tx accounts changes to the state db.
-    pub fn commit_ready_slot_tx_accounts(
+    // Commit ready slot tx accounts changes to the state db and clear the cache.
+    pub fn commit_ready_slot_tx_addresses(
         &mut self, mut debug_record: Option<&mut ComputeEpochDebugRecord>,
     ) -> DbResult<()> {
-        let mut addresses = SlotTxAddressList::new();
-        let mut cache = self.ready_slot_tx_accounts_cache.write();
-        if let Some(x) = self.db.get_addresses_with_ready_slot_tx()? {
-            addresses = x.clone();
+        let cached = self.check_ready_slot_tx_addresses_cache(false)?;
+        if cached {
+            let mut cache = self.ready_slot_tx_addresses_cache.write();
+            let addresses = (*cache).as_ref();
+            self.db.set_addresses_with_ready_slot_tx(
+                &addresses.unwrap(),
+                debug_record.as_deref_mut()
+            )?;
+            *cache = None;
         }
-        addresses.merge(cache.clone());
-        self.db.set_addresses_with_ready_slot_tx(
-            &addresses,
-            debug_record.as_deref_mut()
-        )?;
-        (*cache).clear();
 
         Ok(())
     }
@@ -1916,11 +1943,16 @@ impl State {
 
     // Dequeue a slot transaction from an account.
     pub fn dequeue_slot_tx_from_account(
-        &self, address: &Address,
+        &mut self, address: &Address,
     ) -> DbResult<Option<SlotTx>> {
         self.require_exists(address, false)?.cache_slot_tx_queue(&self.db)?;
-        Ok(self.require_exists(address, false)?
-               .dequeue_slot_tx())
+        let result = self.require_exists(address, false)?
+                         .dequeue_slot_tx();
+        if self.require_exists(address, false)?
+               .is_slot_tx_queue_empty() {
+                   self.remove_address_with_ready_slot_tx(address)?;
+               }
+        Ok(result)
     }
 
     // Get a copy of the full slot transaction queue from an account.

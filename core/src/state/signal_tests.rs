@@ -254,8 +254,7 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
     assert_eq!(*slot_tx.get_owner(), listener2);
 
     // Check address list with ready slot tx
-    let addresses = state.get_addresses_with_ready_slot_tx().unwrap();
-    assert_eq!(addresses.len(), 2);
+    check_address_list(2, &mut state);
 }
 
 #[test]
@@ -342,8 +341,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
         .expect("Getting account queue should not fail");
     assert!(queue.is_empty());
 
-    let addresses = state.get_addresses_with_ready_slot_tx().unwrap();
-    assert!(addresses.is_empty());
+    check_address_list(0, &mut state);
 
     // Drain the global slot tx queue.
     state
@@ -361,8 +359,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
         .expect("Getting account queue should not fail");
     assert_eq!(queue.len(), 1);
 
-    let addresses = state.get_addresses_with_ready_slot_tx().unwrap();
-    assert_eq!(addresses.len(), 2);
+    check_address_list(2, &mut state);
 
     // Emit another Signal.
     state
@@ -392,9 +389,8 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
         .unwrap();
     assert_eq!(slot_tx.argv().clone(), sig_data2);
 
-    // Ready slot tx address list should have 2 entries.
-    let addresses = state.get_addresses_with_ready_slot_tx().unwrap();
-    assert_eq!(addresses.len(), 2);
+    // Ready slot tx address list should have 0 entry.
+    check_address_list(0, &mut state);
 }
 
 // Test to see if commit actually writes to the storage db or not.
@@ -511,8 +507,7 @@ fn commit_signal_and_slots() {
     assert_eq!(queue.len(), 1);
 
     // Ready slot tx address list should still have 2 entries.
-    let addresses = state.get_addresses_with_ready_slot_tx().unwrap();
-    assert_eq!(addresses.len(), 2);
+    check_address_list(2, &mut state);
 
     // Drain then dequeue, similar to the previous test.
     state
@@ -552,11 +547,82 @@ fn commit_signal_and_slots() {
         .expect("Dequeue 2 should not fail.")
         .unwrap();
     assert_eq!(slot_tx.argv().clone(), sig_data2);
+
+    // Ready slot tx address list should have no address.
+    check_address_list(0, &mut state);
 }
 
 #[test]
 fn checkpoint_signal_and_slots() {
 
+}
+
+fn check_address_list(len : usize, state : &mut State) {
+    let addresses = state.get_cached_addresses_with_ready_slot_tx()
+                         .expect("get_cached_addresses_with_ready_slot_tx should not fail.");
+    assert_eq!(addresses.len(), len);
+}
+
+#[test]
+fn ready_slot_tx_addresses_test() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+    let address_1 = Address::from_low_u64_be(1);
+    let address_2 = Address::from_low_u64_be(2);
+    let address_3 = Address::from_low_u64_be(3);
+
+    check_address_list(0, &mut state);
+
+    // insert one address
+    state.mark_address_with_ready_slot_tx(&address_1)
+         .expect("mark_address_with_ready_slot_tx should not fail.");
+    check_address_list(1, &mut state);
+
+    // duplicate insert
+    state.mark_address_with_ready_slot_tx(&address_1)
+         .expect("mark_address_with_ready_slot_tx should not fail.");
+    check_address_list(1, &mut state);
+
+    // insert two addresses
+    state.mark_addresses_with_ready_slot_tx(vec![address_2, address_3])
+         .expect("mark_addresses_with_ready_slot_tx should not fail.");
+    check_address_list(3, &mut state);
+
+    // remove one address
+    state.remove_address_with_ready_slot_tx(&address_1)
+         .expect("mark_address_with_ready_slot_tx should not fail.");
+    check_address_list(2, &mut state);
+
+    // commit these changes
+    state
+        .commit(BigEndianHash::from_uint(&U256::from(1u64)), None)
+        .unwrap();
+
+    // insert one address
+    state.mark_address_with_ready_slot_tx(&address_1)
+         .expect("mark_address_with_ready_slot_tx should not fail.");
+    check_address_list(3, &mut state);
+
+}
+
+#[test]
+fn ready_slot_tx_addresses_cache_test() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+
+    let set = state.check_ready_slot_tx_addresses_cache(false)
+                   .expect("check_ready_slot_tx_addresses_cache should not fail.");
+    assert!(!set);
+
+    let set = state.check_ready_slot_tx_addresses_cache(true)
+                   .expect("check_ready_slot_tx_addresses_cache should not fail.");
+    assert!(!set);
+    check_address_list(0, &mut state);
+
+    let set = state.check_ready_slot_tx_addresses_cache(true)
+                   .expect("check_ready_slot_tx_addresses_cache should not fail.");
+    assert!(set);
+    check_address_list(0, &mut state);
 }
 
 /* Signal and Slots end */
