@@ -14,6 +14,12 @@ use serde::{Deserialize, Serialize};
 use std::{error, fmt, ops::Deref};
 use unexpected::OutOfBounds;
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+use crate::{SlotTx};
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 /// Fake address for unsigned transactions.
 pub const UNSIGNED_SENDER: Address = H160([0xff; 20]);
 
@@ -205,6 +211,18 @@ impl ChainIdParams {
     pub fn get_chain_id(&self, _epoch_number: u64) -> u64 { self.chain_id }
 }
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+
+// This is the hackiest implementation yet. To keep changes to a minimum, we add slot transaction as a 
+// field in the SignedTransaction struct. This way, a lot of the implementation doesn't have to be 
+// changed...
+// Ideally, we would embody both regular and slot transactions in a trait or an enum, but this would
+// require a lot more effort. For research purposes this should do.
+
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 #[derive(
     Default,
     Debug,
@@ -237,6 +255,13 @@ pub struct Transaction {
     pub chain_id: u64,
     /// Transaction data.
     pub data: Bytes,
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    // If this is some then this transaction is a slot tx.
+    pub slot_tx: Option<SlotTx>,
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 impl Transaction {
@@ -290,6 +315,34 @@ impl Transaction {
         }
         .compute_hash()
     }
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    pub fn create_signed_tx_with_slot_tx(self) -> SignedTransaction {
+        assert!(self.slot_tx.is_some());
+        SignedTransaction {
+            transaction: TransactionWithSignature {
+                transaction: TransactionWithSignatureSerializePart {
+                    unsigned: self,
+                    r: U256::one(),
+                    s: U256::one(),
+                    v: 0,
+                },
+                hash: H256::zero(),
+                rlp_size: None,
+            }
+            .compute_hash(),
+            sender: Address::zero(),
+            public: None,
+        }
+    }
+
+    pub fn is_slot_tx(&self) -> bool {
+        self.slot_tx.is_some()
+    }
+
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 impl MallocSizeOf for Transaction {
@@ -455,7 +508,7 @@ impl Decodable for SignedTransaction {
 impl Deref for SignedTransaction {
     type Target = TransactionWithSignature;
 
-    fn deref(&self) -> &Self::Target { &self.transaction }
+    fn deref(&self) -> &Self::Target {&self.transaction}
 }
 
 impl From<SignedTransaction> for TransactionWithSignature {
@@ -530,6 +583,15 @@ impl SignedTransaction {
             Ok(true)
         }
     }
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */   
+    pub fn is_slot_tx(&self) -> bool {
+        // pretty ugly code...
+        self.transaction.transaction.unsigned.is_slot_tx()
+    }
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 impl MallocSizeOf for SignedTransaction {

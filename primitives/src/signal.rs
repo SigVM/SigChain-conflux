@@ -10,12 +10,13 @@
 
 use crate::{bytes::Bytes};
 use cfx_types::{Address, U256};
+use serde::{Deserialize, Serialize};
 
 // SignalLocation and SlotLocation.
 // Structs that keeps track of the location of a signal or slot on the network.
 // The two types are the same. We keep them seperate just for readability.
 #[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SignalLocation {
     address: Address,
@@ -40,7 +41,7 @@ impl SignalLocation {
 }
 
 #[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SlotLocation {
     address: Address,
@@ -67,7 +68,7 @@ impl SlotLocation {
 // SignalInfo. Holds the mapping of a signal to a list of slots that are subscribed to it. This info
 // is used when a signal is emitted. The list of slots is modified accodingly when a slot binds to it.
 #[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SignalInfo {
     location:  SignalLocation,
@@ -115,7 +116,7 @@ impl SignalInfo {
 // result a few things are different, most notably, we need to keep a list
 // of the signals this slot is binded to.
 #[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SlotInfo {
     // Location on the network. Used to identify this slot uniquely.
@@ -194,7 +195,7 @@ impl SlotInfo {
 // well as a unique id to be provided. This id allows us to parse through the list of slots
 // when we need to cleanup or delete entries.
 #[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct Slot {
     // Address of contract that owns this slot.
@@ -247,7 +248,7 @@ impl Slot {
 // SlotTx. Transactions that execute a slot. It holds a slot as well as the block number for execution and
 // the a vector of arguments passed in by the signal.
 #[derive(
-    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq,
+    Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SlotTx {
     // Slot to be executed.

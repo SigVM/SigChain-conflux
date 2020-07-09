@@ -71,6 +71,11 @@ pub fn sign_call(
         epoch_height,
         chain_id,
         data: request.data.unwrap_or_default().into_vec(),
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        slot_tx: None,
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
     }
     .fake_sign(from)
 }

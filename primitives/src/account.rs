@@ -196,7 +196,7 @@ impl SlotTxAddressList {
         self.addresses.remove(index);
     }
 
-    pub fn get_all(&mut self) -> Vec<Address> {
+    pub fn get_all(self) -> Vec<Address> {
         self.addresses.clone()
     }
 

@@ -221,6 +221,11 @@ impl TransactionGenerator {
                 chain_id: txgen.consensus.get_config().chain_id.chain_id,
                 epoch_height: txgen.consensus.best_epoch_number(),
                 data: Bytes::new(),
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                slot_tx: None,
+                /* Signal and Slots end */
+                //////////////////////////////////////////////////////////////////////
             };
 
             let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
@@ -412,6 +417,11 @@ impl DirectTransactionGenerator {
                 epoch_height: 0,
                 chain_id: chain_id.chain_id,
                 data: vec![0u8; 128],
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                slot_tx: None,
+                /* Signal and Slots end */
+                //////////////////////////////////////////////////////////////////////
             };
             let signed_transaction = tx.sign(sender_kp.secret());
             let rlp_size = signed_transaction.transaction.rlp_bytes().len();
@@ -503,6 +513,11 @@ impl DirectTransactionGenerator {
                 epoch_height: 0,
                 chain_id: chain_id.chain_id,
                 data: tx_data,
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                slot_tx: None,
+                /* Signal and Slots end */
+                //////////////////////////////////////////////////////////////////////
             };
             let signed_transaction = tx.sign(sender_kp.secret());
             let rlp_size = signed_transaction.transaction.rlp_bytes().len();

@@ -96,6 +96,11 @@ impl Transaction {
                     epoch_height: self.epoch_height.as_usize() as u64,
                     chain_id: self.chain_id.as_usize() as u64,
                     data: self.data.into(),
+                    //////////////////////////////////////////////////////////////////////
+                    /* Signal and Slots begin */
+                    slot_tx: None,
+                    /* Signal and Slots end */
+                    //////////////////////////////////////////////////////////////////////
                 },
                 v: self.v.as_usize() as u8,
                 r: self.r.into(),
@@ -148,6 +153,11 @@ impl SendTxRequest {
             chain_id: self.chain_id.unwrap_or(chain_id.into()).as_usize()
                 as u64,
             data: self.data.unwrap_or(Bytes::new(vec![])).into(),
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            slot_tx: None,
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         };
 
         let password = password.map(Password::from);
