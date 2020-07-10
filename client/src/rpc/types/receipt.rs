@@ -70,6 +70,11 @@ impl Receipt {
             to: match transaction.action {
                 Action::Create => None,
                 Action::Call(ref address) => Some(address.clone()),
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                Action::SlotTx => None,
+                /* Signal and Slots end */
+                /////////////////////////////////////////////////////////////////////
             },
             outcome_status: receipt.outcome_status,
             contract_created: address,

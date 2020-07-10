@@ -251,12 +251,23 @@ impl Slot {
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SlotTx {
-    // Slot to be executed.
-    slot: Slot,
+    // Slot information.
+    // Address of contract that owns this slot.
+    location: SlotLocation,
+    // Pointer to the entry point of this slot.
+    code_entry: Address,
+    // Gas limit for slot execution.
+    gas_limit: U256,
+    // Gas ratio for slot execution.
+    gas_ratio_numerator: U256,
+    gas_ratio_denominator: U256,
+
     // Block number of when this transaction becomes available for execution.
     epoch_height: u64,
     // Vector of arguments emitted by the signal.
     argv: Bytes,
+    // Gas price. Determined during packing.
+    gas_price: U256,
 }
 
 impl SlotTx {
@@ -264,33 +275,62 @@ impl SlotTx {
         slot: &Slot, epoch_height: &u64, argv: &Bytes
     ) -> Self {
         let new = SlotTx {
-            slot:         slot.clone(),
-            epoch_height: epoch_height.clone(),
-            argv:         argv.clone(),
+            location:              slot.location().clone(),
+            code_entry:            slot.code_entry.clone(),
+            gas_limit:             slot.gas_limit.clone(),
+            gas_ratio_numerator:   slot.gas_ratio_numerator().clone(),
+            gas_ratio_denominator: slot.gas_ratio_denominator.clone(),
+            epoch_height:          epoch_height.clone(),
+            argv:                  argv.clone(),
+            // Gas price is set when packed in the transaction pool.
+            gas_price:             U256::zero(),
         };
         new
     }
-    // Returns the address that this slot tx belongs to.
-    pub fn get_owner(&self) -> &Address {
-        &self.slot.location.address
+
+    // Getters
+    pub fn address(&self) -> &Address {
+        &self.location.address()
     }
-    // Returns epoch height.
-    pub fn get_epoch_height(&self) -> u64 {
+
+    pub fn code_entry(&self) -> &Address {
+        &self.code_entry
+    }
+
+    pub fn gas_limit(&self) -> &U256 {
+        &self.gas_limit
+    }
+
+    pub fn gas_ratio_numerator(&self) -> &U256 {
+        &self.gas_ratio_numerator
+    }
+
+    pub fn gas_ratio_denominator(&self) -> &U256 {
+        &self.gas_ratio_denominator
+    }  
+
+    pub fn epoch_height(&self) -> u64 {
         self.epoch_height
     }
-    // Get argument vector.
+
     pub fn argv(&self) -> Bytes {
         self.argv.clone()
     }
-    // Get code entry.
-    pub fn code_entry(&self) -> &Address {
-        &self.slot.code_entry()
+
+    pub fn gas_price(&self) -> &U256 {
+        &self.gas_price
     }
 
+    // Encode slot_key and argv
     pub fn encode(&self) -> Bytes {
-        let mut ret = self.slot.get_method_id().clone();
+        let mut ret = self.location.slot_key()[0..4].to_vec().clone();
         ret.extend_from_slice(&self.argv[..]);
         ret
+    }
+
+    // Calculate gas price.
+    pub fn calculate_and_set_gas_price(&mut self, average_gas_price: &U256) {
+        self.gas_price = average_gas_price * (self.gas_ratio_numerator/self.gas_ratio_denominator);
     }
 
     // Returns the call data of the slot transaction

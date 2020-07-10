@@ -1357,11 +1357,12 @@ impl<'a> Executive<'a> {
         let nonce = self.state.nonce(&sender)?;
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
-        if tx.slot_tx == None {
+        if !tx.is_slot_tx() {
             // Validate transaction nonce
             if tx.nonce < nonce {
                 return Ok(ExecutionOutcome::NotExecutedOldNonce(nonce, tx.nonce));
-            } else if tx.nonce > nonce {
+            }
+            if tx.nonce > nonce {
                 return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                     ToRepackError::InvalidNonce {
                         expected: nonce,
@@ -1369,6 +1370,9 @@ impl<'a> Executive<'a> {
                     },
                 ));
             }
+            // TODO: Contract wide locking when there are unhandled slot transactions
+            // Probably want to create a new ExecutionOutcome for this.
+            // Use state functions to quickly check if there are unhandled slot transactions.
         }
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
@@ -1414,10 +1418,11 @@ impl<'a> Executive<'a> {
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
         match tx.action {
+            Action::SlotTx => {}
             Action::Call(ref address) => {//TODO: add slotcall case
-                if let Some(_slt_tx) = &tx.slot_tx{ 
+                if tx.is_slot_tx() { 
                     //TODO: check sponsor
-                }else{
+                } else {
                     if self.state.is_contract(address) {
                         code_address = *address;
                         if self
@@ -1610,60 +1615,63 @@ impl<'a> Executive<'a> {
                 };
                 (res, out)
             }
-//////////////////////////////////////////////////////////////////////
-/* Signal and Slots begin */
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            Action::SlotTx => {
+                assert!(tx.is_slot_tx());
+                let tx = tx.slot_tx.as_ref().unwrap();
+                
+                // Someone check over these params. I just filled them in quickly to compile...
+                let params = ActionParams {
+                    code_address: tx.code_entry().clone(),
+                    address: tx.code_entry().clone(),
+                    sender: tx.address().clone(),
+                    original_sender: tx.address().clone(),
+                    storage_owner: tx.address().clone(),
+                    gas: init_gas,
+                    gas_price: tx.gas_price().clone(),
+                    value: ActionValue::Transfer(U256::zero()),
+                    code: self.state.code(tx.address())?,
+                    code_hash: self.state.code_hash(tx.address())?,
+                    data: Some(tx.encode()),
+                    call_type: CallType::Call,
+                    params_type: vm::ParamsType::Separate,
+                    storage_limit: total_storage_limit,
+                };
+
+                let res = self.call(params, &mut substate);
+                let out = match &res {
+                    Ok(res) => res.return_data.to_vec(),
+                    _ => Vec::new(),
+                };
+                (res, out)
+            }
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
             Action::Call(ref address) => {
-                if let Some(_slt_tx) = &tx.slot_tx{ 
-                    let params = ActionParams {
-                        code_address: *address,
-                        address: *address,
-                        sender,
-                        original_sender: sender,
-                        storage_owner: *address,
-                        gas: init_gas,
-                        gas_price: tx.gas_price,
-                        value: ActionValue::Transfer(tx.value),
-                        code: self.state.code(address)?,
-                        code_hash: self.state.code_hash(address)?,
-                        data: Some(_slt_tx.encode()),
-                        call_type: CallType::Call,
-                        params_type: vm::ParamsType::Separate,
-                        storage_limit: total_storage_limit,
-                    };
+                let params = ActionParams {
+                    code_address: *address,
+                    address: *address,
+                    sender,
+                    original_sender: sender,
+                    storage_owner,
+                    gas: init_gas,
+                    gas_price: tx.gas_price,
+                    value: ActionValue::Transfer(tx.value),
+                    code: self.state.code(address)?,
+                    code_hash: self.state.code_hash(address)?,
+                    data: Some(tx.data.clone()),
+                    call_type: CallType::Call,
+                    params_type: vm::ParamsType::Separate,
+                    storage_limit: total_storage_limit,
+                };
 
-                    let res = self.call(params, &mut substate);
-                    let out = match &res {
-                        Ok(res) => res.return_data.to_vec(),
-                        _ => Vec::new(),
-                    };
-                    (res, out)
-/* Signal and Slots end */
-//////////////////////////////////////////////////////////////////////
-                }else{
-                    let params = ActionParams {
-                        code_address: *address,
-                        address: *address,
-                        sender,
-                        original_sender: sender,
-                        storage_owner,
-                        gas: init_gas,
-                        gas_price: tx.gas_price,
-                        value: ActionValue::Transfer(tx.value),
-                        code: self.state.code(address)?,
-                        code_hash: self.state.code_hash(address)?,
-                        data: Some(tx.data.clone()),
-                        call_type: CallType::Call,
-                        params_type: vm::ParamsType::Separate,
-                        storage_limit: total_storage_limit,
-                    };
-
-                    let res = self.call(params, &mut substate);
-                    let out = match &res {
-                        Ok(res) => res.return_data.to_vec(),
-                        _ => Vec::new(),
-                    };
-                    (res, out)
-                }
+                let res = self.call(params, &mut substate);
+                let out = match &res {
+                    Ok(res) => res.return_data.to_vec(),
+                    _ => Vec::new(),
+                };
+                (res, out)
             }
         };
 

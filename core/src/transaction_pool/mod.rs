@@ -638,8 +638,20 @@ impl TransactionPool {
         // of the slot transactions. Instead, we just enforce that the number of slot transactions
         // to be 0.25 times the number of regular transactions. This is pretty stupid.
 
+        // Calculate average gas price from regular transactions
+        let mut d: u64 = 0;
+        let mut n: u64 = 0;
+        for t in &transactions_from_pool {
+            n = n + t.gas_price.low_u64();
+            d = d + 1;
+        }
+        let gas_price_average = n/d;
+        
+        // Create a pool of slot transactions. The gas price for each one is also set.
         let slot_tx_limit: usize = transactions_from_pool.len() / 4;
-        let slot_tx_pool = self.get_list_of_slot_tx(slot_tx_limit);
+        let slot_tx_pool = self.get_list_of_slot_tx(
+            slot_tx_limit, U256::from(gas_price_average)
+        );
 
         // /////////////////////////////////////////////////////////
         // // Test purposes...
@@ -713,7 +725,7 @@ impl TransactionPool {
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
 
-    fn get_list_of_slot_tx(&self, num_tx: usize) -> Vec<Arc<SignedTransaction>> {
+    fn get_list_of_slot_tx(&self, num_tx: usize, average_gas_price: U256) -> Vec<Arc<SignedTransaction>> {
         let mut slot_tx_list: Vec<Arc<SignedTransaction>> = Vec::new();
 
         let storage = (&*self.best_executed_state.lock()).clone();
@@ -733,7 +745,11 @@ impl TransactionPool {
                 .get_account_slot_tx_queue(&addr)
                 .expect("Account must exist. Slot tx addr list is corrupted")
                 .unwrap();
-            let tx = queue.peek(0).unwrap().clone();
+            let mut tx = queue.peek(0).unwrap().clone();
+
+            // Set gas price.
+            tx.calculate_and_set_gas_price(&average_gas_price);
+
             slot_tx_list.push(
                 Arc::new(
                     Transaction::create_signed_tx_with_slot_tx(
@@ -741,7 +757,7 @@ impl TransactionPool {
                             nonce: U256::zero(),
                             gas_price: U256::zero(),
                             gas: U256::zero(),
-                            action: Action::Create,
+                            action: Action::SlotTx,
                             value: U256::zero(),
                             storage_limit: U256::zero(),
                             epoch_height: 0,

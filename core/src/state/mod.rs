@@ -1726,7 +1726,7 @@ impl State {
                 let tx = SlotTx::new(
                     slot, &target_epoch_height, argv
                 );
-                let address = tx.get_owner().clone();
+                let address = tx.address().clone();
                 self.require_exists(&address, false)?
                     .cache_slot_tx_queue(&self.db)?;
                 self.require_exists(&address, false)?
@@ -1853,7 +1853,7 @@ impl State {
     pub fn enqueue_slot_tx_to_global_queue(
         &mut self, slot_tx: SlotTx
     ) -> DbResult<()> {
-        let epoch_height = slot_tx.get_epoch_height();
+        let epoch_height = slot_tx.epoch_height();
         // Cache global_slot_tx_queue.
         self.cache_global_slot_tx_queue(epoch_height)?;
         let mut cache = self.global_slot_tx_queue_cache.write();
@@ -1869,7 +1869,7 @@ impl State {
     // into individual account slot transaction queues.
     // This function should be used at the start of every epoch. Meaning
     // it should be used by the consensus executor.
-    pub fn drain_global_slot_transaction_queue(
+    pub fn drain_global_slot_tx_queue(
         &mut self, epoch_height: u64,
     ) -> DbResult<()> {
         // Cache global queue.
@@ -1885,7 +1885,7 @@ impl State {
                 while !global_queue.is_empty() {
                     // unwrap is okay to use here because queue is not empty
                     let slot_tx = global_queue.dequeue().unwrap();
-                    let address = slot_tx.get_owner().clone();
+                    let address = slot_tx.address().clone();
                     self.require_exists(&address, false)?
                         .cache_slot_tx_queue(&self.db)?;
                     self.require_exists(&address, false)?

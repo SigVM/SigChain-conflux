@@ -606,6 +606,11 @@ impl RpcImpl {
             let to = match tx.action {
                 Action::Create => "<Create contract>".into(),
                 Action::Call(addr) => format!("{:?}", addr),
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                Action::SlotTx => "<Slot Tx>".into(),
+                /* Signal and Slots end */
+                /////////////////////////////////////////////////////////////////////
             };
 
             format!(

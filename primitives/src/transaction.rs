@@ -174,6 +174,13 @@ pub enum Action {
     /// Calls contract at given address.
     /// In the case of a transfer, this is the receiver's address.'
     Call(Address),
+
+    /////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    // Don't want to get mixed up with the other actions!
+    SlotTx,
+    /* Signal and Slots end */
+    /////////////////////////////////////////////////////////////////////
 }
 
 impl Default for Action {
@@ -186,7 +193,6 @@ impl Decodable for Action {
             Ok(Action::Create)
         } else {
             Ok(Action::Call(rlp.as_val()?))
-            //TODO: add slotcall case
         }
     }
 }
@@ -196,7 +202,7 @@ impl Encodable for Action {
         match *self {
             Action::Create => stream.append_internal(&""),
             Action::Call(ref address) => stream.append_internal(address),
-            //TODO: add slotcall case
+            Action::SlotTx => stream.append_internal(&""),
         };
     }
 }
@@ -334,7 +340,7 @@ impl Transaction {
                 rlp_size: None,
             }
             .compute_hash(),
-            sender: self.slot_tx.unwrap().get_owner().clone(),
+            sender: self.slot_tx.unwrap().address().clone(),
             public: None,
         }
     }

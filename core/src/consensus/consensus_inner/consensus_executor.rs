@@ -995,6 +995,21 @@ impl ConsensusExecutionHandler {
             &spec,
             start_block_number - 1, /* block_number */
         );
+
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+    
+        // Drain global slot transaction queue for this epoch.
+        let pivot_block_header = self
+            .data_man
+            .block_header_by_hash(epoch_hash)
+            .expect("must exists");
+
+        state.drain_global_slot_tx_queue(pivot_block_header.height()).expect("Global slot tx queue drain failed!");
+
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+
         let epoch_receipts = self
             .process_epoch_transactions(
                 &spec,

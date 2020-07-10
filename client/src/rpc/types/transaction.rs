@@ -66,6 +66,11 @@ impl Transaction {
             to: match t.action {
                 Action::Create => None,
                 Action::Call(ref address) => Some(address.clone().into()),
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                Action::SlotTx => None,
+                /* Signal and Slots end */
+                /////////////////////////////////////////////////////////////////////
             },
             value: t.value.into(),
             gas_price: t.gas_price.into(),
