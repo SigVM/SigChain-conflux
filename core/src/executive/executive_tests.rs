@@ -443,6 +443,7 @@ fn test_not_enough_cash() {
         epoch_height: 0,
         chain_id: 0,
         nonce: U256::zero(),
+        slot_tx: None,
     }
     .sign(keypair.secret());
     let sender = t.sender();
@@ -994,6 +995,7 @@ fn test_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(sender.secret());
     assert_eq!(tx.sender(), sender.address());
@@ -1082,6 +1084,7 @@ fn test_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller3.secret());
     assert_eq!(tx.sender(), caller3.address());
@@ -1123,6 +1126,7 @@ fn test_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller1.secret());
     assert_eq!(tx.sender(), caller1.address());
@@ -1164,6 +1168,7 @@ fn test_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller2.secret());
     assert_eq!(tx.sender(), caller2.address());
@@ -1219,6 +1224,7 @@ fn test_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller2.secret());
     assert_eq!(tx.sender(), caller2.address());
@@ -1267,6 +1273,7 @@ fn test_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller3.secret());
     assert_eq!(tx.sender(), caller3.address());
@@ -1363,6 +1370,7 @@ fn test_storage_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(sender.secret());
     assert_eq!(tx.sender(), sender.address());
@@ -1501,6 +1509,7 @@ fn test_storage_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller3.secret());
     assert_eq!(tx.sender(), caller3.address());
@@ -1576,6 +1585,7 @@ fn test_storage_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller1.secret());
     assert_eq!(tx.sender(), caller1.address());
@@ -1669,6 +1679,7 @@ fn test_storage_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller2.secret());
     assert_eq!(tx.sender(), caller2.address());
@@ -1795,6 +1806,7 @@ fn test_storage_commission_privilege() {
         epoch_height: 0,
         chain_id: 0,
         data: vec![],
+        slot_tx: None,
     }
     .sign(caller1.secret());
     assert_eq!(tx.sender(), caller1.address());

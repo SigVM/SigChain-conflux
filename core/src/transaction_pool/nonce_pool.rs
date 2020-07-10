@@ -420,6 +420,7 @@ mod nonce_pool_test {
                 epoch_height: 0,
                 chain_id: 0,
                 data: Vec::new(),
+                slot_tx: None,
             }
             .sign(sender.secret()),
         )

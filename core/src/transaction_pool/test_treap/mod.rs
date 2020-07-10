@@ -110,6 +110,7 @@ fn next_signed_transaction(rng: &mut ChaChaRng) -> SignedTransaction {
             epoch_height: 0,
             chain_id: 0,
             data: vec![],
+            slot_tx: None,
         }
         .with_signature(Signature::default()),
     )
