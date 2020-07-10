@@ -1353,7 +1353,7 @@ impl<'a> Executive<'a> {
         &mut self, tx: &SignedTransaction,
     ) -> DbResult<ExecutionOutcome> {
         let spec = &self.spec;
-        let sender = tx.sender();
+        let sender = tx.sender();//TODO: sync tx.sender and slot_tx emitter
         let nonce = self.state.nonce(&sender)?;
 
         // Validate transaction nonce
@@ -1407,29 +1407,33 @@ impl<'a> Executive<'a> {
         let mut gas_sponsored = false;
         let mut storage_sponsored = false;
         match tx.action {
-            Action::Call(ref address) => {
-                if self.state.is_contract(address) {
-                    code_address = *address;
-                    if self
-                        .state
-                        .check_commission_privilege(&code_address, &sender)?
-                    {
-                        // No need to check for gas sponsor account existence.
-                        gas_sponsored = gas_cost
-                            <= U512::from(
-                                self.state.sponsor_gas_bound(&code_address)?,
-                            );
-                        storage_sponsored = self
+            Action::Call(ref address) => {//TODO: add slotcall case
+                if let Some(_slt_tx) = &tx.slot_tx{ 
+                    //TODO: check sponsor
+                }else{
+                    if self.state.is_contract(address) {
+                        code_address = *address;
+                        if self
                             .state
-                            .sponsor_for_collateral(&code_address)?
-                            .is_some();
+                            .check_commission_privilege(&code_address, &sender)?
+                        {
+                            // No need to check for gas sponsor account existence.
+                            gas_sponsored = gas_cost
+                                <= U512::from(
+                                    self.state.sponsor_gas_bound(&code_address)?,
+                                );
+                            storage_sponsored = self
+                                .state
+                                .sponsor_for_collateral(&code_address)?
+                                .is_some();
+                        }
                     }
                 }
             }
             Action::Create => {}
         };
 
-        let mut total_cost = U512::from(tx.value);
+        let mut total_cost = U512::from(tx.value);//TODO: ETH transferred is zero in slot tx?
 
         // Sender pays for gas when sponsor runs out of balance.
         let gas_sponsor_balance = if gas_sponsored {
@@ -1599,29 +1603,55 @@ impl<'a> Executive<'a> {
                 (res, out)
             }
             Action::Call(ref address) => {
-                let params = ActionParams {
-                    code_address: *address,
-                    address: *address,
-                    sender,
-                    original_sender: sender,
-                    storage_owner,
-                    gas: init_gas,
-                    gas_price: tx.gas_price,
-                    value: ActionValue::Transfer(tx.value),
-                    code: self.state.code(address)?,
-                    code_hash: self.state.code_hash(address)?,
-                    data: Some(tx.data.clone()),
-                    call_type: CallType::Call,
-                    params_type: vm::ParamsType::Separate,
-                    storage_limit: total_storage_limit,
-                };
+                if let Some(_slt_tx) = &tx.slot_tx{ 
+                    let params = ActionParams {
+                        code_address: *address,
+                        address: *address,
+                        sender,
+                        original_sender: sender,
+                        storage_owner: *address,
+                        gas: init_gas,
+                        gas_price: tx.gas_price,
+                        value: ActionValue::Transfer(tx.value),
+                        code: self.state.code(address)?,
+                        code_hash: self.state.code_hash(address)?,
+                        data: Some(_slt_tx.encode()),
+                        call_type: CallType::Call,
+                        params_type: vm::ParamsType::Separate,
+                        storage_limit: total_storage_limit,
+                    };
 
-                let res = self.call(params, &mut substate);
-                let out = match &res {
-                    Ok(res) => res.return_data.to_vec(),
-                    _ => Vec::new(),
-                };
-                (res, out)
+                    let res = self.call(params, &mut substate);
+                    let out = match &res {
+                        Ok(res) => res.return_data.to_vec(),
+                        _ => Vec::new(),
+                    };
+                    (res, out)
+                }else{
+                    let params = ActionParams {
+                        code_address: *address,
+                        address: *address,
+                        sender,
+                        original_sender: sender,
+                        storage_owner,
+                        gas: init_gas,
+                        gas_price: tx.gas_price,
+                        value: ActionValue::Transfer(tx.value),
+                        code: self.state.code(address)?,
+                        code_hash: self.state.code_hash(address)?,
+                        data: Some(tx.data.clone()),
+                        call_type: CallType::Call,
+                        params_type: vm::ParamsType::Separate,
+                        storage_limit: total_storage_limit,
+                    };
+
+                    let res = self.call(params, &mut substate);
+                    let out = match &res {
+                        Ok(res) => res.return_data.to_vec(),
+                        _ => Vec::new(),
+                    };
+                    (res, out)
+                }
             }
         };
 

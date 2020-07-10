@@ -1703,7 +1703,7 @@ impl State {
     pub fn emit_signal_and_queue_slot_tx(
         &mut self, sig_loc: &SignalLocation,
         current_epoch_height: u64, epoch_height_delay: u64,
-        argv: &Vec<Bytes>,
+        argv: &Bytes,
     ) -> DbResult<()> {
         // Get signal info.
         let sig_info = self.require_exists(&sig_loc.address(), false)?

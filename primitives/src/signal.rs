@@ -256,12 +256,12 @@ pub struct SlotTx {
     // Block number of when this transaction becomes available for execution.
     epoch_height: u64,
     // Vector of arguments emitted by the signal.
-    argv: Vec::<Bytes>,
+    argv: Bytes,
 }
 
 impl SlotTx {
     pub fn new(
-        slot: &Slot, epoch_height: &u64, argv: &Vec::<Bytes>
+        slot: &Slot, epoch_height: &u64, argv: &Bytes
     ) -> Self {
         let new = SlotTx {
             slot:         slot.clone(),
@@ -279,8 +279,18 @@ impl SlotTx {
         self.epoch_height
     }
     // Get argument vector.
-    pub fn argv(&self) -> &Vec<Bytes> {
-        &self.argv
+    pub fn argv(&self) -> Bytes {
+        self.argv.clone()
+    }
+    // Get code entry.
+    pub fn code_entry(&self) -> &Address {
+        &self.slot.code_entry()
+    }
+
+    pub fn encode(&self) -> Bytes {
+        let mut ret = self.slot.get_method_id().clone();
+        ret.extend_from_slice(&self.argv[..]);
+        ret
     }
 
     // Returns the call data of the slot transaction

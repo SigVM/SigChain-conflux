@@ -186,6 +186,7 @@ impl Decodable for Action {
             Ok(Action::Create)
         } else {
             Ok(Action::Call(rlp.as_val()?))
+            //TODO: add slotcall case
         }
     }
 }
@@ -195,6 +196,7 @@ impl Encodable for Action {
         match *self {
             Action::Create => stream.append_internal(&""),
             Action::Call(ref address) => stream.append_internal(address),
+            //TODO: add slotcall case
         };
     }
 }

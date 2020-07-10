@@ -524,14 +524,12 @@ impl<'a> ContextTrait for Context<'a> {
         let sig_loc = SignalLocation::new(
             sender_address, signal_id
         );
-        // Get data vector.
-        let data_vec: Vec<Bytes> = [Bytes::from(data)].to_vec();
         // Change the state to reflect emission of signal.
         let result = self.state.emit_signal_and_queue_slot_tx(
             &sig_loc, 
             self.env.epoch_height, 
             epochs_delayed.as_u64(), 
-            &data_vec
+            &data.to_vec()
         );
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),

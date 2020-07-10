@@ -712,7 +712,7 @@ impl TransactionPool {
                             nonce: U256::zero(),
                             gas_price: U256::zero(),
                             gas: U256::zero(),
-                            action: Action::Create,
+                            action: Action::Call(addr),
                             value: U256::zero(),
                             storage_limit: U256::zero(),
                             epoch_height: 0,
