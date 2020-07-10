@@ -1355,19 +1355,19 @@ impl<'a> Executive<'a> {
         let spec = &self.spec;
         let sender = tx.sender();//TODO: sync tx.sender and slot_tx emitter
         let nonce = self.state.nonce(&sender)?;
-
-        // Validate transaction nonce
-        if tx.nonce < nonce {
-            return Ok(ExecutionOutcome::NotExecutedOldNonce(nonce, tx.nonce));
-        } else if tx.nonce > nonce {
-            return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
-                ToRepackError::InvalidNonce {
-                    expected: nonce,
-                    got: tx.nonce,
-                },
-            ));
+        if tx.slot_tx == None {
+            // Validate transaction nonce
+            if tx.nonce < nonce {
+                return Ok(ExecutionOutcome::NotExecutedOldNonce(nonce, tx.nonce));
+            } else if tx.nonce > nonce {
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                    ToRepackError::InvalidNonce {
+                        expected: nonce,
+                        got: tx.nonce,
+                    },
+                ));
+            }
         }
-
         // Validate transaction epoch height.
         match VerificationConfig::verify_transaction_epoch_height(
             tx,

@@ -712,10 +712,10 @@ impl TransactionPool {
                             nonce: U256::zero(),
                             gas_price: U256::zero(),
                             gas: U256::zero(),
-                            action: Action::Call(addr),
+                            action: Action::Call(addr),//for calling slot function
                             value: U256::zero(),
                             storage_limit: U256::zero(),
-                            epoch_height: 0,
+                            epoch_height: tx.get_epoch_height(),//for epoch height verification
                             chain_id: 0,
                             data: Vec::new(),
                             slot_tx: Some(tx),
