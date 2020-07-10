@@ -325,7 +325,7 @@ impl Transaction {
         SignedTransaction {
             transaction: TransactionWithSignature {
                 transaction: TransactionWithSignatureSerializePart {
-                    unsigned: self,
+                    unsigned: self.clone(),
                     r: U256::one(),
                     s: U256::one(),
                     v: 0,
@@ -334,7 +334,7 @@ impl Transaction {
                 rlp_size: None,
             }
             .compute_hash(),
-            sender: Address::zero(),
+            sender: self.slot_tx.unwrap().get_owner().clone(),
             public: None,
         }
     }

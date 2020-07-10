@@ -44,7 +44,7 @@ use transaction_pool_inner::TransactionPoolInner;
 
 /////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
-use primitives::{Transaction, Action, SlotTx, Slot, SlotInfo};
+use primitives::{Transaction, Action};
 /* Signal and Slots end */
 /////////////////////////////////////////////////////////////////////
 
@@ -638,8 +638,8 @@ impl TransactionPool {
         // of the slot transactions. Instead, we just enforce that the number of slot transactions
         // to be 0.25 times the number of regular transactions. This is pretty stupid.
 
-        // let slot_tx_limit: usize = transactions_from_pool.len() / 4;
-        // let mut slot_tx_pool = self.get_list_of_slot_tx(slot_tx_limit);
+        let slot_tx_limit: usize = transactions_from_pool.len() / 4;
+        let slot_tx_pool = self.get_list_of_slot_tx(slot_tx_limit);
 
         // /////////////////////////////////////////////////////////
         // // Test purposes...
@@ -741,10 +741,10 @@ impl TransactionPool {
                             nonce: U256::zero(),
                             gas_price: U256::zero(),
                             gas: U256::zero(),
-                            action: Action::Call(addr),//for calling slot function
+                            action: Action::Create,
                             value: U256::zero(),
                             storage_limit: U256::zero(),
-                            epoch_height: tx.get_epoch_height(),//for epoch height verification
+                            epoch_height: 0,
                             chain_id: 0,
                             data: Vec::new(),
                             slot_tx: Some(tx),
