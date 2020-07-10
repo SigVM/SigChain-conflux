@@ -1355,6 +1355,8 @@ impl<'a> Executive<'a> {
         let spec = &self.spec;
         let sender = tx.sender();//TODO: sync tx.sender and slot_tx emitter
         let nonce = self.state.nonce(&sender)?;
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
         if tx.slot_tx == None {
             // Validate transaction nonce
             if tx.nonce < nonce {
@@ -1368,6 +1370,9 @@ impl<'a> Executive<'a> {
                 ));
             }
         }
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
         // Validate transaction epoch height.
         match VerificationConfig::verify_transaction_epoch_height(
             tx,
@@ -1406,6 +1411,8 @@ impl<'a> Executive<'a> {
         let mut code_address = Address::zero();
         let mut gas_sponsored = false;
         let mut storage_sponsored = false;
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
         match tx.action {
             Action::Call(ref address) => {//TODO: add slotcall case
                 if let Some(_slt_tx) = &tx.slot_tx{ 
@@ -1432,7 +1439,8 @@ impl<'a> Executive<'a> {
             }
             Action::Create => {}
         };
-
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
         let mut total_cost = U512::from(tx.value);//TODO: ETH transferred is zero in slot tx?
 
         // Sender pays for gas when sponsor runs out of balance.
@@ -1602,6 +1610,8 @@ impl<'a> Executive<'a> {
                 };
                 (res, out)
             }
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
             Action::Call(ref address) => {
                 if let Some(_slt_tx) = &tx.slot_tx{ 
                     let params = ActionParams {
@@ -1627,6 +1637,8 @@ impl<'a> Executive<'a> {
                         _ => Vec::new(),
                     };
                     (res, out)
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
                 }else{
                     let params = ActionParams {
                         code_address: *address,
