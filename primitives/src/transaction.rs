@@ -193,6 +193,7 @@ impl Decodable for Action {
             Ok(Action::Create)
         } else {
             Ok(Action::Call(rlp.as_val()?))
+            //TODO: need to decode Action::SlotTx?
         }
     }
 }
