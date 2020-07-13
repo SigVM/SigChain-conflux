@@ -1005,7 +1005,9 @@ impl ConsensusExecutionHandler {
             .block_header_by_hash(epoch_hash)
             .expect("must exists");
 
-        state.drain_global_slot_tx_queue(pivot_block_header.height()).expect("Global slot tx queue drain failed!");
+        state
+            .drain_global_slot_tx_queue(pivot_block_header.height())
+            .expect("Global slot tx queue drain failed!");
 
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////

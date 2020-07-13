@@ -1353,16 +1353,24 @@ impl<'a> Executive<'a> {
         &mut self, tx: &SignedTransaction,
     ) -> DbResult<ExecutionOutcome> {
         let spec = &self.spec;
-        let sender = tx.sender();//TODO: sync tx.sender and slot_tx emitter
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        let sender = if tx.is_slot_tx() {
+            tx.slot_tx.as_ref().unwrap().address().clone()
+        } else {
+            tx.sender()
+        };
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
         let nonce = self.state.nonce(&sender)?;
-//////////////////////////////////////////////////////////////////////
-/* Signal and Slots begin */
+
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
         if !tx.is_slot_tx() {
             // Validate transaction nonce
             if tx.nonce < nonce {
                 return Ok(ExecutionOutcome::NotExecutedOldNonce(nonce, tx.nonce));
-            }
-            if tx.nonce > nonce {
+            } else if tx.nonce > nonce {
                 return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                     ToRepackError::InvalidNonce {
                         expected: nonce,
@@ -1370,12 +1378,16 @@ impl<'a> Executive<'a> {
                     },
                 ));
             }
-            // TODO: Contract wide locking when there are unhandled slot transactions
-            // Probably want to create a new ExecutionOutcome for this.
-            // Use state functions to quickly check if there are unhandled slot transactions.
+            // Contract wide locking when there are unhandled slot transactions. 
+            // Normal transactions should not be executed until slot transactions are done.
+            if !self.state.is_account_slot_tx_queue_empty(&sender)? {
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                    ToRepackError::SlotTxQueueNotEmpty,
+                ));
+            }
         }
-/* Signal and Slots end */
-//////////////////////////////////////////////////////////////////////
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
 
         // Validate transaction epoch height.
         match VerificationConfig::verify_transaction_epoch_height(
@@ -1407,15 +1419,24 @@ impl<'a> Executive<'a> {
             "We have already checked the base gas requirement when we received the block."
         );
         let init_gas = tx.gas - base_gas_required;
-//////////////////////////////////////////////////////////////////////
-/* Signal and Slots begin */
-        let (balance,gas_cost,mut total_cost) = match tx.is_slot_tx() { 
+
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() { 
             false => {
-                (self.state.balance(&sender)?,tx.gas.full_mul(tx.gas_price), U512::from(tx.value))
+                (
+                    self.state.balance(&sender)?,
+                    tx.gas.full_mul(tx.gas_price), 
+                    U512::from(tx.value)
+                )
             } 
             true => {
                 //TODO: slottx.gas should be determined and will replace tx.gas
-                (self.state.balance(&tx.slot_tx.as_ref().unwrap().address())?,tx.gas.full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()), U512::from(0))
+                (
+                    self.state.balance(tx.slot_tx.as_ref().unwrap().address())?,
+                    tx.gas.full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()), 
+                    U512::from(0)
+                )
             } 
         };
 
@@ -1423,9 +1444,11 @@ impl<'a> Executive<'a> {
         let mut code_address = Address::zero();
         let mut gas_sponsored = false;
         let mut storage_sponsored = false;
-
         match tx.action {
-            Action::SlotTx => {}
+            Action::SlotTx => {
+                // gas and storage are not sponsored in slot transactions
+                code_address = *tx.slot_tx.as_ref().unwrap().address();
+            }
             Action::Call(ref address) => {
                 if self.state.is_contract(address) {
                     code_address = *address;
@@ -1447,9 +1470,8 @@ impl<'a> Executive<'a> {
             }
             Action::Create => {}
         };
-/* Signal and Slots end */
-//////////////////////////////////////////////////////////////////////
-        //let mut total_cost = U512::from(tx.value);//TODO: ETH transferred is zero in slot tx?
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
 
         // Sender pays for gas when sponsor runs out of balance.
         let gas_sponsor_balance = if gas_sponsored {
@@ -1464,21 +1486,29 @@ impl<'a> Executive<'a> {
             total_cost += gas_cost
         }
 
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
         let tx_storage_limit_in_drip =
-            if tx.is_slot_tx(){
-                (U256::from(100000)) * (*COLLATERAL_PER_BYTE) //TODO:slot tx storage_limit is now hardcoded as 1000000
-            }else{
+            if tx.is_slot_tx() {
+                U256::from(100000) * *COLLATERAL_PER_BYTE //TODO: slot tx storage_limit is now hardcoded as 1000000
+            } else {
                 if tx.storage_limit >= U256::from(std::u64::MAX) {
                     U256::from(std::u64::MAX) * *COLLATERAL_PER_BYTE
                 } else {
                     tx.storage_limit * *COLLATERAL_PER_BYTE
                 }
             };
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+
         let storage_sponsor_balance = if storage_sponsored {
             self.state.sponsor_balance_for_collateral(&code_address)?
         } else {
             0.into()
         };
+
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
         // Find the upper bound of `collateral_for_storage` and `storage_owner`
         // in this execution.
         let (total_storage_limit, storage_owner) = {
@@ -1496,16 +1526,24 @@ impl<'a> Executive<'a> {
                 // owner will pay for collateral for storage
                 total_cost += tx_storage_limit_in_drip.into();
                 let collateral_for_storage =
-                    self.state.collateral_for_storage(&tx.slot_tx.as_ref().unwrap().address())?;
-                (tx_storage_limit_in_drip + collateral_for_storage, tx.slot_tx.as_ref().unwrap().address().clone())
-            }else {
+                    self.state.collateral_for_storage(&code_address)?;
+                (
+                    tx_storage_limit_in_drip + collateral_for_storage, 
+                    tx.slot_tx.as_ref().unwrap().address().clone()
+                )
+            } else {
                 // sender will pay for collateral for storage
                 total_cost += tx_storage_limit_in_drip.into();
                 let collateral_for_storage =
                     self.state.collateral_for_storage(&sender)?;
-                (tx_storage_limit_in_drip + collateral_for_storage, sender)
+                (
+                    tx_storage_limit_in_drip + collateral_for_storage, 
+                    sender
+                )
             }
         };
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
 
         let balance512 = U512::from(balance);
         let mut sender_intended_cost = U512::from(tx.value);
@@ -1533,9 +1571,12 @@ impl<'a> Executive<'a> {
         }
 
         let mut substate = Substate::new();
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
         if tx.is_slot_tx() {
             // owner is responsible for the insufficient balance.
-            if balance512 < sender_intended_cost {//TODO: in slottx case, sender_intended_cost is only gas and storage rent. storage rent should be zero???
+            if balance512 < sender_intended_cost {
+                //TODO: in slottx case, sender_intended_cost is only gas and storage rent. storage rent should be zero???
                 // Sub tx fee if not enough cash, and substitute all remaining
                 // balance if balance is not enough to pay the tx fee
                 let actual_gas_cost: U256;
@@ -1549,14 +1590,14 @@ impl<'a> Executive<'a> {
                 .unwrap();
                 // We don't want to bump nonce for non-existent account when we
                 // can't charge gas fee.
-                if !self.state.exists(&tx.slot_tx.as_ref().unwrap().address())? {
+                if !self.state.exists(tx.slot_tx.as_ref().unwrap().address())? {
                     return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                         ToRepackError::SenderDoesNotExist,
                     ));
                 }
                 //self.state.inc_nonce(&sender)?;
                 self.state.sub_balance(
-                    &tx.slot_tx.as_ref().unwrap().address(),
+                    tx.slot_tx.as_ref().unwrap().address(),
                     &actual_gas_cost,
                     &mut substate.to_cleanup_mode(&spec),
                 )?;
@@ -1578,11 +1619,13 @@ impl<'a> Executive<'a> {
 
             // Subtract the transaction fee from sender or contract.
             self.state.sub_balance(
-                &tx.slot_tx.as_ref().unwrap().address(),
+                tx.slot_tx.as_ref().unwrap().address(),
                 &U256::try_from(gas_cost).unwrap(),
                 &mut substate.to_cleanup_mode(&spec),
             )?;
-        }else{
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+        } else {
             // Sender is responsible for the insufficient balance.
             if balance512 < sender_intended_cost {
                 // Sub tx fee if not enough cash, and substitute all remaining
@@ -1639,6 +1682,7 @@ impl<'a> Executive<'a> {
                 )?;
             }
         }
+
         let (result, output) = match tx.action {
             Action::Create => {
                 let (new_address, _code_hash) = contract_address(

@@ -77,6 +77,12 @@ pub enum ToRepackError {
 
     /// Returned when a non-sponsored transaction's sender does not exist yet.
     SenderDoesNotExist,
+
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    SlotTxQueueNotEmpty,
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 #[derive(Debug)]
