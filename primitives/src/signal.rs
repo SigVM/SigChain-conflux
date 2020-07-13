@@ -121,9 +121,6 @@ impl SignalInfo {
 pub struct SlotInfo {
     // Location on the network. Used to identify this slot uniquely.
     location: SlotLocation,
-    // Note: slot is currently treated as a function within its contract
-    // Pointer to the entry point of this slot.
-    code_entry: Address,
     // Number of arguments expected from a binded signal
     arg_count: U256,
     // Gas limit for slot execution.
@@ -140,13 +137,12 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], code_entry: &Address, arg_count: &U256,
+        owner: &Address, slot_key: &[u8], arg_count: &U256,
         gas_limit: &U256, numerator: &U256, denominator: &U256
     ) -> Self {
         let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
             location:              loc,
-            code_entry:            code_entry.clone(),
             arg_count:             arg_count.clone(),
             gas_limit:             gas_limit.clone(),
             gas_ratio_numerator:   numerator.clone(),
@@ -168,9 +164,6 @@ impl SlotInfo {
     // Getters
     pub fn location(&self) -> &SlotLocation {
         &self.location
-    }
-    pub fn code_entry(&self) -> &Address {
-        &self.code_entry
     }
     pub fn arg_count(&self) -> &U256 {
         &self.arg_count
@@ -200,8 +193,6 @@ impl SlotInfo {
 pub struct Slot {
     // Address of contract that owns this slot.
     location: SlotLocation,
-    // Pointer to the entry point of this slot.
-    code_entry: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
@@ -214,7 +205,6 @@ impl Slot {
     pub fn new(slot_info: &SlotInfo) -> Self {
         let new = Slot {
             location:              slot_info.location.clone(),
-            code_entry:            slot_info.code_entry.clone(),
             gas_limit:             slot_info.gas_limit.clone(),
             gas_ratio_numerator:   slot_info.gas_ratio_numerator.clone(),
             gas_ratio_denominator: slot_info.gas_ratio_denominator.clone(),
@@ -222,17 +212,9 @@ impl Slot {
         new
     }
 
-    // Returns the method id of the slot
-    pub fn get_method_id(&self) -> Bytes {
-        self.location.slot_key()[0..4].to_vec()
-    }
-
     // Getters.
     pub fn location(&self) -> &SlotLocation {
         &self.location
-    }
-    pub fn code_entry(&self) -> &Address {
-        &self.code_entry
     }
     pub fn gas_limit(&self) -> &U256 {
         &self.gas_limit
@@ -242,7 +224,12 @@ impl Slot {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }   
+    }  
+    
+    // Returns the method id of the slot
+    pub fn get_method_id(&self) -> Bytes {
+        self.location.slot_key()[0..4].to_vec()
+    }
 }
 
 // SlotTx. Transactions that execute a slot. It holds a slot as well as the block number for execution and
@@ -251,17 +238,13 @@ impl Slot {
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SlotTx {
-    // Slot information.
     // Address of contract that owns this slot.
     location: SlotLocation,
-    // Pointer to the entry point of this slot.
-    code_entry: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
     gas_ratio_numerator: U256,
     gas_ratio_denominator: U256,
-
     // Block number of when this transaction becomes available for execution.
     epoch_height: u64,
     // Vector of arguments emitted by the signal.
@@ -276,7 +259,6 @@ impl SlotTx {
     ) -> Self {
         let new = SlotTx {
             location:              slot.location().clone(),
-            code_entry:            slot.code_entry.clone(),
             gas_limit:             slot.gas_limit.clone(),
             gas_ratio_numerator:   slot.gas_ratio_numerator().clone(),
             gas_ratio_denominator: slot.gas_ratio_denominator.clone(),
@@ -292,36 +274,35 @@ impl SlotTx {
     pub fn address(&self) -> &Address {
         &self.location.address()
     }
-
-    pub fn code_entry(&self) -> &Address {
-        &self.code_entry
+    pub fn slot_key(&self) -> &Bytes {
+        &self.location.slot_key()
     }
-
     pub fn gas_limit(&self) -> &U256 {
         &self.gas_limit
     }
-
     pub fn gas_ratio_numerator(&self) -> &U256 {
         &self.gas_ratio_numerator
     }
-
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
     }  
-
     pub fn epoch_height(&self) -> u64 {
         self.epoch_height
     }
-
     pub fn argv(&self) -> Bytes {
         self.argv.clone()
     }
-
     pub fn gas_price(&self) -> &U256 {
         &self.gas_price
     }
 
-    // Encode slot_key and argv
+    // Functions for ABI purposes. This becomes important when calling slot code.
+    // The standard ABI protocol involves having each function assigned a method id.
+    // To call a function, the 4 byte method ID is prepended to the argument/data vector.
+    pub fn get_method_id(&self) -> Bytes {
+        self.location.slot_key()[0..4].to_vec()
+    }
+
     pub fn encode(&self) -> Bytes {
         let mut ret = self.location.slot_key()[0..4].to_vec().clone();
         ret.extend_from_slice(&self.argv[..]);

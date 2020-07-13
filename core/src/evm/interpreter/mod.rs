@@ -1557,20 +1557,15 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let gas_ratio_denominator = U256::from(100);
                 let gas_limit = self.stack.pop_back(); // 2
 
-                // Code entry point, convert to address.
-                let code = self.stack.pop_back(); // 3
-                let code = &u256_to_address(&code);
-
                 // Slot key.
                 let mut key = vec![0; 32];
-                self.stack.pop_back().to_big_endian(key.as_mut()); // 4
+                self.stack.pop_back().to_big_endian(key.as_mut()); // 3
 
                 // Call context trait api to do the rest of the work.
                 let call_result =
                     context.create_slot(
                         &self.params.address,
                         &key,
-                        &code,
                         &argc,
                         &gas_limit,
                         &gas_ratio_numerator,

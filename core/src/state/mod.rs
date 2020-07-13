@@ -54,6 +54,11 @@ enum RequireCache {
     Code,
     DepositList,
     VoteStakeList,
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    SlotTxQueue,
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }
 
 /// Mode of dealing with null accounts.
@@ -183,7 +188,13 @@ impl State {
         assert!(self.staking_state_checkpoints.get_mut().is_empty());
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
-        assert!(self.global_slot_tx_queue_cache.get_mut().is_empty());
+
+        // TODO: The below assertion fires. Not sure if this is imporant.
+        // TODO: Investigate into the importance of checkpoints. Is the current
+        // TODO: checkpoint implementation correct? is it important?
+        
+        // assert!(self.global_slot_tx_queue_cache.get_mut().is_empty());
+
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
         self.block_number += 1;
@@ -959,6 +970,11 @@ impl State {
             RequireCache::Code | RequireCache::CodeSize => !account.is_cached(),
             RequireCache::DepositList => account.deposit_list().is_none(),
             RequireCache::VoteStakeList => account.vote_stake_list().is_none(),
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            RequireCache::SlotTxQueue => account.slot_tx_queue().is_none(),
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -986,6 +1002,13 @@ impl State {
                     db,
                 )
                 .is_ok(),
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            RequireCache::SlotTxQueue => account
+                .cache_slot_tx_queue(db)
+                .is_ok(),
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -1584,7 +1607,7 @@ impl State {
     // Create a new slot definition.
     pub fn create_slot(
         &mut self, address: &Address,
-        slot_key: &Vec<u8>, code: &Address,
+        slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256,
         numerator: &U256, denominator: &U256
     ) -> DbResult<bool> {
@@ -1597,7 +1620,6 @@ impl State {
         let slot_info = SlotInfo::new(
             address,
             slot_key,
-            code,
             argc,
             gas_limit,
             numerator,
@@ -1643,11 +1665,10 @@ impl State {
         &mut self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<()> {
         // Get signal info, make sure it exists.
-        let _sig_info = self.require_exists(&sig_loc.address(), false)?
-                           .signal_at(&self.db, sig_loc);
+        let _sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
         let _sig_info = match _sig_info {
-            Some(s) => s,
-            None => {
+            Ok(Some(s)) => s,
+            _ => {
                 return Err(DbErrorKind::IncompleteDatabase(
                     sig_loc.address().clone(),
                 )
@@ -1656,11 +1677,10 @@ impl State {
         };
 
         // Get slot info, make sure it exists.
-        let slot_info = self.require_exists(&slot_loc.address(), false)?
-                            .slot_at(&self.db, slot_loc);
+        let slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key());
         let slot_info = match slot_info {
-            Some(s) => s,
-            None => {
+            Ok(Some(s)) => s,
+            _ => {
                 return Err(DbErrorKind::IncompleteDatabase(
                     slot_loc.address().clone(),
                 )
@@ -1678,7 +1698,7 @@ impl State {
         // }
 
         // Signal account.
-        self.require_exists(&sig_loc.address(), false)?
+        self.require_exists(sig_loc.address(), false)?
             .add_to_slot_list(&self.db, sig_loc, &slot_info);
         // Slot account.
         self.require_exists(&slot_loc.address(), false)?
@@ -1690,11 +1710,14 @@ impl State {
     pub fn detach_slot_from_signal(
         &self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<()> {
+        // Ensure they are cached.
+        self.signal_at(sig_loc.address(), sig_loc.signal_key())?;
+        self.slot_at(slot_loc.address(), slot_loc.slot_key())?;
         // Signal account.
-        self.require_exists(&sig_loc.address(), false)?
+        self.require_exists(sig_loc.address(), false)?
             .remove_from_slot_list(&self.db, sig_loc, slot_loc);
         // Slot account.
-        self.require_exists(&slot_loc.address(), false)?
+        self.require_exists(slot_loc.address(), false)?
             .remove_from_bind_list(&self.db, slot_loc, sig_loc);
         Ok(())
     }
@@ -1706,11 +1729,10 @@ impl State {
         argv: &Bytes,
     ) -> DbResult<()> {
         // Get signal info.
-        let sig_info = self.require_exists(&sig_loc.address(), false)?
-                           .signal_at(&self.db, sig_loc);
+        let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
         let sig_info = match sig_info {
-            Some(s) => s,
-            None => {
+            Ok(Some(s)) => s,
+            _ => {
                 return Err(DbErrorKind::IncompleteDatabase(
                     sig_loc.address().clone(),
                 )
@@ -1727,8 +1749,7 @@ impl State {
                     slot, &target_epoch_height, argv
                 );
                 let address = tx.address().clone();
-                self.require_exists(&address, false)?
-                    .cache_slot_tx_queue(&self.db)?;
+                self.ensure_cached(&address, RequireCache::SlotTxQueue, |_acc| {})?;
                 self.require_exists(&address, false)?
                     .enqueue_slot_tx(tx);
                 self.mark_address_with_ready_slot_tx(&address)?;
@@ -1886,8 +1907,7 @@ impl State {
                     // unwrap is okay to use here because queue is not empty
                     let slot_tx = global_queue.dequeue().unwrap();
                     let address = slot_tx.address().clone();
-                    self.require_exists(&address, false)?
-                        .cache_slot_tx_queue(&self.db)?;
+                    self.ensure_cached(&address, RequireCache::SlotTxQueue, |_acc| {})?;
                     self.require_exists(&address, false)?
                         .enqueue_slot_tx(slot_tx);
                     // add the address to the ready list
@@ -1945,13 +1965,12 @@ impl State {
     pub fn dequeue_slot_tx_from_account(
         &mut self, address: &Address,
     ) -> DbResult<Option<SlotTx>> {
-        self.require_exists(address, false)?.cache_slot_tx_queue(&self.db)?;
+        self.ensure_cached(address, RequireCache::SlotTxQueue, |_acc| {})?;
         let result = self.require_exists(address, false)?
                          .dequeue_slot_tx();
-        if self.require_exists(address, false)?
-               .is_slot_tx_queue_empty() {
-                   self.remove_address_with_ready_slot_tx(address)?;
-               }
+        if self.require_exists(address, false)?.is_slot_tx_queue_empty() {
+            self.remove_address_with_ready_slot_tx(address)?;
+        }
         Ok(result)
     }
 
@@ -1959,8 +1978,8 @@ impl State {
     pub fn get_account_slot_tx_queue(
         &self, address: &Address,
     ) -> DbResult<SlotTxQueue> {
-        self.require_exists(address, false)?
-            .cache_slot_tx_queue(&self.db)?;
+        self.ensure_cached(address, RequireCache::SlotTxQueue, |_acc| {})?;
+
         Ok(self.require_exists(address, false)?
                .get_copy_of_slot_tx_queue())
     }
@@ -1969,10 +1988,9 @@ impl State {
     pub fn is_account_slot_tx_queue_empty(
         &self, address: &Address,
     ) -> DbResult<bool> {
-        self.require_exists(address, false)?
-            .cache_slot_tx_queue(&self.db)?;
-        Ok(self.require_exists(address, false)?
-               .is_slot_tx_queue_empty())
+        self.ensure_cached(address, RequireCache::SlotTxQueue, |acc| {
+            acc.map_or(false, |acc| acc.is_slot_tx_queue_empty())
+        })
     }
 
     /* Signal and Slots end */

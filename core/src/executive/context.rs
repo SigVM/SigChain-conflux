@@ -468,14 +468,13 @@ impl<'a> ContextTrait for Context<'a> {
     // Create a new slot definition
     fn create_slot(
         &mut self, sender_address: &Address, 
-        slot_key: &Vec<u8>, code: &Address,
+        slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256, 
         numerator: &U256, denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let result = self.state.create_slot(
             sender_address, 
             slot_key,
-            code, 
             argc,
             gas_limit, 
             numerator, 
@@ -979,7 +978,6 @@ mod tests {
         let result = ctx.create_slot(
             &Address::zero(),
             &vec![std::u8::MAX],
-            &Address::zero(),
             &U256::zero(),
             &U256::zero(),
             &U256::zero(),
