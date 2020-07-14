@@ -187,11 +187,7 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
     let sig_argc = U256::from(3);
     let sig_key = vec![0x41u8, 0x42u8, 0x43u8];
     let sig_loc = SignalLocation::new(&emitter, &sig_key);
-    let sig_data1 = vec![
-        vec![0x01u8, 0x02u8, 0x03u8],
-        vec![0x04u8, 0x05u8, 0x06u8],
-        vec![0x07u8, 0x08u8, 0x09u8],
-    ];
+    let sig_data1 = vec![0x01u8, 0x02u8, 0x03u8];
 
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
@@ -245,13 +241,13 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
         .get_account_slot_tx_queue(&listener1)
         .expect("Getting account queue should not fail");
     let slot_tx = queue.peek(0).unwrap().clone();
-    assert_eq!(*slot_tx.get_owner(), listener1);
+    assert_eq!(*slot_tx.address(), listener1);
 
     let queue = state
         .get_account_slot_tx_queue(&listener2)
         .expect("Getting account queue should not fail");
     let slot_tx = queue.peek(0).unwrap().clone();
-    assert_eq!(*slot_tx.get_owner(), listener2);
+    assert_eq!(*slot_tx.address(), listener2);
 
     // Check address list with ready slot tx
     check_address_list(2, &mut state);
@@ -272,16 +268,8 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
     let sig_argc = U256::from(3);
     let sig_key = vec![0x41u8, 0x42u8, 0x43u8];
     let sig_loc = SignalLocation::new(&emitter, &sig_key);
-    let sig_data1 = vec![
-        vec![0x01u8, 0x02u8, 0x03u8],
-        vec![0x04u8, 0x05u8, 0x06u8],
-        vec![0x07u8, 0x08u8, 0x09u8],
-    ];
-    let sig_data2 = vec![
-        vec![0x09u8, 0x08u8, 0x07u8],
-        vec![0x06u8, 0x05u8, 0x04u8],
-        vec![0x03u8, 0x02u8, 0x01u8],
-    ];
+    let sig_data1 = vec![0x01u8, 0x02u8, 0x03u8];
+    let sig_data2 = vec![0x09u8, 0x08u8, 0x07u8];
 
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
@@ -345,7 +333,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
 
     // Drain the global slot tx queue.
     state
-        .drain_global_slot_transaction_queue(1)
+        .drain_global_slot_tx_queue(1)
         .expect("Global slot tx queue drain should not fail.");
 
     // Make sure queues now have 1 elements.
@@ -411,16 +399,8 @@ fn commit_signal_and_slots() {
     let sig_argc = U256::from(3);
     let sig_key = vec![0x41u8, 0x42u8, 0x43u8];
     let sig_loc = SignalLocation::new(&emitter, &sig_key);
-    let sig_data1 = vec![
-        vec![0x01u8, 0x02u8, 0x03u8],
-        vec![0x04u8, 0x05u8, 0x06u8],
-        vec![0x07u8, 0x08u8, 0x09u8],
-    ];
-    let sig_data2 = vec![
-        vec![0x09u8, 0x08u8, 0x07u8],
-        vec![0x06u8, 0x05u8, 0x04u8],
-        vec![0x03u8, 0x02u8, 0x01u8],
-    ];
+    let sig_data1 = vec![0x01u8, 0x02u8, 0x03u8];
+    let sig_data2 = vec![0x09u8, 0x08u8, 0x07u8];
 
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
@@ -511,7 +491,7 @@ fn commit_signal_and_slots() {
 
     // Drain then dequeue, similar to the previous test.
     state
-        .drain_global_slot_transaction_queue(1)
+        .drain_global_slot_tx_queue(1)
         .expect("Global slot tx queue drain should not fail.");
 
     // Make sure queues now have 2 elements.
