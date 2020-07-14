@@ -1380,10 +1380,13 @@ impl<'a> Executive<'a> {
             }
             // Contract wide locking when there are unhandled slot transactions. 
             // Normal transactions should not be executed until slot transactions are done.
-            if !self.state.is_account_slot_tx_queue_empty(&sender)? {
-                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
-                    ToRepackError::SlotTxQueueNotEmpty,
-                ));
+            let call_address = tx.call_address();
+            if call_address.is_some() {
+                if !self.state.is_account_slot_tx_queue_empty(&call_address.unwrap())? {
+                    return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                        ToRepackError::SlotTxQueueNotEmpty,
+                    ));
+                }
             }
         }
         /* Signal and Slots end */

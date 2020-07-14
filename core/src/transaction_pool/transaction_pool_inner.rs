@@ -596,7 +596,7 @@ impl TransactionPoolInner {
     pub fn pack_transactions<'a>(
         &mut self, num_txs: usize, block_gas_limit: U256,
         block_size_limit: usize, epoch_height_lower_bound: u64,
-        epoch_height_upper_bound: u64,
+        epoch_height_upper_bound: u64, slot_tx_address_list: Option<Vec<Address>>,
     ) -> Vec<Arc<SignedTransaction>>
     {
         let mut packed_transactions: Vec<Arc<SignedTransaction>> = Vec::new();
@@ -611,6 +611,24 @@ impl TransactionPoolInner {
         let mut recycle_txs = Vec::new();
 
         'out: while let Some(tx) = self.ready_account_pool.pop() {
+
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            // If the tx address is on the slot_tx_address_list, then skip and 
+            // recycle it.
+            if slot_tx_address_list.is_some() {
+                let list = slot_tx_address_list.clone().unwrap();
+                let call_address = tx.clone().call_address();
+                if call_address.is_some() {
+                    if list.contains(&call_address.unwrap()) {
+                        recycle_txs.push(tx.clone());
+                        continue 'out;
+                    }
+                }
+            }
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
+            
             let tx_size = tx.rlp_size();
             if block_gas_limit - total_tx_gas_limit < *tx.gas_limit()
                 || block_size_limit - total_tx_size < tx_size

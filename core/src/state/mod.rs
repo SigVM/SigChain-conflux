@@ -1929,13 +1929,19 @@ impl State {
         if cached {
             let mut cache = self.ready_slot_tx_addresses_cache.write();
             let addresses = (*cache).as_ref();
-            self.db.set_addresses_with_ready_slot_tx(
-                &addresses.unwrap(),
-                debug_record.as_deref_mut()
-            )?;
+            // If address list is not empty, commit it. Otherwise delete it from db.
+            if !addresses.unwrap().is_empty() {
+                self.db.set_addresses_with_ready_slot_tx(
+                    &addresses.unwrap(),
+                    debug_record.as_deref_mut()
+                )?;
+            } else {
+                self.db.delete_addresses_with_ready_slot_tx(
+                    debug_record.as_deref_mut()
+                )?;
+            }
             *cache = None;
         }
-
         Ok(())
     }
 
@@ -1967,8 +1973,10 @@ impl State {
     ) -> DbResult<Option<SlotTx>> {
         self.ensure_cached(address, RequireCache::SlotTxQueue, |_acc| {})?;
         let result = self.require_exists(address, false)?
-                         .dequeue_slot_tx();
-        if self.require_exists(address, false)?.is_slot_tx_queue_empty() {
+            .dequeue_slot_tx();       
+        if self.require_exists(address, false)?
+            .is_slot_tx_queue_empty() 
+        {
             self.remove_address_with_ready_slot_tx(address)?;
         }
         Ok(result)
@@ -1978,10 +1986,9 @@ impl State {
     pub fn get_account_slot_tx_queue(
         &self, address: &Address,
     ) -> DbResult<SlotTxQueue> {
-        self.ensure_cached(address, RequireCache::SlotTxQueue, |_acc| {})?;
-
-        Ok(self.require_exists(address, false)?
-               .get_copy_of_slot_tx_queue())
+        self.ensure_cached(address, RequireCache::SlotTxQueue, |acc| {
+            acc.map_or(SlotTxQueue::new(), |acc| acc.get_copy_of_slot_tx_queue())
+        })
     }
 
     // Check if a particular account's slot transaction queue is empty.

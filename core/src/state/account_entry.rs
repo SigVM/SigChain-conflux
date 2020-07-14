@@ -1148,45 +1148,6 @@ impl OverlayAccount {
         self.slot_tx_queue.as_ref()
     }
 
-    // // Get and cache slot tx queue.
-    // pub fn get_and_cache_slot_tx_queue(
-    //     queue_cache: &mut Option<SlotTxQueue>, address: &Address, db: &StateDb
-    // ) -> Option<SlotTxQueue> {
-    //     match db.get_account_slot_tx_queue(address) {
-    //         Ok(Some(queue)) => {
-    //             *queue_cache = Some(queue.clone());
-    //             queue_cache.clone()
-    //         }
-    //         Ok(None) => {
-    //             *queue_cache = Some(SlotTxQueue::new());
-    //             queue_cache.clone()
-    //         }
-    //         _ => None
-    //     }
-    // }
-
-    // // Where slot tx queue cached.
-    // pub fn cached_slot_tx_queue_at(&self) -> Option<SlotTxQueue> {
-    //     if let Some(queue) = &self.slot_tx_queue {
-    //         return Some(queue.clone());
-    //     }
-    //     None
-    // }
-
-    // // Retrieve slot tx queue.
-    // pub fn slot_tx_queue_at(
-    //     &self, db: &StateDb,
-    // ) -> Option<SlotTxQueue> {
-    //     if let Some(queue) = self.cached_slot_tx_queue_at() {
-    //         return Some(queue);
-    //     }
-    //     Self::get_and_cache_slot_tx_queue(
-    //         &mut self.slot_tx_queue,
-    //         &self.address,
-    //         db
-    //     )
-    // }
-
     // Bring the slot transaction queue into cache.
     pub fn cache_slot_tx_queue(
         &mut self, db: &StateDb,

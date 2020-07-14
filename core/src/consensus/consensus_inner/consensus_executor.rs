@@ -1168,6 +1168,21 @@ impl ConsensusExecutionHandler {
                     .transact(transaction)?
                 };
 
+                //////////////////////////////////////////////////////////////////////
+                /* Signal and Slots begin */
+                // Slot transaction should not fail. Even if it fails we dequeue anyways.
+                if transaction.is_slot_tx() {
+                    let address = transaction.slot_tx.as_ref().unwrap().address();
+                    // Dequeue and make sure we executed the correct slot_tx!
+                    let state_slot_tx = state
+                        .dequeue_slot_tx_from_account(address)
+                        .expect("Dequeue slot tx failed!")
+                        .unwrap();
+                    assert_eq!(transaction.slot_tx.as_ref().unwrap().clone(), state_slot_tx);
+                }
+                /* Signal and Slots end */
+                //////////////////////////////////////////////////////////////////////
+
                 let gas_fee;
                 let mut gas_sponsor_paid = false;
                 let mut storage_sponsor_paid = false;

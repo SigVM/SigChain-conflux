@@ -462,7 +462,7 @@ impl TransactionPool {
 
     pub fn pack_transactions<'a>(
         &self, num_txs: usize, block_gas_limit: U256, block_size_limit: usize,
-        mut best_epoch_height: u64,
+        mut best_epoch_height: u64, slot_tx_address_list: Option<Vec<Address>>,
     ) -> Vec<Arc<SignedTransaction>>
     {
         let mut inner = self.inner.write_with_metric(&PACK_TRANSACTION_LOCK);
@@ -482,6 +482,11 @@ impl TransactionPool {
             block_size_limit,
             height_lower_bound,
             height_upper_bound,
+            //////////////////////////////////////////////////////////////////////
+            /* Signal and Slots begin */
+            slot_tx_address_list,
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         )
     }
 
@@ -623,16 +628,26 @@ impl TransactionPool {
         let target_gas_limit = self.config.target_block_gas_limit.into();
         let self_gas_limit = min(max(target_gas_limit, gas_lower), gas_upper);
 
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        // Get the slot transaction ready list from best executed state.
+        let storage = (&*self.best_executed_state.lock()).clone();
+        let slot_tx_address_list : Option<Vec<Address>> = match storage
+            .get_addresses_with_ready_slot_tx()
+            .expect("Ready list should exist!") {
+                Some(l) => Some(l.get_all()),
+                None => None,
+            };
+            
+        // Pack regular transactions.
         let transactions_from_pool = self.pack_transactions(
             num_txs,
             self_gas_limit.clone(),
             block_size_limit,
             consensus_best_info.best_epoch_number,
+            slot_tx_address_list.clone(),
         );
 
-        //////////////////////////////////////////////////////////////////////
-        /* Signal and Slots begin */
-        
         // This is where slot transactions are packed into the transaction bunch.
         // This is not even close to an optimal implementation. We don't calculate the gas usage
         // of the slot transactions. Instead, we just enforce that the number of slot transactions
@@ -653,7 +668,7 @@ impl TransactionPool {
         // Create a pool of slot transactions. The gas price for each one is also set.
         let slot_tx_limit: usize = transactions_from_pool.len() / 4;
         let slot_tx_pool = self.get_list_of_slot_tx(
-            slot_tx_limit, U256::from(gas_price_average)
+            slot_tx_limit, slot_tx_address_list, U256::from(gas_price_average)
         );
 
         // /////////////////////////////////////////////////////////
@@ -728,18 +743,19 @@ impl TransactionPool {
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
 
-    fn get_list_of_slot_tx(&self, num_tx: usize, average_gas_price: U256) -> Vec<Arc<SignedTransaction>> {
-        let mut slot_tx_list: Vec<Arc<SignedTransaction>> = Vec::new();
-
+    fn get_list_of_slot_tx(
+        &self, num_tx: usize, address_list: Option<Vec<Address>>, average_gas_price: U256
+    ) -> Vec<Arc<SignedTransaction>> {
         let storage = (&*self.best_executed_state.lock()).clone();
-        let address_list : Vec<Address> = match storage
-            .get_addresses_with_ready_slot_tx()
-            .expect("Ready list should exist!") {
-                Some(l) => l.get_all(),
-                None => return slot_tx_list,
-            };
-        
+        // List of slot transactions packed.
+        let mut slot_tx_list: Vec<Arc<SignedTransaction>> = Vec::new(); 
         let mut cnt: usize = 0;
+
+        if address_list.is_none() {
+            return slot_tx_list;
+        }
+
+        let address_list = address_list.unwrap();
         for addr in address_list {
             if cnt == num_tx {
                 break;

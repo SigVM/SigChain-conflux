@@ -350,6 +350,10 @@ impl Transaction {
         self.slot_tx.is_some()
     }
 
+    pub fn action(&self) -> Action {
+        self.action.clone()
+    }
+
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
@@ -594,7 +598,16 @@ impl SignedTransaction {
     }
 
     //////////////////////////////////////////////////////////////////////
-    /* Signal and Slots begin */   
+    /* Signal and Slots begin */ 
+    // Get the target address of a CALL action. Return None if the action
+    // is CREATE or SLOTTX.
+    pub fn call_address(&self) -> Option<Address> {
+        match self.transaction.transaction.unsigned.action() {
+            Action::Call(address) => Some(address),
+            _ => None,
+        }
+    }
+    
     pub fn is_slot_tx(&self) -> bool {
         // pretty ugly code...
         self.transaction.transaction.unsigned.is_slot_tx()

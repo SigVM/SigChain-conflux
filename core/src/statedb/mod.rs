@@ -43,7 +43,13 @@ impl StateDb {
     const TOTAL_BANK_TOKENS_KEY: &'static [u8] = b"total_staking_tokens";
     const TOTAL_STORAGE_TOKENS_KEY: &'static [u8] = b"total_storage_tokens";
     const TOTAL_TOKENS_KEY: &'static [u8] = b"total_issued_tokens";
-
+    
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    const SLOT_TX_READY_LIST_KEY: &'static [u8] = b"ready_list_key";
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
+    
     pub fn new(storage: StorageState) -> Self { StateDb { storage } }
 
     #[allow(unused)]
@@ -346,8 +352,9 @@ impl StateDb {
     // Retrieve the list of contract addresses with pending slot transaction ready to be handled
     pub fn get_addresses_with_ready_slot_tx(&self)
     -> Result<Option<SlotTxAddressList>> {
-        let key = StorageKey::new_storage_root_key(
+        let key = StorageKey::new_storage_key(
             &GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS,
+            Self::SLOT_TX_READY_LIST_KEY,
         );
         self.get::<SlotTxAddressList>(key)
     }
@@ -356,10 +363,21 @@ impl StateDb {
         &mut self, accounts: &SlotTxAddressList,
         debug_record: Option<&mut ComputeEpochDebugRecord>,
     ) -> Result<()> {
-        let key = StorageKey::new_storage_root_key(
+        let key = StorageKey::new_storage_key(
             &GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS,
+            Self::SLOT_TX_READY_LIST_KEY,
         );
         self.set::<SlotTxAddressList>(key, accounts, debug_record)
+    }
+
+    pub fn delete_addresses_with_ready_slot_tx(
+        &mut self, debug_record: Option<&mut ComputeEpochDebugRecord>,
+    ) -> Result<()> {
+        let key = StorageKey::new_storage_key(
+            &GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS,
+            Self::SLOT_TX_READY_LIST_KEY,
+        );
+        self.delete(key, debug_record)
     }
 
     // Given an epoch number, retrieve the queue.

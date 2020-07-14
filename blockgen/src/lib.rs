@@ -271,6 +271,7 @@ impl BlockGenerator {
             block_gas_limit,
             block_size_limit,
             consensus_graph.best_epoch_number(),
+            None, // Signal and Slots
         );
 
         Ok(self.assemble_new_block_impl(
