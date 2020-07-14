@@ -645,7 +645,10 @@ impl TransactionPool {
             n = n + t.gas_price.low_u64();
             d = d + 1;
         }
-        let gas_price_average = n/d;
+        let mut gas_price_average = 0;
+        if d != 0 {
+            gas_price_average = n/d;
+        } 
         
         // Create a pool of slot transactions. The gas price for each one is also set.
         let slot_tx_limit: usize = transactions_from_pool.len() / 4;

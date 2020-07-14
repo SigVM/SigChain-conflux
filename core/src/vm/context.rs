@@ -208,7 +208,7 @@ pub trait Context {
     // gas_ratio is out of 100
     fn create_slot(
         &mut self, sender_address: &Address, 
-        slot_key: &Vec<u8>, code: &Address,
+        slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256, 
         numerator: &U256, denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;

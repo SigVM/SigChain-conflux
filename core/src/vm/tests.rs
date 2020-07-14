@@ -256,7 +256,7 @@ impl Context for MockContext {
     // gas_ratio is out of 100
     fn create_slot(
         &mut self, _sender_address: &Address, 
-        _slot_key: &Vec<u8>, _code: &Address,
+        _slot_key: &Vec<u8>,
         _argc: &U256, _gas_limit: &U256, 
         _numerator: &U256, _denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{

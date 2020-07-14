@@ -64,7 +64,6 @@ fn slot_creation() {
 
     let key = vec![0x31u8, 0x32u8, 0x33u8];
     let argc = U256::from(3);
-    let entry = Address::zero();
     let gas_limit = U256::from(1000);
     let numerator = U256::from(3);
     let denominator = U256::from(2);
@@ -73,7 +72,7 @@ fn slot_creation() {
         .new_contract(&address, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&address, &key, &entry, &argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&address, &key, &argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     let slot = state.slot_at(&address, &key)
@@ -104,7 +103,6 @@ fn slot_bind_and_detach() {
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
     let slot_argc = U256::from(3);
-    let entry = Address::zero();
     let gas_limit = U256::from(1000);
     let numerator = U256::from(3);
     let denominator = U256::from(2);
@@ -122,7 +120,7 @@ fn slot_bind_and_detach() {
         .new_contract(&listener, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
     // Bind slot to signal.
     state
@@ -192,7 +190,6 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
     let slot_argc = U256::from(3);
-    let entry = Address::zero();
     let gas_limit = U256::from(1000);
     let numerator = U256::from(3);
     let denominator = U256::from(2);
@@ -212,7 +209,7 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
         .new_contract(&listener1, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener1, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener1, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Create slot 2.
@@ -220,7 +217,7 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
         .new_contract(&listener2, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener2, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener2, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Bind slots to signal.
@@ -274,7 +271,6 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
     let slot_argc = U256::from(3);
-    let entry = Address::zero();
     let gas_limit = U256::from(1000);
     let numerator = U256::from(3);
     let denominator = U256::from(2);
@@ -294,7 +290,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
         .new_contract(&listener1, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener1, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener1, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Create slot 2.
@@ -302,7 +298,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
         .new_contract(&listener2, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener2, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener2, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Bind slots to signal.
@@ -405,7 +401,6 @@ fn commit_signal_and_slots() {
     // Information to initialize slot.
     let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
     let slot_argc = U256::from(3);
-    let entry = Address::zero();
     let gas_limit = U256::from(1000);
     let numerator = U256::from(3);
     let denominator = U256::from(2);
@@ -425,7 +420,7 @@ fn commit_signal_and_slots() {
         .new_contract(&listener1, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener1, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener1, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Create slot 2.
@@ -433,7 +428,7 @@ fn commit_signal_and_slots() {
         .new_contract(&listener2, U256::zero(), U256::one())
         .unwrap();
     state
-        .create_slot(&listener2, &slot_key, &entry, &slot_argc, &gas_limit, &numerator, &denominator)
+        .create_slot(&listener2, &slot_key, &slot_argc, &gas_limit, &numerator, &denominator)
         .expect("Slot creation should not fail.");
 
     // Bind slots to signal.
