@@ -1417,6 +1417,7 @@ impl<'a> Executive<'a> {
             &tx.data,
             spec,
         );
+        //println!("base_gas_required is {}", base_gas_required);
         assert!(
             tx.gas >= base_gas_required.into(),
             "We have already checked the base gas requirement when we received the block."
@@ -1617,10 +1618,10 @@ impl<'a> Executive<'a> {
             } else {
                 // From now on sender balance >= total_cost, transaction execution
                 // is guaranteed.
-                self.state.inc_nonce(&sender)?;
+                //self.state.inc_nonce(&sender)?;
             }
 
-            // Subtract the transaction fee from sender or contract.
+            // Subtract the transaction fee from owner or contract.
             self.state.sub_balance(
                 tx.slot_tx.as_ref().unwrap().address(),
                 &U256::try_from(gas_cost).unwrap(),

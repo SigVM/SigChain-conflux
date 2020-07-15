@@ -28,6 +28,11 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+use primitives::{transaction::UNSIGNED_SENDER, StorageLayout,SignalLocation,SlotLocation};
+use primitives::{
+    SlotTxQueue, SlotTx, SignalInfo, SlotInfo, Slot,
+    SlotTxAddressList,
+};
 
 fn make_byzantium_machine(max_depth: usize) -> Machine {
     let mut machine = crate::machine::new_machine_with_builtin();
@@ -1867,4 +1872,135 @@ fn test_storage_commission_privilege() {
         *state.total_storage_tokens(),
         *COLLATERAL_PER_STORAGE_KEY * U256::from(2)
     );
+}
+
+#[test]
+fn test_slottx_execute() {
+    use crate::state::*;
+    let privilege_control_address = &SPONSOR_WHITELIST_CONTROL_CONTRACT_ADDRESS;
+    let factory = Factory::new(VMType::Interpreter, 1024 * 32);
+    //let code = "7c601080600c6000396000f3006000355415600957005b6020356000355560005233600155"
+    let code = "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610052565b60405180806102536027913960270190506040518091039020600381905550600354600260016020c1600155565b6101f2806100616000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e14610067578063255286301461008557806368c0b038146100a357806381daf21f146100c1578063b6675486146100ef578063fd0bf5a3146100f9575b600080fd5b61006f610117565b6040518082815260200191505060405180910390f35b61008d61011d565b6040518082815260200191505060405180910390f35b6100ab610123565b6040518082815260200191505060405180910390f35b6100ed600480360360208110156100d757600080fd5b8101908080359060200190929190505050610129565b005b6100f7610137565b005b610101610165565b6040518082815260200191505060405180910390f35b60025481565b60015481565b60005481565b806000541760008190555050565b604051808061016c6027913960270190506040518091039020600381905550600354600260016020c1600155565b6003548156fe66756e6374696f6e207072696365526563656976655f66756e632862797465733332206f626a29a264697066735822122096bb55ae6a15bc2f3e0d00eaf229d2960fc3a9083da31844f0b7a4b05ebb13f064736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d66756e6374696f6e207072696365526563656976655f66756e632862797465733332206f626a29"
+                .from_hex().unwrap();
+
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state =
+        get_state_for_genesis_write_with_factory(&storage_manager, factory);
+    let mut env = Env::default();
+    env.gas_limit = U256::MAX;
+    let machine = make_byzantium_machine(0);
+    let internal_contract_map = InternalContractMap::new();
+    let spec = machine.spec(env.number);
+
+    let sender = Random.generate().unwrap();
+    let caller1 = Random.generate().unwrap();
+    let caller2 = Random.generate().unwrap();
+    let caller3 = Random.generate().unwrap();
+    let address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::zero(),
+        &[],
+    )
+    .0;
+
+    state
+        .new_contract_with_admin(
+            &address,
+            &sender.address(),
+            U256::zero(),
+            U256::one(),
+        )
+        .expect(&concat!(file!(), ":", line!(), ":", column!()));
+    state.init_code(&address, code, sender.address()).unwrap();
+
+    state
+        .add_balance(
+            &sender.address(),
+            &U256::from(2_000_000_000_000_075_000u64),
+            CleanupMode::NoEmpty,
+        )
+        .unwrap();
+
+    //create a virtual signal
+    let sigkey = vec![0x01u8, 0x02u8, 0x03u8];
+    let _result = state.create_signal(
+        &sender.address(), 
+        &sigkey,
+        &U256::from(3),
+    );
+    //create a virual slot
+    let slot_key = "821ba04f7b83bfd4855974fcce954bcd64f0a479e98836e8fcf4813d9651dc9f".from_hex().unwrap();
+    let _slt_result = state.create_slot(
+        &sender.address(), 
+        &slot_key,
+        &U256::from(3),
+        &U256::from(100000),
+        &U256::from(1), 
+        &U256::from(10),
+    );
+    //bind slot with signal
+    let sig_loc = SignalLocation::new(&sender.address(), &sigkey);
+    let slt_loc = SlotLocation::new(&sender.address(), &slot_key);
+    let _bindresult = state.bind_slot_to_signal(&sig_loc, &slt_loc);
+
+    // fake emit sig
+    // let sig_info = state.signal_at(sig_loc.address(), sig_loc.signal_key());
+    // let sig_info = sig_info.unwrap().unwrap();
+
+    let current_epoch_height: u64 = 0;
+    let epoch_height_delay: u64 = 0;
+    let argv = vec![0x12u8,0x34u8,0x56u8];
+    let _emitsigresult = state.emit_signal_and_queue_slot_tx(
+        &sig_loc, 
+        current_epoch_height, 
+        epoch_height_delay, 
+        &argv
+    );
+
+    //get slot tx from address list
+    // let slotinfo = state.slot_at(&sender.address(), &slot_key).unwrap().unwrap();
+    // let slot = Slot::new(&slotinfo);
+    // let slttx = SlotTx::new(
+    //     &slot, &(current_epoch_height + epoch_height_delay), &argv
+    // );
+    let queue = state
+    .get_account_slot_tx_queue(&sender.address())
+    .unwrap();
+    let slttx = queue.peek(0).unwrap().clone();
+    //now fake get slot tx
+    let tx = Transaction {
+        nonce: U256::zero(),
+        gas_price: U256::zero(),
+        gas: U256::from(21001),
+        value: U256::zero(),
+        action: Action::SlotTx,
+        storage_limit: U256::zero(),
+        epoch_height: 0,
+        chain_id: 0,
+        data: Vec::new(),
+        slot_tx: Some(slttx),
+    };
+    let tx = Transaction::create_signed_tx_with_slot_tx(tx.clone());
+    assert_eq!(tx.sender(), sender.address());
+    let Executed {
+        gas_used,
+        storage_collateralized,
+        storage_released,
+        ..
+    } = Executive::new(
+        &mut state,
+        &env,
+        &machine,
+        &spec,
+        &internal_contract_map,
+    )
+    .transact(&tx)
+    .unwrap()
+    .successfully_executed()
+    .unwrap();
+    assert_eq!(storage_collateralized.len(), 1);
+    assert_eq!(storage_collateralized[0].address, sender.address());
+    assert_eq!(storage_collateralized[0].amount, BYTES_PER_STORAGE_KEY);
+    assert_eq!(storage_released.len(), 0);
 }
