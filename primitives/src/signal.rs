@@ -311,7 +311,7 @@ impl SlotTx {
 
     // Calculate gas price.
     pub fn calculate_and_set_gas_price(&mut self, average_gas_price: &U256) {
-        self.gas_price = average_gas_price * (self.gas_ratio_numerator/self.gas_ratio_denominator);
+        self.gas_price = average_gas_price * self.gas_ratio_numerator / self.gas_ratio_denominator;
     }
 
     // Returns the call data of the slot transaction
