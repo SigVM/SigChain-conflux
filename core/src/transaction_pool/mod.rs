@@ -23,6 +23,8 @@ use crate::{
     statedb::{Result as StateDbResult, StateDb},
     storage::{Result as StorageResult, StateIndex, StorageManagerTrait},
     verification::VerificationConfig,
+    executive::{Executive},
+    vm::{Spec},
 };
 use account_cache::AccountCache;
 use cfx_types::{Address, H256, U256};
@@ -634,7 +636,7 @@ impl TransactionPool {
         let storage = (&*self.best_executed_state.lock()).clone();
         let slot_tx_address_list : Option<Vec<Address>> = match storage
             .get_addresses_with_ready_slot_tx()
-            .expect("Ready list should exist!") {
+            .expect("Db error when pulling ready list??") {
                 Some(l) => Some(l.get_all()),
                 None => None,
             };
@@ -768,6 +770,16 @@ impl TransactionPool {
 
             // Set gas price.
             tx.calculate_and_set_gas_price(&average_gas_price);
+            // Calculate the upfront gas cost.
+            tx.set_gas_upfront(
+                U256::from(
+                    Executive::gas_required_for_slot_tx(
+                        &tx,
+                        // we just need spec for two fields, not very important...
+                        &Spec::new(1000000, false, false, false),
+                    )
+                )
+            );
 
             slot_tx_list.push(
                 Arc::new(

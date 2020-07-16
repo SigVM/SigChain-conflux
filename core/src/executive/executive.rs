@@ -24,7 +24,7 @@ use crate::{
 };
 use cfx_types::{address_util::AddressUtil, Address, H256, U256, U512};
 use primitives::{
-    receipt::StorageChange, transaction::Action, SignedTransaction,
+    receipt::StorageChange, transaction::Action, SignedTransaction, SlotTx
 };
 use std::{
     collections::HashSet,
@@ -1246,6 +1246,23 @@ impl<'a> Executive<'a> {
         )
     }
 
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    pub fn gas_required_for_slot_tx(slot_tx: &SlotTx, spec: &Spec) -> u64 {
+        let data = slot_tx.argv();
+        data.iter().fold(
+            (spec.tx_gas) as u64,
+            |g, b| {
+                g + (match *b {
+                    0 => spec.tx_data_zero_gas,
+                    _ => spec.tx_data_non_zero_gas,
+                }) as u64
+            },
+        )
+    }
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
+
     pub fn create_with_stack_depth(
         &mut self, params: ActionParams, substate: &mut Substate,
         stack_depth: usize,
@@ -1412,20 +1429,35 @@ impl<'a> Executive<'a> {
             Ok(()) => {}
         }
 
-        let base_gas_required = Executive::gas_required_for(
-            tx.action == Action::Create,
-            &tx.data,
-            spec,
-        );
-        //println!("base_gas_required is {}", base_gas_required);
-        assert!(
-            tx.gas >= base_gas_required.into(),
-            "We have already checked the base gas requirement when we received the block."
-        );
-        let init_gas = tx.gas - base_gas_required;
-
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
+        let base_gas_required;
+        let init_gas;
+        if !tx.is_slot_tx() {
+            base_gas_required = Executive::gas_required_for(
+                tx.action == Action::Create,
+                &tx.data,
+                spec,
+            );
+            //println!("base_gas_required is {}", base_gas_required);
+            assert!(
+                tx.gas >= base_gas_required.into(),
+                "We have already checked the base gas requirement when we received the block."
+            );
+            init_gas = tx.gas - base_gas_required;
+        } else {
+            base_gas_required = Executive::gas_required_for_slot_tx(
+                &tx.slot_tx.as_ref().unwrap(),
+                spec,
+            );
+            //println!("base_gas_required is {}", base_gas_required);
+            assert!(
+                tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
+                "We should have checked base gas requirement for slot tx when we received the block."
+            );
+            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront() - base_gas_required;
+        }
+
         let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() { 
             false => {
                 (
@@ -1435,7 +1467,6 @@ impl<'a> Executive<'a> {
                 )
             } 
             true => {
-                //TODO: slottx.gas should be determined and will replace tx.gas
                 (
                     self.state.balance(tx.slot_tx.as_ref().unwrap().address())?,
                     tx.gas.full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()), 

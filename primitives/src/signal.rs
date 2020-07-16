@@ -251,6 +251,8 @@ pub struct SlotTx {
     argv: Bytes,
     // Gas price. Determined during packing.
     gas_price: U256,
+    // Gas upfront cost.
+    gas_upfront: U256,
 }
 
 impl SlotTx {
@@ -266,6 +268,7 @@ impl SlotTx {
             argv:                  argv.clone(),
             // Gas price is set when packed in the transaction pool.
             gas_price:             U256::zero(),
+            gas_upfront:           U256::zero(),
         };
         new
     }
@@ -295,6 +298,9 @@ impl SlotTx {
     pub fn gas_price(&self) -> &U256 {
         &self.gas_price
     }
+    pub fn gas_upfront(&self) -> &U256 {
+        &self.gas_upfront
+    }
 
     // Functions for ABI purposes. This becomes important when calling slot code.
     // The standard ABI protocol involves having each function assigned a method id.
@@ -311,9 +317,15 @@ impl SlotTx {
         ret
     }
 
+    // The two functions below are called in the tx pool, when these transactions are getting packed.
+
     // Calculate gas price.
     pub fn calculate_and_set_gas_price(&mut self, average_gas_price: &U256) {
         self.gas_price = average_gas_price * self.gas_ratio_numerator / self.gas_ratio_denominator;
+    }
+    // Calculate gas upfront cost.
+    pub fn set_gas_upfront(&mut self, gas_upfront: U256) {
+        self.gas_upfront = gas_upfront;
     }
 
     // Returns the call data of the slot transaction
