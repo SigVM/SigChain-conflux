@@ -596,6 +596,16 @@ impl TransactionPool {
         Ok(())
     }
 
+    //////////////////////////////////////////////////////////////////////
+    /* Signal and Slots begin */
+    // Stupid hard coded constants!
+    const TX_TO_SLOT_TX_RATIO: usize = 5;
+    const TX_TO_SLOT_TX_GAS_RATIO: usize = 5;
+    const TX_TO_SLOT_TX_SIZE_RATIO: usize = 5;
+
+    /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
+    
     pub fn get_best_info_with_packed_transactions(
         &self, num_txs: usize, block_size_limit: usize,
         additional_transactions: Vec<Arc<SignedTransaction>>,
@@ -645,7 +655,7 @@ impl TransactionPool {
         let transactions_from_pool = self.pack_transactions(
             num_txs,
             self_gas_limit.clone(),
-            block_size_limit,
+            block_size_limit.clone(),
             consensus_best_info.best_epoch_number,
             slot_tx_address_list.clone(),
         );
@@ -668,9 +678,13 @@ impl TransactionPool {
         } 
         
         // Create a pool of slot transactions. The gas price for each one is also set.
-        let slot_tx_limit: usize = transactions_from_pool.len() / 4;
+        let slot_tx_limit: usize = transactions_from_pool.len() / Self::TX_TO_SLOT_TX_RATIO;
         let slot_tx_pool = self.get_list_of_slot_tx(
-            slot_tx_limit, slot_tx_address_list, U256::from(gas_price_average)
+            slot_tx_limit, 
+            self_gas_limit.clone(),
+            block_size_limit.clone(),
+            slot_tx_address_list, 
+            U256::from(gas_price_average)
         );
 
         // /////////////////////////////////////////////////////////
@@ -746,8 +760,13 @@ impl TransactionPool {
     /* Signal and Slots begin */
 
     fn get_list_of_slot_tx(
-        &self, num_tx: usize, address_list: Option<Vec<Address>>, average_gas_price: U256
+        &self, num_tx: usize, 
+        block_gas_limit: U256,
+        block_size_limit: usize,
+        address_list: Option<Vec<Address>>, 
+        average_gas_price: U256
     ) -> Vec<Arc<SignedTransaction>> {
+        // Get best estimate of state.
         let storage = (&*self.best_executed_state.lock()).clone();
         // List of slot transactions packed.
         let mut slot_tx_list: Vec<Arc<SignedTransaction>> = Vec::new(); 
@@ -757,11 +776,15 @@ impl TransactionPool {
             return slot_tx_list;
         }
 
-        let address_list = address_list.unwrap();
-        for addr in address_list {
+        let mut total_tx_gas_limit: U256 = 0.into();
+        let mut total_tx_size: usize = 0;
+
+        for addr in address_list.unwrap() {
+            // Check if we are packing too many transactions.
             if cnt == num_tx {
                 break;
             }
+            // Peek at a potential slot tx to pack.
             let queue = storage
                 .get_account_slot_tx_queue(&addr)
                 .expect("Account must exist. Slot tx addr list is corrupted")
@@ -775,30 +798,48 @@ impl TransactionPool {
                 U256::from(
                     Executive::gas_required_for_slot_tx(
                         &tx,
-                        // we just need spec for two fields, not very important...
-                        &Spec::new(1000000, false, false, false),
+                        // we just need spec for two fields, arguments arnt important.
+                        &Spec::new(123456789, false, false, false),
                     )
                 )
+            );
+            // Save gas limit.
+            let tx_gas_limit = tx.gas_limit().clone();
+
+            // Create the signed tx.
+            let signed_tx = Transaction::create_signed_tx_with_slot_tx(
+                Transaction {
+                    nonce: U256::zero(),
+                    gas_price: U256::zero(),
+                    gas: U256::zero(),
+                    action: Action::SlotTx,
+                    value: U256::zero(),
+                    storage_limit: U256::zero(),
+                    epoch_height: 0,
+                    chain_id: 0,
+                    data: Vec::new(),
+                    slot_tx: Some(tx),
+                }
             );
 
+            // Establish the limits for packing.
+            let tx_size = signed_tx.rlp_size();
+            let eff_block_gas_limit = block_gas_limit/Self::TX_TO_SLOT_TX_GAS_RATIO;
+            let eff_block_size_limit = block_size_limit/Self::TX_TO_SLOT_TX_SIZE_RATIO;
+
+            // See if we can pack, if not, skip.
+            if eff_block_gas_limit - total_tx_gas_limit < tx_gas_limit
+                || eff_block_size_limit - total_tx_size < tx_size
+            {
+                continue;
+            }
+
+            // Pack it.
             slot_tx_list.push(
-                Arc::new(
-                    Transaction::create_signed_tx_with_slot_tx(
-                        Transaction {
-                            nonce: U256::zero(),
-                            gas_price: U256::zero(),
-                            gas: U256::zero(),
-                            action: Action::SlotTx,
-                            value: U256::zero(),
-                            storage_limit: U256::zero(),
-                            epoch_height: 0,
-                            chain_id: 0,
-                            data: Vec::new(),
-                            slot_tx: Some(tx),
-                        }
-                    )
-                )
+                Arc::new(signed_tx)
             );
+            total_tx_gas_limit = total_tx_gas_limit + tx_gas_limit;
+            total_tx_size = total_tx_size + tx_size;
             cnt = cnt + 1;
         }
         slot_tx_list

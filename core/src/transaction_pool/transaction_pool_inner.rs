@@ -3,6 +3,7 @@ use super::{
     garbage_collector::GarbageCollector,
     impls::TreapMap,
     nonce_pool::{InsertResult, NoncePool, TxWithReadyInfo},
+    TransactionPool,
 };
 use crate::statedb::Result as StateDbResult;
 use cfx_types::{address_util::AddressUtil, Address, H256, U256};
@@ -626,12 +627,13 @@ impl TransactionPoolInner {
                     }
                 }
             }
-            /* Signal and Slots end */
-            //////////////////////////////////////////////////////////////////////
-            
+
             let tx_size = tx.rlp_size();
-            if block_gas_limit - total_tx_gas_limit < *tx.gas_limit()
-                || block_size_limit - total_tx_size < tx_size
+            let eff_block_gas_limit = block_gas_limit - (block_gas_limit/TransactionPool::TX_TO_SLOT_TX_GAS_RATIO);
+            let eff_block_size_limit = block_size_limit - (block_size_limit/TransactionPool::TX_TO_SLOT_TX_SIZE_RATIO);
+
+            if eff_block_gas_limit - total_tx_gas_limit < *tx.gas_limit()
+                || eff_block_size_limit - total_tx_size < tx_size
             {
                 recycle_txs.push(tx.clone());
                 if big_tx_resample_times_limit > 0 {
@@ -641,6 +643,8 @@ impl TransactionPoolInner {
                     break 'out;
                 }
             }
+            /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
 
             // If in rare case we popped up something that is currently outside
             // the bound, we will skip the transaction.
