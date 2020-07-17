@@ -214,8 +214,8 @@ impl<Cost: 'static + CostType> vm::Exec for Interpreter<Cost> {
         loop {
             let result = self.step(context);
             match result {
-                InterpreterResult::Continue => {println!("line 217");}
-                InterpreterResult::Done(value) => {println!("line 218"); return Ok(value)},
+                InterpreterResult::Continue => {}
+                InterpreterResult::Done(value) => return Ok(value),
                 InterpreterResult::Trap(trap) => match trap {
                     TrapKind::Call(params) => {
                         return Err(TrapError::Call(params, self));
@@ -355,10 +355,8 @@ impl<Cost: CostType> Interpreter<Cost> {
         }
 
         let result = if self.gasometer.is_none() {
-            println!("line 358");
             InterpreterResult::Done(Err(vm::Error::OutOfGas))
         } else if self.reader.len() == 0 {
-            println!("line 360");
             InterpreterResult::Done(Ok(GasLeft::Known(
                 self.gasometer
                     .as_ref()
@@ -367,7 +365,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                     .as_u256(),
             )))
         } else {
-            println!("line 368");
             self.step_inner(context)
         };
 

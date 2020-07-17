@@ -186,7 +186,6 @@ impl<'a> CallCreateExecutive<'a> {
             )
         } else {
             if params.code.is_some() {
-                println!("Reach Here 1");
                 trace!("ExecCall");
                 let mut contracts_in_callstack =
                     contracts_in_callstack.unwrap();
@@ -664,7 +663,6 @@ impl<'a> CallCreateExecutive<'a> {
                         Err(err) => return Ok(Err(err)),
                     }
                 }
-                println!("reach 666");
                 let origin = OriginInfo::from(&params);
                 let sender = *origin.original_sender();
                 let storage_limit = *origin.storage_limit();
@@ -695,9 +693,8 @@ impl<'a> CallCreateExecutive<'a> {
                     };
                     out
                 };
-                println!("reach 697");
                 let res = match out {
-                    Ok(val) => {println!("reach 699"); val},
+                    Ok(val) => val,
                     Err(TrapError::Call(subparams, resume)) => {
                         self.kind = CallCreateExecutiveKind::ResumeCall(
                             origin,
@@ -727,7 +724,7 @@ impl<'a> CallCreateExecutive<'a> {
                     &storage_limit,
                     self.depth == 0,
                 ) {
-                    CollateralCheckResult::Valid => {println!("reach 729");Ok(res)},
+                    CollateralCheckResult::Valid => Ok(res),
                     CollateralCheckResult::ExceedStorageLimit { .. } => {
                         Ok(Err(vm::Error::ExceedStorageLimit))
                     }
@@ -1057,7 +1054,6 @@ impl<'a> CallCreateExecutive<'a> {
     pub fn consume(
         self, state: &mut State, top_substate: &mut Substate,
     ) -> vm::Result<FinalizationResult> {
-        println!("reach 1059");
         let mut last_res =
             Some((false, self.gas, self.exec(state, top_substate)));
 
@@ -1080,7 +1076,6 @@ impl<'a> CallCreateExecutive<'a> {
                     }
                 },
                 Some((is_create, _gas, Ok(val))) => {
-                    println!("reach 1081");
                     let current = callstack.pop();
 
                     match current {
@@ -1114,13 +1109,7 @@ impl<'a> CallCreateExecutive<'a> {
                                 )));
                             }
                         },
-                        None => {
-                        let out = match &val {
-                            Ok(res) => {println!("reach 1117");res.return_data.to_vec()},
-                            _ => Vec::new(),
-                        };
-                        println!("reach out {:?}", out);
-                        return val},
+                        None => return val,
                     }
                 },
                 Some((_, _, Err(TrapError::Call(subparams, mut resume)))) => {
@@ -1449,7 +1438,6 @@ impl<'a> Executive<'a> {
                 &tx.data,
                 spec,
             );
-            println!("base_gas_required is {}", base_gas_required);
             assert!(
                 tx.gas >= base_gas_required.into(),
                 "We have already checked the base gas requirement when we received the block."
@@ -1460,7 +1448,6 @@ impl<'a> Executive<'a> {
                 &tx.slot_tx.as_ref().unwrap(),
                 spec,
             );
-            println!("base_gas_required is {}", base_gas_required);
             assert!(
                 tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
                 "We should have checked base gas requirement for slot tx when we received the block."
@@ -1478,7 +1465,6 @@ impl<'a> Executive<'a> {
             } 
             true => {
                 //TODO: slottx.gas should be determined and will replace tx.gas
-                println!("tx.gas is {} and gas price is {}",tx.gas, *tx.slot_tx.as_ref().unwrap().gas_price());
                 (
                     self.state.balance(tx.slot_tx.as_ref().unwrap().address())?,
                     tx.gas.full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
@@ -1620,7 +1606,6 @@ impl<'a> Executive<'a> {
         let mut substate = Substate::new();
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
-        println!("balance512 is {} and sender_intended_cost is {}, gas_cost is {}", balance512, sender_intended_cost, gas_cost);
         if tx.is_slot_tx() {
             // owner is responsible for the insufficient balance.
             if balance512 < sender_intended_cost {
@@ -1664,16 +1649,12 @@ impl<'a> Executive<'a> {
                 // is guaranteed.
                 //self.state.inc_nonce(&sender)?;
             }
-            let tmpbal = self.state.balance(&sender)?;
-            println!("before tmpbal is {}", tmpbal);
             // Subtract the transaction fee from owner or contract.
             self.state.sub_balance(
                 tx.slot_tx.as_ref().unwrap().address(),
                 &U256::try_from(gas_cost).unwrap(),
                 &mut substate.to_cleanup_mode(&spec),
             )?;
-            let tmpbal = self.state.balance(&sender)?;
-            println!("after tmpbal is {}", tmpbal);
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
         } else {
@@ -1744,14 +1725,11 @@ impl<'a> Executive<'a> {
                 );
 
                 if self.state.is_contract(&new_address) {
-                    println!("reach 1713");
                     return Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
                         ExecutionError::ContractAddressConflict,
                         Executed::execution_error_fully_charged(tx),
                     ));
                 }
-                println!("reach 1718");
-                println!("create data is {:x?}", tx.data.clone());
                 let params = ActionParams {
                     code_address: new_address,
                     code_hash: None,
@@ -1780,19 +1758,6 @@ impl<'a> Executive<'a> {
             Action::SlotTx => {
                 assert!(tx.is_slot_tx());
                 let tx = tx.slot_tx.as_ref().unwrap();
-                // let contract_code = "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6102d18061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e146100675780630f91288114610085578063255286301461012757806368c0b03814610145578063b6675486146101a3578063fd0bf5a3146101ad575b600080fd5b61006f6101cb565b6040518082815260200191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff191690602001909291905050506101d1565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b61012f610207565b6040518082815260200191505060405180910390f35b61014d61020d565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101ab61021f565b005b6101b561026b565b6040518082815260200191505060405180910390f35b60025481565b6000816000809054906101000a900460e81b176000806101000a81548162ffffff021916908360e81c0217905550819050919050565b60015481565b6000809054906101000a900460e81b81565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6003548156fea26469706673582212205ebd06d5a18fb965df521c2f059297b1060c92c01e9434a9bcbec9158111efc564736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
-                // .from_hex().unwrap();                
-                // let slt_contract_address = contract_address(
-                //     CreateContractAddress::FromSenderNonceAndCodeHash,
-                //     &tx.address(),
-                //     &U256::zero(),
-                //     &contract_code,
-                // )
-                // .0;
-
-                println!("data is {:x?}", tx.encode());
-                println!("code_address is {:x?}", tx.address().clone());
-                println!("code is {:x?}", self.state.code(&tx.address()).unwrap().unwrap());
                 let params = ActionParams {
                     code_address: tx.address().clone(),
                     address: tx.address().clone(),
@@ -1815,14 +1780,11 @@ impl<'a> Executive<'a> {
                     Ok(res) => res.return_data.to_vec(),
                     _ => Vec::new(),
                 };
-                println!("out is {:x?}", out);
                 (res, out)
             }
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
             Action::Call(ref address) => {
-                println!("call data is {:x?}", tx.data.clone());
-                println!("call code is {:x?}", self.state.code(address).unwrap().unwrap());
                 let params = ActionParams {
                     code_address: *address,
                     address: *address,
@@ -1876,23 +1838,30 @@ impl<'a> Executive<'a> {
             Ok(FinalizationResult { gas_left, .. }) => gas_left,
             _ => 0.into(),
         };
-
+        //////////////////////////////////
+        /* Signal and Slots begin */
+        let (tx_gas,tx_gas_price) = match tx.is_slot_tx() {
+            true => (tx.slot_tx.as_ref().unwrap().gas_upfront().clone(), tx.slot_tx.as_ref().unwrap().gas_price().clone()),
+            false => (tx.gas, tx.gas_price),
+        };
         // gas_used is only used to estimate gas needed
-        let gas_used = tx.gas - gas_left;
+        let gas_used = tx_gas - gas_left;
         // gas_left should be smaller than 1/4 of gas_limit, otherwise
         // 3/4 of gas_limit is charged.
         let charge_all = (gas_left + gas_left + gas_left) >= gas_used;
         let (gas_charged, fees_value, refund_value) = if charge_all {
-            let gas_refunded = tx.gas >> 2;
-            let gas_charged = tx.gas - gas_refunded;
+            let gas_refunded = tx_gas >> 2;
+            let gas_charged = tx_gas - gas_refunded;
             (
                 gas_charged,
-                gas_charged * tx.gas_price,
-                gas_refunded * tx.gas_price,
+                gas_charged * tx_gas_price,
+                gas_refunded * tx_gas_price,
             )
         } else {
-            (gas_used, gas_used * tx.gas_price, gas_left * tx.gas_price)
+            (gas_used, gas_used * tx_gas_price, gas_left * tx_gas_price)
         };
+        /* Signal and Slots end */
+        //////////////////////////////////
 
         if let Some(r) = refund_receiver {
             self.state.add_sponsor_balance_for_gas(&r, &refund_value)?;

@@ -49,7 +49,6 @@ impl Finalize for Result<GasLeft> {
     fn finalize<C: Context>(self, context: C) -> Result<FinalizationResult> {
         match self {
             Ok(GasLeft::Known(gas_left)) => {
-                println!("line 52");
                 Ok(FinalizationResult {
                 gas_left,
                 apply_state: true,
@@ -61,7 +60,6 @@ impl Finalize for Result<GasLeft> {
                 data,
                 apply_state,
             }) => {
-                println!("line 61");
                 context.ret(&gas_left, &data, apply_state).map(|gas_left| {
                 FinalizationResult {
                     gas_left,
@@ -70,7 +68,7 @@ impl Finalize for Result<GasLeft> {
                 }
                 })
             },
-            Err(err) => {println!("line 73");Err(err)},
+            Err(err) => Err(err),
         }
     }
 }

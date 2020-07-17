@@ -28,11 +28,11 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
-use primitives::{transaction::UNSIGNED_SENDER, StorageLayout,SignalLocation,SlotLocation};
-use primitives::{
-    SlotTxQueue, SlotTx, SignalInfo, SlotInfo, Slot,
-    SlotTxAddressList,
-};
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+use primitives::{SignalLocation,SlotLocation};
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
 
 fn make_byzantium_machine(max_depth: usize) -> Machine {
     let mut machine = crate::machine::new_machine_with_builtin();
@@ -1873,15 +1873,35 @@ fn test_storage_commission_privilege() {
         *COLLATERAL_PER_STORAGE_KEY * U256::from(2)
     );
 }
-
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
 #[test]
 fn test_slottx_execute() {
-    use crate::state::*;
-    let privilege_control_address = &SPONSOR_WHITELIST_CONTROL_CONTRACT_ADDRESS;
+    // pragma solidity ^0.6.9;
+    // contract B {
+    //     bytes3 public LocalPriceSum;
+    //     uint public priceReceive_status;
+    //     bytes32 public priceReceive_codePtr;//codePtr is useless now
+    //     bytes32 public priceReceive_key;
+    //     function priceReceive() public{
+    //         priceReceive_key = keccak256("priceReceive_func(bytes3)");
+    //         assembly {
+    //             sstore(priceReceive_status_slot,createslot(3,10,30000,sload(priceReceive_key_slot)))
+    //         }		
+    //     }
+    //     function priceReceive_func(bytes3 obj) public returns (bytes3 ret){
+    //         ret = ~ obj;
+    //     }
+    //     constructor() public {
+    //         priceReceive();
+    //     }
+    // }
+    //
+    //the test will execute slot priceReceive, it will do call priceReceive_func(bytes3 obj)
+    //the solidity source code is in solidity/signalslot_parse_script/tb/tb7
+
     let factory = Factory::new(VMType::Interpreter, 1024 * 32);
-    let code = "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6102768061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e146100675780630f9128811461008557806325528630146100d357806368c0b038146100f1578063b66754861461014f578063fd0bf5a314610159575b600080fd5b61006f610177565b6040518082815260200191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916906020019092919050505061017d565b005b6100db6101ac565b6040518082815260200191505060405180910390f35b6100f96101b2565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101576101c4565b005b610161610210565b6040518082815260200191505060405180910390f35b60025481565b806000809054906101000a900460e81b176000806101000a81548162ffffff021916908360e81c021790555050565b60015481565b6000809054906101000a900460e81b81565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6003548156fea2646970667358221220dff1ffdb1acb2595b2a878b1dc62a2ff7d08d612f35cf432226ce3da34d8157d64736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
-    .from_hex().unwrap();
-    let contract_code = "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6102768061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e146100675780630f9128811461008557806325528630146100d357806368c0b038146100f1578063b66754861461014f578063fd0bf5a314610159575b600080fd5b61006f610177565b6040518082815260200191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916906020019092919050505061017d565b005b6100db6101ac565b6040518082815260200191505060405180910390f35b6100f96101b2565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101576101c4565b005b610161610210565b6040518082815260200191505060405180910390f35b60025481565b806000809054906101000a900460e81b176000806101000a81548162ffffff021916908360e81c021790555050565b60015481565b6000809054906101000a900460e81b81565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6003548156fea2646970667358221220dff1ffdb1acb2595b2a878b1dc62a2ff7d08d612f35cf432226ce3da34d8157d64736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
+    let code = "608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e146100675780630f91288114610085578063255286301461012757806368c0b03814610145578063b6675486146101a3578063fd0bf5a3146101ad575b600080fd5b61006f6101cb565b6040518082815260200191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff191690602001909291905050506101d1565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b61012f6101dc565b6040518082815260200191505060405180910390f35b61014d6101e2565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101ab6101f4565b005b6101b5610240565b6040518082815260200191505060405180910390f35b60025481565b600081199050919050565b60015481565b6000809054906101000a900460e81b81565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6003548156fea2646970667358221220c45cfe80e88e595ad505bd86d4637cba15a559663ba7ba059229a34793d3fc3764736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
     .from_hex().unwrap();
 
     let storage_manager = new_state_manager_for_unit_test();
@@ -1894,16 +1914,6 @@ fn test_slottx_execute() {
     let spec = machine.spec(env.number);
 
     let sender = Random.generate().unwrap();
-    let caller1 = Random.generate().unwrap();
-    let caller2 = Random.generate().unwrap();
-    let caller3 = Random.generate().unwrap();
-    let address = contract_address(
-        CreateContractAddress::FromSenderNonceAndCodeHash,
-        &sender.address(),
-        &U256::zero(),
-        &contract_code,
-    )
-    .0;
 
     state
         .new_contract_with_admin(
@@ -1922,37 +1932,31 @@ fn test_slottx_execute() {
             CleanupMode::NoEmpty,
         )
         .unwrap();
-    // state
-    //     .add_balance(
-    //         &address,
-    //         &U256::from(2_000_000_000_100_210_010u64),
-    //         CleanupMode::NoEmpty,
-    //     )
-    //     .unwrap();
-    // //create transac a contract creatation
-    // let contract_tx = Transaction {
-    //     action: Action::Create,
-    //     value: U256::from(0),
-    //     data: contract_code,
-    //     gas: U256::from(108000),
-    //     gas_price: U256::one(),
-    //     storage_limit: U256::zero(),
-    //     epoch_height: 0,
-    //     chain_id: 0,
-    //     nonce: U256::zero(),
-    //     slot_tx: None,
-    // }
-    // .sign(sender.secret());
-    // let res = {
-    //     let mut ex = Executive::new(
-    //         &mut state,
-    //         &env,
-    //         &machine,
-    //         &spec,
-    //         &internal_contract_map,
-    //     );
-    //     ex.transact(&contract_tx).unwrap()
-    // };
+    //TODO: fake depoly a contract
+            // //create transac a contract creatation
+            // let contract_tx = Transaction {
+            //     action: Action::Create,
+            //     value: U256::from(0),
+            //     data: contract_code,
+            //     gas: U256::from(108000),
+            //     gas_price: U256::one(),
+            //     storage_limit: U256::zero(),
+            //     epoch_height: 0,
+            //     chain_id: 0,
+            //     nonce: U256::zero(),
+            //     slot_tx: None,
+            // }
+            // .sign(sender.secret());
+            // let res = {
+            //     let mut ex = Executive::new(
+            //         &mut state,
+            //         &env,
+            //         &machine,
+            //         &spec,
+            //         &internal_contract_map,
+            //     );
+            //     ex.transact(&contract_tx).unwrap()
+            // };
     //create a virtual signal
     let sigkey = vec![0x01u8, 0x02u8, 0x03u8];
     let _result = state.create_signal(
@@ -1976,12 +1980,9 @@ fn test_slottx_execute() {
     let _bindresult = state.bind_slot_to_signal(&sig_loc, &slt_loc);
 
     // fake emit sig
-    // let sig_info = state.signal_at(sig_loc.address(), sig_loc.signal_key());
-    // let sig_info = sig_info.unwrap().unwrap();
-
     let current_epoch_height: u64 = 0;
     let epoch_height_delay: u64 = 0;
-    let argv = vec![0x12u8,0x34u8,0x56u8];
+    let argv = vec![0x12u8,0x34u8,0x56u8]; //argument obj = 0x123456
     let _emitsigresult = state.emit_signal_and_queue_slot_tx(
         &sig_loc, 
         current_epoch_height, 
@@ -1989,20 +1990,12 @@ fn test_slottx_execute() {
         &argv
     );
 
-    //get slot tx from address list
-    // let slotinfo = state.slot_at(&sender.address(), &slot_key).unwrap().unwrap();
-    // let slot = Slot::new(&slotinfo);
-    // let slttx = SlotTx::new(
-    //     &slot, &(current_epoch_height + epoch_height_delay), &argv
-    // );
     let queue = state
     .get_account_slot_tx_queue(&sender.address())
     .unwrap();
     let mut slttx = queue.peek(0).unwrap().clone();
     slttx.calculate_and_set_gas_price(&U256::from(100));
-    slttx.set_gas_upfront(U256::from(21301));
-    println!("tested code_address is {:x?}", sender.address().clone());
-    println!("tested code is {:x?}", state.code(&sender.address()));
+    slttx.set_gas_upfront(U256::from(1021301));
     //now fake get slot tx
     let tx = Transaction {
         nonce: U256::zero(),
@@ -2017,14 +2010,10 @@ fn test_slottx_execute() {
         slot_tx: Some(slttx),
     };
     let tx = Transaction::create_signed_tx_with_slot_tx(tx.clone());
-    //assert_eq!(tx.sender(), address);
-    // let Executed {
-    //     gas_used,
-    //     storage_collateralized,
-    //     storage_released,
-    //     ..
-    // } = 
-    Executive::new(
+    let Executed {
+        output,
+        ..
+    } = Executive::new(
         &mut state,
         &env,
         &machine,
@@ -2035,4 +2024,7 @@ fn test_slottx_execute() {
     .unwrap()
     .successfully_executed()
     .unwrap();
+    assert_eq!(output, vec![0xed, 0xcb, 0xa9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 }
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
