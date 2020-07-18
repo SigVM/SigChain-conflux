@@ -1959,7 +1959,6 @@ fn test_slottx_execute() {
     //     CleanupMode::NoEmpty,
     // )
     // .unwrap();
-
     //add sponsor as itself
     state.set_sponsor_for_gas(&address, &address, &U256::from(2_000_000_010_000_210_010u64), &U256::from(2_000_000_010_000_210_010u64)).unwrap();
     state.set_sponsor_for_collateral(&address, &address, &U256::from(2_000_000_010_000_210_010u64)).unwrap();
@@ -1974,16 +1973,19 @@ fn test_slottx_execute() {
         &sigkey,
         &U256::from(3),
     );
-    //create a virual slot
+    
     let slot_key = "0f912881556b2e01fbe4a30eea53c1e292615c8fc30a7893a93ff5a64aea4e8a".from_hex().unwrap();
-    let _slt_result = state.create_slot(
-        &address, 
-        &slot_key,
-        &U256::from(3),
-        &U256::from(100000),
-        &U256::from(1), 
-        &U256::from(10),
-    );
+
+    //remove create a virual slot, let contract constructor above create slot itself
+    // let _slt_result = state.create_slot(
+    //     &address, 
+    //     &slot_key,
+    //     &U256::from(3),
+    //     &U256::from(100000),
+    //     &U256::from(1), 
+    //     &U256::from(10),
+    // );
+
     //bind slot with signal
     let sig_loc = SignalLocation::new(&address, &sigkey);
     let slt_loc = SlotLocation::new(&address, &slot_key);
