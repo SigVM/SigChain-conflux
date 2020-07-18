@@ -1901,9 +1901,8 @@ fn test_slottx_execute() {
     //the solidity source code is in solidity/signalslot_parse_script/tb/tb7
 
     let factory = Factory::new(VMType::Interpreter, 1024 * 32);
-    let code = "608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e146100675780630f91288114610085578063255286301461012757806368c0b03814610145578063b6675486146101a3578063fd0bf5a3146101ad575b600080fd5b61006f6101cb565b6040518082815260200191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff191690602001909291905050506101d1565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b61012f6101dc565b6040518082815260200191505060405180910390f35b61014d6101e2565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101ab6101f4565b005b6101b5610240565b6040518082815260200191505060405180910390f35b60025481565b600081199050919050565b60015481565b6000809054906101000a900460e81b81565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6003548156fea2646970667358221220c45cfe80e88e595ad505bd86d4637cba15a559663ba7ba059229a34793d3fc3764736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
+    let create_code = "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6102d08061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd2542e146100675780630f91288114610085578063255286301461012757806368c0b03814610145578063b6675486146101a3578063fd0bf5a3146101ad575b600080fd5b61006f6101cb565b6040518082815260200191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff191690602001909291905050506101d1565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b61012f610206565b6040518082815260200191505060405180910390f35b61014d61020c565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101ab61021e565b005b6101b561026a565b6040518082815260200191505060405180910390f35b60025481565b6000816000806101000a81548162ffffff021916908360e81c02179055506000809054906101000a900460e81b199050919050565b60015481565b6000809054906101000a900460e81b81565b60405180807f7072696365526563656976655f66756e6328627974657333290000000000000081525060190190506040518091039020600381905550600354617530600a6003c1600155565b6003548156fea26469706673582212206c5d65486a71d7534b8309409b32ebcf14c1b19d5f661a088a2b3cb3360a5a8164736f6c63782c302e362e31312d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
     .from_hex().unwrap();
-
     let storage_manager = new_state_manager_for_unit_test();
     let mut state =
         get_state_for_genesis_write_with_factory(&storage_manager, factory);
@@ -1914,17 +1913,13 @@ fn test_slottx_execute() {
     let spec = machine.spec(env.number);
 
     let sender = Random.generate().unwrap();
-
-    state
-        .new_contract_with_admin(
-            &sender.address(),
-            &sender.address(),
-            U256::zero(),
-            U256::zero(),
-        )
-        .expect(&concat!(file!(), ":", line!(), ":", column!()));
-    state.init_code(&sender.address(), code, sender.address()).unwrap();
-
+    let address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::zero(),
+        &create_code,
+    )
+    .0;
     state
         .add_balance(
             &sender.address(),
@@ -1932,42 +1927,57 @@ fn test_slottx_execute() {
             CleanupMode::NoEmpty,
         )
         .unwrap();
-    //TODO: fake depoly a contract
-            // //create transac a contract creatation
-            // let contract_tx = Transaction {
-            //     action: Action::Create,
-            //     value: U256::from(0),
-            //     data: contract_code,
-            //     gas: U256::from(108000),
-            //     gas_price: U256::one(),
-            //     storage_limit: U256::zero(),
-            //     epoch_height: 0,
-            //     chain_id: 0,
-            //     nonce: U256::zero(),
-            //     slot_tx: None,
-            // }
-            // .sign(sender.secret());
-            // let res = {
-            //     let mut ex = Executive::new(
-            //         &mut state,
-            //         &env,
-            //         &machine,
-            //         &spec,
-            //         &internal_contract_map,
-            //     );
-            //     ex.transact(&contract_tx).unwrap()
-            // };
+    //deploy contract
+    let contract_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: create_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::zero(),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&contract_tx).unwrap()
+    };
+    assert_eq!(state.is_contract(&address),true);
+    // state
+    // .add_balance(
+    //     &address,
+    //     &U256::from(2_000_000_010_000_210_010u64),
+    //     CleanupMode::NoEmpty,
+    // )
+    // .unwrap();
+
+    //add sponsor as itself
+    state.set_sponsor_for_gas(&address, &address, &U256::from(2_000_000_010_000_210_010u64), &U256::from(2_000_000_010_000_210_010u64)).unwrap();
+    state.set_sponsor_for_collateral(&address, &address, &U256::from(2_000_000_010_000_210_010u64)).unwrap();
+    //add commission privilege for user address
+    state
+        .add_commission_privilege(address, address, address)
+        .unwrap();    
     //create a virtual signal
     let sigkey = vec![0x01u8, 0x02u8, 0x03u8];
     let _result = state.create_signal(
-        &sender.address(), 
+        &address, 
         &sigkey,
         &U256::from(3),
     );
     //create a virual slot
     let slot_key = "0f912881556b2e01fbe4a30eea53c1e292615c8fc30a7893a93ff5a64aea4e8a".from_hex().unwrap();
     let _slt_result = state.create_slot(
-        &sender.address(), 
+        &address, 
         &slot_key,
         &U256::from(3),
         &U256::from(100000),
@@ -1975,8 +1985,8 @@ fn test_slottx_execute() {
         &U256::from(10),
     );
     //bind slot with signal
-    let sig_loc = SignalLocation::new(&sender.address(), &sigkey);
-    let slt_loc = SlotLocation::new(&sender.address(), &slot_key);
+    let sig_loc = SignalLocation::new(&address, &sigkey);
+    let slt_loc = SlotLocation::new(&address, &slot_key);
     let _bindresult = state.bind_slot_to_signal(&sig_loc, &slt_loc);
 
     // fake emit sig
@@ -1991,7 +2001,7 @@ fn test_slottx_execute() {
     );
 
     let queue = state
-    .get_account_slot_tx_queue(&sender.address())
+    .get_account_slot_tx_queue(&address)
     .unwrap();
     let mut slttx = queue.peek(0).unwrap().clone();
     slttx.calculate_and_set_gas_price(&U256::from(100));
@@ -2000,7 +2010,7 @@ fn test_slottx_execute() {
     let tx = Transaction {
         nonce: U256::zero(),
         gas_price: U256::zero(),
-        gas: U256::from(21301),
+        gas: U256::zero(),
         value: U256::zero(),
         action: Action::SlotTx,
         storage_limit: U256::zero(),

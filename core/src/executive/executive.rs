@@ -1464,10 +1464,9 @@ impl<'a> Executive<'a> {
                 )
             } 
             true => {
-                //TODO: slottx.gas should be determined and will replace tx.gas
                 (
                     self.state.balance(tx.slot_tx.as_ref().unwrap().address())?,
-                    tx.gas.full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
+                    tx.slot_tx.as_ref().unwrap().gas_upfront().clone().full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
                     U512::from(0)
                 )
             } 
@@ -1479,8 +1478,30 @@ impl<'a> Executive<'a> {
         let mut storage_sponsored = false;
         match tx.action {
             Action::SlotTx => {
-                // gas and storage are not sponsored in slot transactions
+                //There must be a sponsor for slot tx contract address
+                //Reason: After executing the slot tx, additional storage usage is used. 
+                //If the address is contract address, it forces its sponsor to pay for the addition usage
+                //Therefore, if not touching finalizing finalize function, it is set that contract address sponses itself right after deploying a contract
+                //Here will check sponsor exising
+                //TODO: check sponsor balance is the same as sponsor owned balance or they are completely distinct
+                //      if it is the same, we don't need to check sponsor here, contract address is able to pay itself here
                 code_address = *tx.slot_tx.as_ref().unwrap().address();
+                if self.state.is_contract(&code_address) {//slottx address must be a contract address
+                    if self
+                        .state
+                        .check_commission_privilege(&code_address, &code_address)?
+                    {
+                        // No need to check for gas sponsor account existence.
+                        gas_sponsored = gas_cost
+                            <= U512::from(
+                                self.state.sponsor_gas_bound(&code_address)?,
+                            );
+                        storage_sponsored = self
+                            .state
+                            .sponsor_for_collateral(&code_address)?
+                            .is_some();
+                    }
+                }
             }
             Action::Call(ref address) => {
                 if self.state.is_contract(address) {
@@ -1523,7 +1544,7 @@ impl<'a> Executive<'a> {
         /* Signal and Slots begin */
         let tx_storage_limit_in_drip =
             if tx.is_slot_tx() {
-                U256::from(0) * *COLLATERAL_PER_BYTE //TODO: slot tx storage_limit is now hardcoded as 1000000
+                U256::from(100) * *COLLATERAL_PER_BYTE //TODO: slot tx storage_limit is now hardcoded
             } else {
                 if tx.storage_limit >= U256::from(std::u64::MAX) {
                     U256::from(std::u64::MAX) * *COLLATERAL_PER_BYTE
@@ -1554,15 +1575,6 @@ impl<'a> Executive<'a> {
                 (
                     tx_storage_limit_in_drip + collateral_for_storage,
                     code_address,
-                )
-            } else if tx.is_slot_tx() {
-                // owner will pay for collateral for storage
-                total_cost += tx_storage_limit_in_drip.into();
-                let collateral_for_storage =
-                    self.state.collateral_for_storage(&code_address)?;
-                (
-                    tx_storage_limit_in_drip + collateral_for_storage, 
-                    tx.slot_tx.as_ref().unwrap().address().clone()
                 )
             } else {
                 // sender will pay for collateral for storage
@@ -1609,7 +1621,6 @@ impl<'a> Executive<'a> {
         if tx.is_slot_tx() {
             // owner is responsible for the insufficient balance.
             if balance512 < sender_intended_cost {
-                //TODO: in slottx case, sender_intended_cost is only gas and storage rent. storage rent should be zero???
                 // Sub tx fee if not enough cash, and substitute all remaining
                 // balance if balance is not enough to pay the tx fee
                 let actual_gas_cost: U256;
@@ -1649,12 +1660,19 @@ impl<'a> Executive<'a> {
                 // is guaranteed.
                 //self.state.inc_nonce(&sender)?;
             }
-            // Subtract the transaction fee from owner or contract.
-            self.state.sub_balance(
-                tx.slot_tx.as_ref().unwrap().address(),
-                &U256::try_from(gas_cost).unwrap(),
-                &mut substate.to_cleanup_mode(&spec),
-            )?;
+            // Subtract the transaction fee from contract.
+            if !gas_free_of_charge {
+                self.state.sub_balance(
+                    &tx.slot_tx.as_ref().unwrap().address(),
+                    &U256::try_from(gas_cost).unwrap(),
+                    &mut substate.to_cleanup_mode(&spec),
+                )?;
+            } else {
+                self.state.sub_sponsor_balance_for_gas(
+                    &code_address,
+                    &U256::try_from(gas_cost).unwrap(),
+                )?;
+            }
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
         } else {
@@ -1840,9 +1858,9 @@ impl<'a> Executive<'a> {
         };
         //////////////////////////////////
         /* Signal and Slots begin */
-        let (tx_gas,tx_gas_price) = match tx.is_slot_tx() {
-            true => (tx.slot_tx.as_ref().unwrap().gas_upfront().clone(), tx.slot_tx.as_ref().unwrap().gas_price().clone()),
-            false => (tx.gas, tx.gas_price),
+        let (tx_sender, tx_gas,tx_gas_price) = match tx.is_slot_tx() {
+            true => (tx.slot_tx.as_ref().unwrap().address().clone(), tx.slot_tx.as_ref().unwrap().gas_upfront().clone(), tx.slot_tx.as_ref().unwrap().gas_price().clone()),
+            false => (tx.sender().clone(), tx.gas, tx.gas_price),
         };
         // gas_used is only used to estimate gas needed
         let gas_used = tx_gas - gas_left;
@@ -1867,7 +1885,7 @@ impl<'a> Executive<'a> {
             self.state.add_sponsor_balance_for_gas(&r, &refund_value)?;
         } else {
             self.state.add_balance(
-                &tx.sender(),
+                &tx_sender,
                 &refund_value,
                 substate.to_cleanup_mode(self.spec),
             )?;
