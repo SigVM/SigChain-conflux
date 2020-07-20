@@ -223,8 +223,8 @@ impl ChainIdParams {
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 
-// This is the hackiest implementation yet. To keep changes to a minimum, we add slot transaction as a 
-// field in the SignedTransaction struct. This way, a lot of the implementation doesn't have to be 
+// This is the hackiest implementation yet. To keep changes to a minimum, we add slot transaction as a
+// field in the SignedTransaction struct. This way, a lot of the implementation doesn't have to be
 // changed...
 // Ideally, we would embody both regular and slot transactions in a trait or an enum, but this would
 // require a lot more effort. For research purposes this should do.
@@ -239,7 +239,6 @@ impl ChainIdParams {
     Eq,
     PartialEq,
     RlpEncodable,
-    RlpDecodable,
     Serialize,
     Deserialize,
 )]
@@ -271,6 +270,23 @@ pub struct Transaction {
     pub slot_tx: Option<SlotTx>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
+}
+
+impl Decodable for Transaction {
+    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+        Ok(Transaction {
+            nonce: rlp.val_at(0)?,
+            gas_price: rlp.val_at(1)?,
+            gas: rlp.val_at(2)?,
+            action: rlp.val_at(3)?,
+            value: rlp.val_at(4)?,
+            storage_limit: rlp.val_at(5)?,
+            epoch_height: rlp.val_at(6)?,
+            chain_id: rlp.val_at(7)?,
+            data: rlp.val_at(8)?,
+            slot_tx: None,
+        })
+    }
 }
 
 impl Transaction {
@@ -598,7 +614,7 @@ impl SignedTransaction {
     }
 
     //////////////////////////////////////////////////////////////////////
-    /* Signal and Slots begin */ 
+    /* Signal and Slots begin */
     // Get the target address of a CALL action. Return None if the action
     // is CREATE or SLOTTX.
     pub fn call_address(&self) -> Option<Address> {
@@ -607,7 +623,7 @@ impl SignedTransaction {
             _ => None,
         }
     }
-    
+
     pub fn is_slot_tx(&self) -> bool {
         // pretty ugly code...
         self.transaction.transaction.unsigned.is_slot_tx()
