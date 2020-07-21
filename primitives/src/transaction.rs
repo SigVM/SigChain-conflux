@@ -238,7 +238,6 @@ impl ChainIdParams {
     Clone,
     Eq,
     PartialEq,
-    RlpEncodable,
     Serialize,
     Deserialize,
 )]
@@ -274,19 +273,65 @@ pub struct Transaction {
 
 impl Decodable for Transaction {
     fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-        Ok(Transaction {
-            nonce: rlp.val_at(0)?,
-            gas_price: rlp.val_at(1)?,
-            gas: rlp.val_at(2)?,
-            action: rlp.val_at(3)?,
-            value: rlp.val_at(4)?,
-            storage_limit: rlp.val_at(5)?,
-            epoch_height: rlp.val_at(6)?,
-            chain_id: rlp.val_at(7)?,
-            data: rlp.val_at(8)?,
-            slot_tx: None,
-        })
+        if rlp.item_count()? == 9 {
+            Ok(Transaction {
+                nonce: rlp.val_at(0)?,
+                gas_price: rlp.val_at(1)?,
+                gas: rlp.val_at(2)?,
+                action: rlp.val_at(3)?,
+                value: rlp.val_at(4)?,
+                storage_limit: rlp.val_at(5)?,
+                epoch_height: rlp.val_at(6)?,
+                chain_id: rlp.val_at(7)?,
+                data: rlp.val_at(8)?,
+                slot_tx: None,
+            })
+        } else {
+            Ok(Transaction {
+                nonce: rlp.val_at(0)?,
+                gas_price: rlp.val_at(1)?,
+                gas: rlp.val_at(2)?,
+                action: rlp.val_at(3)?,
+                value: rlp.val_at(4)?,
+                storage_limit: rlp.val_at(5)?,
+                epoch_height: rlp.val_at(6)?,
+                chain_id: rlp.val_at(7)?,
+                data: rlp.val_at(8)?,
+                slot_tx: rlp.val_at(9)?, 
+            })
+        }
+
     }
+}
+
+impl Encodable for Transaction {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        if self.slot_tx.is_none() {
+            s
+                .begin_list(9)
+                .append(&self.nonce)
+                .append(&self.gas_price)
+                .append(&self.gas)
+                .append(&self.action)
+                .append(&self.value)
+                .append(&self.storage_limit)
+                .append(&self.epoch_height)
+                .append(&self.chain_id)
+                .append(&self.data);
+        } else {
+            s
+                .begin_list(10)
+                .append(&self.nonce)
+                .append(&self.gas_price)
+                .append(&self.gas)
+                .append(&self.action)
+                .append(&self.value)
+                .append(&self.storage_limit)
+                .append(&self.epoch_height)
+                .append(&self.chain_id)
+                .append(&self.data)
+                .append(&self.slot_tx);
+        }}
 }
 
 impl Transaction {
