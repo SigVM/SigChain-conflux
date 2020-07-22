@@ -316,7 +316,17 @@ impl SlotTx {
         ret.extend_from_slice(&padding[..]);
         ret
     }
+    //encoding idea and assumption:
+    /*BETTER to only accept bytes<M>, bytes, bytes<M>[N]
+    bytes<M>: methed ID + (M bytes + padding zeros)
+    bytes: methed ID + 0x0000.0040 + 32bytes data + 32bytes data + .... + (Nbytes data + padding zeros) where N <= 32
+    bytes<M>[N]: method ID + (bytes<M>[0] + padding zeros) + (bytes<M>[1] + padding zeros) +..+ (bytes<M>[N-1] + padding zeros)
 
+
+    if uint, int, uint[], int[], uint<M>, int<M> where M is between 0 to 256 are accepted
+    do the same thing above but padding zeros ahead of the data
+    */
+    
     // The two functions below are called in the tx pool, when these transactions are getting packed.
 
     // Calculate gas price.
