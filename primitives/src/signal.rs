@@ -249,6 +249,8 @@ pub struct SlotTx {
     epoch_height: u64,
     // Vector of arguments emitted by the signal.
     argv: Bytes,
+    //TODO: add new field in slottx: fixed_or_dynamic type : bool
+    //TODO: add new field in slottx: actual data_length: Bytes
     // Gas price. Determined during packing.
     gas_price: U256,
     // Gas upfront cost.
@@ -309,6 +311,37 @@ impl SlotTx {
         self.location.slot_key()[0..4].to_vec()
     }
 
+    //encoding idea and assumption:
+    /*BETTER to only accept bytes<M>, bytes, bytes<M>[N]
+    bytes<M>: methed ID + (M bytes + padding zeros)
+    bytes: methed ID + 0x0000..0020 + (padding zeros + datalength)+ 32bytes data + 32bytes data + .... + (Nbytes data + padding zeros) where N <= 32
+    bytes<M>[N]: method ID + (bytes<M>[0] + padding zeros) + (bytes<M>[1] + padding zeros) +..+ (bytes<M>[N-1] + padding zeros)
+
+    if uint, int, uint[], int[], uint<M>, int<M> where M is between 0 to 256 are accepted
+    do the same thing above but padding zeros ahead of the data
+
+    Update: the arguements should already be padded by zeros, don't care about zeros, only care about it is fixed or dynamic type
+    */
+    // pub fn encode(&self) -> Bytes {
+    //     let mut ret = self.get_method_id().clone();
+    //     let mut padding = vec![0u8; 32 - self.argv.len()%32];
+    //     if padding.len() == 32 { padding = vec![]; }
+    //     ret.extend_from_slice(&self.argv[..]);
+    //     ret.extend_from_slice(&padding[..]);
+    //     if self.is_fixed {//TODO: add new field in slottx: fixed_or_dynamic type
+    //         //if it is fixed
+    //         ret.extend_from_slice(&self.argv[..]);
+    //     }else{
+    //         //if it is bynamic
+    //         let mut off_part = vec![0u8; 30];
+    //         off_part.push(32);
+    //         ret.extend_from_slice(&off_part[..]);
+    //         ret.extend_from_slice(&self.datalength);
+    //         ret.extend_from_slice(&self.argv[..]);
+    //     }
+    //     ret
+    // }
+
     pub fn encode(&self) -> Bytes {
         let mut ret = self.location.slot_key()[0..4].to_vec().clone();
         let padding = vec![0u8; 32 - self.argv.len()];
@@ -316,16 +349,6 @@ impl SlotTx {
         ret.extend_from_slice(&padding[..]);
         ret
     }
-    //encoding idea and assumption:
-    /*BETTER to only accept bytes<M>, bytes, bytes<M>[N]
-    bytes<M>: methed ID + (M bytes + padding zeros)
-    bytes: methed ID + 0x0000.0040 + 32bytes data + 32bytes data + .... + (Nbytes data + padding zeros) where N <= 32
-    bytes<M>[N]: method ID + (bytes<M>[0] + padding zeros) + (bytes<M>[1] + padding zeros) +..+ (bytes<M>[N-1] + padding zeros)
-
-
-    if uint, int, uint[], int[], uint<M>, int<M> where M is between 0 to 256 are accepted
-    do the same thing above but padding zeros ahead of the data
-    */
     
     // The two functions below are called in the tx pool, when these transactions are getting packed.
 
