@@ -1633,12 +1633,13 @@ impl<Cost: CostType> Interpreter<Cost> {
             instructions::EMITSIG => {
                 let mut sig_id = vec![0; 32];          // 0
                 self.stack.pop_back().to_big_endian(sig_id.as_mut());
-                let blk_delay = self.stack.pop_back(); // 1
-                let arg_off = self.stack.pop_back();   // 2
-                let arg_size = self.stack.pop_back();  // 3
-
+                let blk_delay = self.stack.pop_back(); // 1  
+                let mut key = vec![0; 32];
+                self.stack.pop_back().to_big_endian(key.as_mut());// 2
+                let _arg_size = self.stack.pop_back();  // 3
                 let call_result = {
-                    let data = self.mem.read_slice(arg_off, arg_size);
+                    let data = context.storage_at(&key).unwrap();
+                    let data = data.as_bytes();
                     context.emit_sig(
                         &self.params.address,
                         &sig_id,

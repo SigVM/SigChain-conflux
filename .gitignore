@@ -15,3 +15,4 @@ build/
 **/testnet.toml
 *~
 core/conflux_unit_test_data_dir
+run_dev/storage_db/
