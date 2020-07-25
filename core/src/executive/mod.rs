@@ -10,6 +10,13 @@ mod internal_contract;
 #[cfg(test)]
 mod executive_tests;
 
+//////////////////////////////////////////////////////////////////////
+/* Signal and Slots begin */
+#[cfg(test)]
+mod signal_tests;
+/* Signal and Slots end */
+//////////////////////////////////////////////////////////////////////
+
 pub use self::{
     executed::*,
     executive::{contract_address, Executive},
