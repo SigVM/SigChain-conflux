@@ -274,17 +274,17 @@ impl State {
         }
         if inc > 0 {
             let delta = U256::from(inc) * *COLLATERAL_PER_STORAGE_KEY;
-            if self.is_contract(addr) {
-                let sponsor_balance =
-                    self.sponsor_balance_for_collateral(addr)?;
-                // sponsor_balance is not enough to cover storage incremental.
-                if delta > sponsor_balance {
-                    return Ok(CollateralCheckResult::NotEnoughBalance {
-                        required: delta,
-                        got: sponsor_balance,
-                    });
-                }
-            } else {
+            // if self.is_contract(addr) {
+            //     let sponsor_balance =
+            //         self.sponsor_balance_for_collateral(addr)?;
+            //     // sponsor_balance is not enough to cover storage incremental.
+            //     if delta > sponsor_balance {
+            //         return Ok(CollateralCheckResult::NotEnoughBalance {
+            //             required: delta,
+            //             got: sponsor_balance,
+            //         });
+            //     }
+            // } else {
                 let balance = self.balance(addr).expect("no db error");
                 // balance is not enough to cover storage incremental.
                 if delta > balance {
@@ -293,7 +293,7 @@ impl State {
                         got: balance,
                     });
                 }
-            }
+            //}
             self.add_collateral_for_storage(addr, &delta)?;
         }
         Ok(CollateralCheckResult::Valid)

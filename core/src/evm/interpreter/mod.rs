@@ -410,7 +410,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                         ));
                     }
                 };
-
+                println!("instruction execute: {:?}", instruction);
                 let info = instruction.info();
                 self.last_stack_ret_len = info.ret;
                 if let Err(e) =

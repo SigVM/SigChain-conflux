@@ -1452,7 +1452,7 @@ impl<'a> Executive<'a> {
                 tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
                 "We should have checked base gas requirement for slot tx when we received the block."
             );
-            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront() - base_gas_required;
+            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone();
         }
 
         let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() { 
