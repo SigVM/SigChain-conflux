@@ -297,7 +297,7 @@ impl Decodable for Transaction {
                 epoch_height: rlp.val_at(6)?,
                 chain_id: rlp.val_at(7)?,
                 data: rlp.val_at(8)?,
-                slot_tx: rlp.val_at(9)?, 
+                slot_tx: rlp.val_at(9)?,
             })
         }
 
@@ -680,5 +680,141 @@ impl SignedTransaction {
 impl MallocSizeOf for SignedTransaction {
     fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
         self.transaction.size_of(ops)
+    }
+}
+
+// Note: should bypass any signature verification on slot transaction created with
+// create_signed_tx_with_slot_tx() or errors will be thrown
+#[cfg(test)]
+mod tests {
+    use rlp::{Rlp, RlpStream, };
+    use crate::transaction::{Action, Transaction, };
+    use cfx_types::{Address, U256, };
+    use keylib::{
+        self, public_to_address, Random, Generator,
+    };
+    use crate::{SlotTx, SlotInfo, Slot, };
+
+    #[test]
+    fn test_encode_decode_normal_transaction() {
+        let tx = Transaction {
+            nonce: U256::zero(),
+            gas_price: U256::one(),
+            gas: U256::from(21000),
+            action: Action::Create,
+            value: U256::from(100),
+            storage_limit: U256::zero(),
+            epoch_height: 0 as u64,
+            chain_id: 10 as u64,
+            data: b"".to_vec(),
+            slot_tx: None,
+        };
+        let mut raw = RlpStream::new();
+        raw.append(&tx);
+
+        let tx : Transaction = Rlp::new(&raw.as_raw()).as_val().unwrap();
+        assert_eq!(tx.nonce, U256::zero());
+        assert_eq!(tx.gas_price, U256::one());
+        assert!(tx.slot_tx.is_none());
+    }
+
+    fn get_slot_tx(address : &Address) -> SlotTx {
+        let key = vec![0x31u8, 0x32u8, 0x33u8];
+        let argc = U256::from(3);
+        let target_epoch_height : u64 = 0;
+        let argv = vec![0x01u8, 0x02u8, 0x03u8];
+        let gas_limit = U256::from(1000);
+        let numerator = U256::from(3);
+        let denominator = U256::from(2);
+        let slot_info = SlotInfo::new(
+            address,
+            &key,
+            &argc,
+            &gas_limit,
+            &numerator,
+            &denominator
+        );
+        let slot = Slot::new(&slot_info);
+        let slot_tx = SlotTx::new(
+            &slot, &target_epoch_height, &argv
+        );
+        slot_tx
+    }
+
+    #[test]
+    fn test_encode_decode_slot_transaction() {
+        let keypair = Random.generate().unwrap();
+        let address = public_to_address(&keypair.public());
+        let slot_tx = get_slot_tx(&address);
+        let tx = Transaction {
+            nonce: U256::zero(),
+            gas_price: U256::one(),
+            gas: U256::from(21000),
+            action: Action::Create,
+            value: U256::from(100),
+            storage_limit: U256::zero(),
+            epoch_height: 0 as u64,
+            chain_id: 10 as u64,
+            data: b"".to_vec(),
+            slot_tx: Some(slot_tx.clone()),
+        };
+        let mut raw = RlpStream::new();
+        raw.append(&tx);
+
+        let tx : Transaction = Rlp::new(&raw.as_raw()).as_val().unwrap();
+        assert_eq!(tx.nonce, U256::zero());
+        assert_eq!(tx.gas_price, U256::one());
+        assert!(tx.slot_tx.is_some());
+        assert_eq!(tx.slot_tx.unwrap(), slot_tx);
+    }
+
+
+    #[test]
+    // Note: this test case signs the slot transaction with a valid key pair.
+    // This should not happen as slot transactions are not signed,
+    // this is only tested for encoding/decoding correctness.
+    fn test_recover_public_signed_slot_transaction() {
+        let keypair = Random.generate().unwrap();
+        let address = public_to_address(&keypair.public());
+        let slot_tx = get_slot_tx(&address);
+        let t = Transaction {
+            action: Action::SlotTx,
+            value: U256::from(18),
+            data: b"".to_vec(),
+            gas: U256::from(100_000),
+            gas_price: U256::one(),
+            storage_limit: U256::zero(),
+            epoch_height: 0,
+            chain_id: 0,
+            nonce: U256::zero(),
+            slot_tx: Some(slot_tx),
+        }
+        .sign(keypair.secret());
+        let sender = t.sender();
+
+        let public_key = t.recover_public().unwrap();
+        assert_eq!(public_to_address(&public_key), sender);
+    }
+
+    #[test]
+    fn test_recover_public_signed_normal_transaction() {
+        let keypair = Random.generate().unwrap();
+        let t = Transaction {
+            action: Action::Create,
+            value: U256::from(18),
+            data: b"".to_vec(),
+            gas: U256::from(100_000),
+            gas_price: U256::one(),
+            storage_limit: U256::zero(),
+            epoch_height: 0,
+            chain_id: 0,
+            nonce: U256::zero(),
+            slot_tx: None,
+        }
+        .sign(keypair.secret());
+        let sender = t.sender();
+
+        let public_key = t.recover_public().unwrap();
+        assert_eq!(public_to_address(&public_key), sender);
     }
 }

@@ -176,7 +176,7 @@ impl SlotInfo {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }  
+    }
     pub fn bind_list(&self) -> &Vec<SignalLocation> {
         &self.bind_list
     }
@@ -224,8 +224,8 @@ impl Slot {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }  
-    
+    }
+
     // Returns the method id of the slot
     pub fn get_method_id(&self) -> Bytes {
         self.location.slot_key()[0..4].to_vec()
@@ -290,7 +290,7 @@ impl SlotTx {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }  
+    }
     pub fn epoch_height(&self) -> u64 {
         self.epoch_height
     }
@@ -349,7 +349,7 @@ impl SlotTx {
         ret.extend_from_slice(&padding[..]);
         ret
     }
-    
+
     // The two functions below are called in the tx pool, when these transactions are getting packed.
 
     // Calculate gas price.
@@ -361,16 +361,6 @@ impl SlotTx {
         self.gas_upfront = gas_upfront;
     }
 
-    // Returns the call data of the slot transaction
-    // pub fn get_call_data(&self) -> Bytes {
-    //     let mut data = self.slot.get_method_id().clone();         // 4 bytes
-    //     let param = concat!(self.argv);         // 32 bytes each
-    //
-    //     data.extend(param);
-    //
-    //     println!("{:?}", data);
-    //     data
-    // }
 }
 
 /* Signal and Slots end */
