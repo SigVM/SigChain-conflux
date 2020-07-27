@@ -214,21 +214,20 @@ fn test_slottx_execute() {
 
 #[test]
 fn test_broadcast() {
+    // BEFORE PARSING:
+    //
     // pragma solidity ^0.6.9;
     // contract Emitter {
-    //     signal Alert(bytes32 value);
-    //     function send_alert(bytes32 value) public {
-    //         emitsig Alert(value).delay(0);
+    //     signal Alert();
+    //     function send_alert() public view {
+    //         emitsig Alert().delay(0);
     //     }
     // }
     //
     // contract ReceiverA {
     //     bytes32 private data;
-    //     slot HandleAlert(bytes32 value) {
-    //         data = value;
-    //     }
-    //     function get_data() public view returns (bytes32 ret) {
-    //         ret = data;
+    //     slot HandleAlert() {
+    //         data = 0;
     //     }
     //     function bind_to_alert(Emitter addr) public view {
     //         HandleAlert.bind(addr.Alert);
@@ -237,14 +236,105 @@ fn test_broadcast() {
     //
     // contract ReceiverB {
     //     bytes32 private data;
-    //     slot HandleAlert(bytes32 value) {
-    //         data = value;
-    //     }
-    //     function get_data() public view returns (bytes32 ret) {
-    //         ret = data;
+    //     slot HandleAlert() {
+    //         data = 0;
     //     }
     //     function bind_to_alert(Emitter addr) public view {
     //         HandleAlert.bind(addr.Alert);
+    //     }
+    // }
+    //
+    // AFTER PARSING:
+    //
+    // pragma solidity ^0.6.9;
+    //
+    // contract Emitter {
+    // 	bytes32 private Alert_dataslot;
+    // 	uint private Alert_status;
+    //     bytes32 private Alert_key;
+    //
+    // 	function get_Alert_key() public view returns (bytes32 key) {
+    //        return Alert_key;
+    //     }
+    //     function get_Alert_dataslot() private view returns (bytes32 dataslot) {
+    //        return Alert_dataslot;
+    //     }
+    //     function Alert() private {
+    //         Alert_key = keccak256("Alert()");
+    // 		assembly {
+    // 			sstore(Alert_status_slot, createsig(0, sload(Alert_key_slot)))
+    // 			sstore(Alert_dataslot_slot, 0x0)
+    // 		}
+    //     }
+    //     function send_alert() public view {
+    // 		bytes32 this_emitsig_Alert_dataslot = get_Alert_dataslot();
+    // 		bytes32 this_emitsig_Alert_key = get_Alert_key();
+    // 		assembly {
+    // 			mstore(0x40, emitsig(this_emitsig_Alert_key, 0, this_emitsig_Alert_dataslot, 0))
+    // 	    }
+    //     }
+    //     constructor() public {
+    //         Alert();
+    //     }
+    // }
+    //
+    // contract ReceiverA {
+    //     bytes32 private data;
+    //     uint private HandleAlert_status;
+    //     bytes32 private HandleAlert_key;
+    //
+    // 	function get_HandleAlert_key() public view returns (bytes32 key) {
+    //        return HandleAlert_key;
+    //     }
+    //     function HandleAlert() private {
+    //         HandleAlert_key = keccak256("HandleAlert_func()");
+    //         assembly {
+    //             sstore(HandleAlert_status_slot, createslot(0, 10, 30000, sload(HandleAlert_key_slot)))
+    //         }
+    //     }
+    //     function HandleAlert_func() public {
+    //         data = 0;
+    //     }
+    //     function bind_to_alert(Emitter addr) public view {
+    // 		address addr_bindslot_address = address(addr);
+    // 		bytes32 addr_bindslot_Alert_key = keccak256("Alert()");
+    //         bytes32 this_addr_bindslot_HandleAlert_key = get_HandleAlert_key();
+    // 		assembly {
+    // 			mstore(0x40, bindslot(addr_bindslot_address, addr_bindslot_Alert_key, this_addr_bindslot_HandleAlert_key))
+    //         }
+    //     }
+    //     constructor() public {
+    //         HandleAlert();
+    //     }   
+    // }
+    //
+    // contract ReceiverB {
+    //     bytes32 private data;
+    //     uint private HandleAlert_status;
+    //     bytes32 private HandleAlert_key;
+    //
+    // 	   function get_HandleAlert_key() public view returns (bytes32 key) {
+    //        return HandleAlert_key;
+    //     }
+    //     function HandleAlert() private {
+    //         HandleAlert_key = keccak256("HandleAlert_func()");
+    //         assembly {
+    //             sstore(HandleAlert_status_slot, createslot(0, 10, 30000, sload(HandleAlert_key_slot)))
+    //         }
+    //     }
+    //     function HandleAlert_func() public {
+    //         data = 0;
+    //     }
+    //     function bind_to_alert(Emitter addr) public view {
+    // 		    address addr_bindslot_address = address(addr);
+    // 		    bytes32 addr_bindslot_Alert_key = keccak256("Alert()");
+    //          bytes32 this_addr_bindslot_HandleAlert_key = get_HandleAlert_key();
+    // 		    assembly {
+    // 			    mstore(0x40, bindslot(addr_bindslot_address, addr_bindslot_Alert_key, this_addr_bindslot_HandleAlert_key))
+    // 	        }
+    //     }
+    //     constructor() public {
+    //         HandleAlert();
     //     }
     // }
 
@@ -281,25 +371,16 @@ fn test_broadcast() {
 
     // Set up and deploy the emitter contract.
     let emitter_code = 
-        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f66756e6374696f6
-        e20416c65727428290000000000000000000000000000000081525060100190506040518091039020600381905550600354602
-        0c06002556000600155565b6102998061007f6000396000f3fe608060405234801561001057600080fd5b506004361061004c5
-        760003560e01c806365410bf114610051578063b5d359171461006f578063dd5e12011461009d578063e0b3195014610120575
-        b600080fd5b61005961013e565b6040518082815260200191505060405180910390f35b61009b6004803603602081101561008
-        557600080fd5b8101908080359060200190929190505050610148565b005b6100a5610184565b6040518080602001828103825
-        283818151815260200191508051906020019080838360005b838110156100e55780820151818401526020810190506100ca565
-        b50505050905090810190601f1680156101125780820380516001836020036101000a031916815260200191505b50925050506
-        0405180910390f35b610128610226565b6040518082815260200191505060405180910390f35b6000600354905090565b61015
-        18161022f565b600061015b610226565b90506060610167610184565b9050600061017361013e565b90508282600083c460405
-        250505050565b606060018054600181600116156101000203166002900480601f0160208091040260200160405190810160405
-        2809291908181526020018280546001816001161561010002031660029004801561021c5780601f106101f1576101008083540
-        4028352916020019161021c565b820191906000526020600020905b8154815290600101906020018083116101ff57829003601
-        f168201915b5050505050905090565b60006020905090565b806000819055505056fea264697066735822122092b0828271b2a
-        069ddfa4908348241c2dfc87f8e8d6ad0213df288274e753d2864736f6c63782c302e362e31312d646576656c6f702e3230323
-        02e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b61006f565b60405180807f416c6572742829000000000000000
+        00000000000000000000000000000000000815250600701905060405180910390206002819055506002546000c060015560008055565b60f0806
+        1007d6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806365410bf11460375780637ced953e14605
+        3575b600080fd5b603d605b565b6040518082815260200191505060405180910390f35b60596065565b005b6000600254905090565b6000606d6
+        087565b905060006077605b565b9050600082600083c46040525050565b6000805490509056fea26469706673582212206fd086039e3cdf80de2
+        714e2f45950017587c2f6c3a544ff7ae9618cfcc97fa364736f6c63782c302e362e31312d646576656c6f702e323032302e372e32312b636f6d6
+        d69742e63316635663761632e6d6f64005d"
         .from_hex().unwrap();
-    // Hash of function identifier. First 8 bytes form the methodid. keccak256("function send_alert(bytes32)").
-    let _emitter_send_alert_hash = "b5d35917";
+    // Hash of function identifier. First 8 bytes form the methodid. keccak256("send_alert()").
+    let _emitter_send_alert_hash = "7ced953e";
     // Create emitter contract account address.
     let emitter_address = contract_address(
         CreateContractAddress::FromSenderNonceAndCodeHash,
@@ -334,22 +415,26 @@ fn test_broadcast() {
     };
     assert!(state.is_contract(&emitter_address));
 
+    // Check to see if signal got created.
+    let sig_key = "ffd2909f706e1243eefed477dac70a13bfca2e2f005110f7733a1de8f88b47c3"
+        .from_hex()
+        .unwrap();
+    let sig = state
+        .signal_at(&emitter_address, &sig_key)
+        .expect("Should not be db error");
+    assert!(sig.is_some());
+
     // Set up and deploy the first receiver contract.
     let receiver_a_code = 
-        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f48616e646c
-        65416c6572745f66756e63286279746573333229000000000000008152506019019050604051809103902060028190555
-        0600254617530600a6020c1600155565b61021f8061007f6000396000f3fe608060405234801561001057600080fd5b50
-        6004361061004c5760003560e01c80631671379c146100515780633e2f5fe51461007f57806350bf8b0d146100c357806
-        39981f1bc146100e1575b600080fd5b61007d6004803603602081101561006757600080fd5b8101908080359060200190
-        9291905050506100ff565b005b6100c16004803603602081101561009557600080fd5b81019080803573fffffffffffff
-        fffffffffffffffffffffffffff169060200190929190505050610109565b005b6100cb6101ac565b6040518082815260
-        200191505060405180910390f35b6100e96101b5565b6040518082815260200191505060405180910390f35b806000819
-        0555050565b600081905060008273ffffffffffffffffffffffffffffffffffffffff166365410bf16040518163ffffff
-        ff1660e01b815260040160206040518083038186803b15801561015657600080fd5b505afa15801561016a573d6000803
-        e3d6000fd5b505050506040513d602081101561018057600080fd5b810190808051906020019092919050505090506000
-        61019d6101b5565b9050808284c260405250505050565b60008054905090565b600060025490509056fea264697066735
-        8221220e7f3ac9ece40f6cda6802692d2b8b75b8fe6254e3efd980aeb3599c3df3f700164736f6c63782c302e362e3131
-        2d646576656c6f702e323032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f48616e646c65416c6572745f66756
+        e632829000000000000000000000000000081525060120190506040518091039020600281905550600254617530600a6000c1600155565b61018
+        08061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c806334bcebd0146100465780633e2
+        f5fe5146100505780639981f1bc14610094575b600080fd5b61004e6100b2565b005b6100926004803603602081101561006657600080fd5b810
+        19080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506100be565b005b61009c610116565b60405180828
+        15260200191505060405180910390f35b6000801b600081905550565b6000819050600060405180807f416c65727428290000000000000000000
+        00000000000000000000000000000008152506007019050604051809103902090506000610107610116565b9050808284c260405250505050565
+        b600060025490509056fea26469706673582212205af6c498b812f6223cd2cfa51358cbedfb28f630bfba5c83797c06fcc941140d64736f6c637
+        82c302e362e31312d646576656c6f702e323032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
         .from_hex().unwrap();
 
     // Create receiver contract address.
@@ -361,7 +446,7 @@ fn test_broadcast() {
     ).0;
 
     // Method ID's of relevant functions.
-    let _get_data_hash = "50bf8b0d"; // KEC("get_data()")
+    // let _get_data_hash = "50bf8b0d"; // KEC("get_data()")
     let _bind_to_alert_hash = "3e2f5fe5"; // KEC("bind_to_alert(address)")
 
     // Contract creation transaction.
@@ -391,23 +476,26 @@ fn test_broadcast() {
     };
     assert!(state.is_contract(&receiver_a_address));
 
+    // Check to see if all the slots were created properly.
+    let slot_key = "34bcebd0f43644043f131abeb6c64b669940d5d0ff219d264bfd86ba70484633"
+        .from_hex().unwrap();
+    let slot = state
+        .slot_at(&receiver_a_address, &slot_key)
+        .expect("Should not have db failure.");
+    assert!(slot.is_some());
+
     // Set up and deploy the second receiver contract.
     // The solidity code for receiver A and B are exactly identical so the compiled code should be as well.
     let receiver_b_code = 
-        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f48616e646c
-        65416c6572745f66756e63286279746573333229000000000000008152506019019050604051809103902060028190555
-        0600254617530600a6020c1600155565b61021f8061007f6000396000f3fe608060405234801561001057600080fd5b50
-        6004361061004c5760003560e01c80631671379c146100515780633e2f5fe51461007f57806350bf8b0d146100c357806
-        39981f1bc146100e1575b600080fd5b61007d6004803603602081101561006757600080fd5b8101908080359060200190
-        9291905050506100ff565b005b6100c16004803603602081101561009557600080fd5b81019080803573fffffffffffff
-        fffffffffffffffffffffffffff169060200190929190505050610109565b005b6100cb6101ac565b6040518082815260
-        200191505060405180910390f35b6100e96101b5565b6040518082815260200191505060405180910390f35b806000819
-        0555050565b600081905060008273ffffffffffffffffffffffffffffffffffffffff166365410bf16040518163ffffff
-        ff1660e01b815260040160206040518083038186803b15801561015657600080fd5b505afa15801561016a573d6000803
-        e3d6000fd5b505050506040513d602081101561018057600080fd5b810190808051906020019092919050505090506000
-        61019d6101b5565b9050808284c260405250505050565b60008054905090565b600060025490509056fea264697066735
-        8221220447354085eee9e6a9fd78a08538a549a00fa6c23dea328af55fed034c8242ef064736f6c63782c302e362e3131
-        2d646576656c6f702e323032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f48616e646c65416c6572745f66756
+        e632829000000000000000000000000000081525060120190506040518091039020600281905550600254617530600a6000c1600155565b61018
+        08061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c806334bcebd0146100465780633e2
+        f5fe5146100505780639981f1bc14610094575b600080fd5b61004e6100b2565b005b6100926004803603602081101561006657600080fd5b810
+        19080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506100be565b005b61009c610116565b60405180828
+        15260200191505060405180910390f35b6000801b600081905550565b6000819050600060405180807f416c65727428290000000000000000000
+        00000000000000000000000000000008152506007019050604051809103902090506000610107610116565b9050808284c260405250505050565
+        b600060025490509056fea2646970667358221220ff588b2a00eb14e8243ce5e49dace1602962f520fa34dd88f706a6b9bcc028bb64736f6c637
+        82c302e362e31312d646576656c6f702e323032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
         .from_hex().unwrap();
     
     let receiver_b_address = contract_address(
@@ -443,6 +531,14 @@ fn test_broadcast() {
     };
     assert!(state.is_contract(&receiver_b_address));
 
+    // Check to see if all the slots were created properly.
+    let slot_key = "34bcebd0f43644043f131abeb6c64b669940d5d0ff219d264bfd86ba70484633"
+        .from_hex().unwrap();
+    let slot = state
+        .slot_at(&receiver_b_address, &slot_key)
+        .expect("Should not have db failure.");
+    assert!(slot.is_some());
+
     // Contract are now all deployed. Now we call the bind function for each of the receivers.
     state
         .add_balance(
@@ -451,12 +547,22 @@ fn test_broadcast() {
             CleanupMode::NoEmpty,
         )
         .unwrap();
-
+    
+    // Bind the slots from receiver A and B to the emitter signal.
+    let sig_key = "ffd2909f706e1243eefed477dac70a13bfca2e2f005110f7733a1de8f88b47c3"
+        .from_hex().unwrap();
+    let sig = state
+        .signal_at(&emitter_address, &sig_key)
+        .expect("Should not get db result")
+        .unwrap();
+    assert!(sig.slot_list().len() == 0);
+    
+    // Bind receiver A slot to signal.
     let mut receiver_a_bind_call_data = "3e2f5fe5".from_hex().unwrap();
-    receiver_a_bind_call_data.extend_from_slice(&emitter_address[..]);
     receiver_a_bind_call_data.extend_from_slice(
         &(vec![0u8; 32 - 20])[..]
     );
+    receiver_a_bind_call_data.extend_from_slice(&emitter_address[..]);
     let receiver_a_bind_tx = Transaction {
         action: Action::Call(receiver_a_address.clone()),
         value: U256::from(0),
@@ -481,12 +587,21 @@ fn test_broadcast() {
         ex.transact(&receiver_a_bind_tx).unwrap()
     };
     assert!(res.successfully_executed().is_some());
+    // Let's check if the bind actually went through
+    let sig_key = "ffd2909f706e1243eefed477dac70a13bfca2e2f005110f7733a1de8f88b47c3"
+        .from_hex().unwrap();
+    let sig = state
+        .signal_at(&emitter_address, &sig_key)
+        .expect("Should not get db result")
+        .unwrap();
+    assert!(sig.slot_list().len() == 1);
 
+    // Bind receiver B slot to signal.
     let mut receiver_b_bind_call_data = "3e2f5fe5".from_hex().unwrap();
-    receiver_b_bind_call_data.extend_from_slice(&emitter_address[..]);
     receiver_b_bind_call_data.extend_from_slice(
         &(vec![0u8; 32 - 20])[..]
     );
+    receiver_b_bind_call_data.extend_from_slice(&emitter_address[..]);
     let receiver_b_bind_tx = Transaction {
         action: Action::Call(receiver_b_address.clone()),
         value: U256::from(0),
@@ -511,11 +626,19 @@ fn test_broadcast() {
         ex.transact(&receiver_b_bind_tx).unwrap()
     };
     assert!(res.successfully_executed().is_some());
+    // Let's check if the bind actually went through
+    let sig_key = "ffd2909f706e1243eefed477dac70a13bfca2e2f005110f7733a1de8f88b47c3"
+        .from_hex().unwrap();
+    let sig = state
+        .signal_at(&emitter_address, &sig_key)
+        .expect("Should not get db result")
+        .unwrap();
+    assert!(sig.slot_list().len() == 2);
 
     // Next step is to emit the signal through the send_alert function. 
     // The contract data field will be set to call the send_alert function. 
     // It will be set to the method id appended by an argument of our choice.
-    let send_alert_call_data = "b5d35917deadbeef00000000000000000000000000000000000000000000000000000000"
+    let send_alert_call_data = "7ced953e"
         .from_hex().unwrap();
     // Create the transaction with this call data.
     let send_alert_tx = Transaction {
@@ -545,7 +668,6 @@ fn test_broadcast() {
     assert!(res.successfully_executed().is_some());
 
     // Now we check if both contracts have queued up slot transactions.
-    state.drain_global_slot_tx_queue(0).expect("Db error not expected!");
     assert!(!state.is_account_slot_tx_queue_empty(&receiver_a_address).expect("Db error not expected!"));
     assert!(!state.is_account_slot_tx_queue_empty(&receiver_b_address).expect("Db error not expected!"));
 }
