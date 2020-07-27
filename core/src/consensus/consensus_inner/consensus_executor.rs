@@ -1176,8 +1176,8 @@ impl ConsensusExecutionHandler {
                     // Dequeue and make sure we executed the correct slot_tx!
                     let state_slot_tx = state
                         .dequeue_slot_tx_from_account(address)
-                        .expect("Dequeue slot tx failed!")
-                        .unwrap();
+                        .expect("Dequeue slot tx failed!");
+                        //.unwrap();
                     //assert_eq!(transaction.slot_tx.as_ref().unwrap().clone(), state_slot_tx);
                 }
                 /* Signal and Slots end */

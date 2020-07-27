@@ -1638,8 +1638,9 @@ impl<Cost: CostType> Interpreter<Cost> {
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
                 let _arg_size = self.stack.pop_back();  // 3
                 let call_result = {
-                    let data = context.storage_at(&key).unwrap();
-                    let data = data.as_bytes();
+                    let mut data = context.storage_at(&key).unwrap();
+                    let data = data.as_bytes_mut();
+                    data.reverse();
                     context.emit_sig(
                         &self.params.address,
                         &sig_id,

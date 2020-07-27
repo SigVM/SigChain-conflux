@@ -1843,7 +1843,9 @@ impl State {
         let mut cache = self.ready_slot_tx_addresses_cache.write();
         let new_list = (*cache).clone();
         let mut new_list = new_list.unwrap();
-        new_list.remove(&address);
+        if !new_list.is_empty() {
+            new_list.remove(&address);
+        }
         *cache = Some(new_list);
 
         Ok(())

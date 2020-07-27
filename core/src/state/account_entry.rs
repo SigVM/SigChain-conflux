@@ -594,11 +594,11 @@ impl OverlayAccount {
     }
 
     pub fn add_collateral_for_storage(&mut self, by: &U256) {
-        if self.is_contract {
-            self.sub_sponsor_balance_for_collateral(by);
-        } else {
+        // if self.is_contract {
+        //     self.sub_sponsor_balance_for_collateral(by);
+        // } else {
             self.sub_balance(by);
-        }
+        //}
         self.collateral_for_storage += *by;
     }
 
