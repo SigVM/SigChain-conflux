@@ -338,12 +338,11 @@ fn test_broadcast() {
     //     }
     // }
 
-    // This test involves three seperate contract accounts.
-    // We start by creating each contract. We then call "send_alert" from the emitter account.
-    // This signal should be picked up by both the receiver accounts. A slot transaction for each receiver
-    // should then be generated. We then peak at these slot transactions and execute both of them. 
-    // We then create two more transactions, one for each receiver, to check if the data field is updated properly
-    // from the signal emission.
+    // Test overview:
+    // 1. Deploy contract accounts
+    // 2. Bind each receiver to the signal
+    // 3. Emit the signal
+    // 4. Verify that both slot transactions are created
     
     // set up factory.
     let factory = Factory::new(VMType::Interpreter, 1024 * 32);
@@ -670,6 +669,483 @@ fn test_broadcast() {
     // Now we check if both contracts have queued up slot transactions.
     assert!(!state.is_account_slot_tx_queue_empty(&receiver_a_address).expect("Db error not expected!"));
     assert!(!state.is_account_slot_tx_queue_empty(&receiver_b_address).expect("Db error not expected!"));
+}
+
+#[test]
+fn test_multibind() {
+    // BEFORE PARSING:
+    //
+    // pragma solidity ^0.6.9;
+    // contract EmitOnTime {
+    //     signal Alert(bytes32 data);
+    //
+    //     function send_alert(bytes32 data) public {
+    //         emitsig Alert(data).delay(0);
+    //     }
+    // }
+    // contract EmitLate {
+    //     signal Alert(bytes32 data);
+    //
+    //     function send_alert(bytes32 data) public {
+    //         emitsig Alert(data).delay(10);
+    //     }
+    // }
+    // // Multiple binds! Hopefully it works.
+    // contract Receiver {
+    //     bytes32 data;
+    //     uint32 alert_count;
+    //
+    //     slot Receive(bytes32 incoming_data) {
+    //         data = incoming_data;
+    //         alert_count = alert_count + 1;
+    //     }
+    //     function get_data() public view returns (bytes32 ret) {
+    //         ret = data;
+    //     }
+    //     function get_alert_count() public view returns (uint32 ret) {
+    //         ret = alert_count;
+    //     }
+    //     function bind_to_signal(address emitter) public view {
+    //         Receive.bind(emitter.Alert);
+    //     }
+    //     constructor() public {
+    //         data = 0;
+    //         alert_count = 0;
+    //     }
+    // }
+    //
+    // AFTER PARSING:
+    //
+    // pragma solidity ^0.6.9;
+    // contract EmitOnTime {
+    //     bytes32 private Alert_data;
+    //     bytes32 private Alert_dataslot;
+    //     uint private Alert_status;
+    //     bytes32 private Alert_key;
+    //    
+    //     function set_Alert_data(bytes32 dataSet) private {
+    //          Alert_data = dataSet;
+    //     }
+    //     function get_Alert_argc() public pure returns (uint argc) {
+    //          return 32;
+    //     }
+    //     function get_Alert_key() public view returns (bytes32 key) {
+    //          return Alert_key;
+    //     }
+    //     function get_Alert_dataslot() public view returns (bytes32 dataslot) {
+    //          return Alert_dataslot;
+    //     }
+    //     function Alert() private {
+    //         Alert_key = keccak256("Alert()");
+    //         assembly {
+    //             sstore(Alert_status_slot, createsig(32, sload(Alert_key_slot)))
+    //             sstore(Alert_dataslot_slot, Alert_data_slot)
+    //         }
+    //     }
+    //     function send_alert(bytes32 data) public {
+    //         set_Alert_data(data);
+    //         uint this_emitsig_Alert_argc = get_Alert_argc();
+    //         bytes32 this_emitsig_Alert_dataslot = get_Alert_dataslot();
+    //         bytes32 this_emitsig_Alert_key = get_Alert_key();
+    //         assembly {
+    //             mstore(0x40, emitsig(this_emitsig_Alert_key, 0, this_emitsig_Alert_dataslot, this_emitsig_Alert_argc))
+    //         }
+    //     }
+    //     constructor() public {
+    //         Alert();
+    //     }
+    // }
+    // contract EmitLate {
+    //     bytes32 private Alert_data;
+    //     bytes32 private Alert_dataslot;
+    //     uint private Alert_status;
+    //     bytes32 private Alert_key;
+    //     function set_Alert_data(bytes32 dataSet) private {
+    //          Alert_data = dataSet;
+    //     }
+    //     function get_Alert_argc() public pure returns (uint argc) {
+    //          return 32;
+    //     }
+    //     function get_Alert_key() public view returns (bytes32 key) {
+    //          return Alert_key;
+    //     }
+    //     function get_Alert_dataslot() public view returns (bytes32 dataslot) {
+    //          return Alert_dataslot;
+    //     }
+    //     function Alert() private {
+    //         Alert_key = keccak256("Alert()");
+    //         assembly {
+    //             sstore(Alert_status_slot, createsig(32, sload(Alert_key_slot)))
+    //             sstore(Alert_dataslot_slot, Alert_data_slot)
+    //         }
+    //     }
+    //     function send_alert(bytes32 data) public {
+    //         set_Alert_data(data);
+    //         uint this_emitsig_Alert_argc = get_Alert_argc();
+    //         bytes32 this_emitsig_Alert_dataslot = get_Alert_dataslot();
+    //         bytes32 this_emitsig_Alert_key = get_Alert_key();
+    //         assembly {
+    //             mstore(0x40, emitsig(this_emitsig_Alert_key, 10, this_emitsig_Alert_dataslot, this_emitsig_Alert_argc))
+    //         }
+    //     }
+    //     constructor() public {
+    //         Alert();
+    //     }
+    // }
+    // contract Receiver {
+    //     bytes32 data;
+    //     uint32 alert_count;
+    //     uint private Receive_status;
+    //     bytes32 private Receive_key;
+    //     function get_Receive_key() public view returns (bytes32 key) {
+    //          return Receive_key;
+    //     }
+    //     function Receive() private {
+    //         Receive_key = keccak256("Receive_func(bytes32)");
+    //         assembly {
+    //             sstore(Receive_status_slot, createslot(32, 10, 30000, sload(Receive_key_slot)))
+    //         }
+    //     }
+    //     function Receive_func(bytes32 incoming_data) public {
+    //         data = incoming_data;
+    //         alert_count = alert_count + 1;
+    //     }
+    //     function get_data() public view returns (bytes32 ret) {
+    //         ret = data;
+    //     }
+    //     function get_alert_count() public view returns (uint32 ret) {
+    //         ret = alert_count;
+    //     }
+    //     function bind_to_signal(address emitter) public view {
+    //         address emitter_bindslot_address = address(emitter);
+    //         bytes32 emitter_bindslot_Alert_key = keccak256("Alert()");
+    //         bytes32 this_emitter_bindslot_Receive_key = get_Receive_key();
+    //         assembly {
+    //             mstore(0x40, bindslot(emitter_bindslot_address, emitter_bindslot_Alert_key, this_emitter_bindslot_Receive_key))
+    //         }
+    //     }
+    //     constructor() public {
+    //         Receive();
+    //         data = 0;
+    //         alert_count = 0;
+    //     }
+    // }
+
+    // Test outline:
+    // 1. Deploy both contract accounts
+    // 2. Bind to each signal
+    // 3. Emit both signals in succession
+    // 4. Verify that one slot transaction arrives on time
+    // 5. Verify that data is transferred over successfully
+    // 6. Drain epoch 10
+    // 7. Verify that slot transaction is transferred over to the receiver
+
+    // VM and state setup.
+    let factory = Factory::new(VMType::Interpreter, 1024 * 32);
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write_with_factory(&storage_manager, factory);
+    let machine = make_byzantium_machine(0);
+    let internal_contract_map = InternalContractMap::new();
+    let mut env = Env::default();
+    env.gas_limit = U256::MAX;
+    let spec = machine.spec(env.number);
+
+    // Create a sender account and give it balance.
+    let sender = Random.generate().unwrap();
+    state
+        .add_balance(
+            &sender.address(),
+            &U256::from(9_000_000_000_000_210_010u64),
+            CleanupMode::NoEmpty,
+        )
+        .unwrap();
+
+    // Deploy contract accounts using the sender balance.
+    let emit_late_code = 
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f416c65727428290000000000000000
+        0000000000000000000000000000000000815250600701905060405180910390206003819055506003546020c06002556000600155565b61019c8
+        061007f6000396000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c806365410bf114610051578063b5d359
+        171461006f578063dd5e12011461009d578063e0b31950146100bb575b600080fd5b6100596100d9565b604051808281526020019150506040518
+        0910390f35b61009b6004803603602081101561008557600080fd5b81019080803590602001909291905050506100e3565b005b6100a561011f56
+        5b6040518082815260200191505060405180910390f35b6100c3610129565b6040518082815260200191505060405180910390f35b60006003549
+        05090565b6100ec81610132565b60006100f6610129565b9050600061010261011f565b9050600061010e6100d9565b90508282600a83c4604052
+        50505050565b6000600154905090565b60006020905090565b806000819055505056fea26469706673582212208f925f2f9a51d1d25306139bd2f
+        fb1067157d0626424d0197d21443de95509b764736f6c63782c302e362e31312d646576656c6f702e323032302e372e32312b636f6d6d69742e63
+        316635663761632e6d6f64005d"
+        .from_hex()
+        .unwrap();
+    let emit_late_address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::from(0),
+        &emit_late_code,
+    ).0;
+    let emit_late_creation_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: emit_late_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(0),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emit_late_creation_tx).unwrap()
+    };
+    assert!(state.is_contract(&emit_late_address));
+
+    let emit_on_time_code = 
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f416c657274282900000000000000
+        000000000000000000000000000000000000815250600701905060405180910390206003819055506003546020c06002556000600155565b610
+        19c8061007f6000396000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c806365410bf114610051578063
+        b5d359171461006f578063dd5e12011461009d578063e0b31950146100bb575b600080fd5b6100596100d9565b6040518082815260200191505
+        060405180910390f35b61009b6004803603602081101561008557600080fd5b81019080803590602001909291905050506100e3565b005b6100
+        a561011f565b6040518082815260200191505060405180910390f35b6100c3610129565b6040518082815260200191505060405180910390f35
+        b6000600354905090565b6100ec81610132565b60006100f6610129565b9050600061010261011f565b9050600061010e6100d9565b90508282
+        600083c460405250505050565b6000600154905090565b60006020905090565b806000819055505056fea264697066735822122001a12630dca
+        bf434f3df6934eb07c5b5bcf92c7537589a6efaf8ded2a61fdf7d64736f6c63782c302e362e31312d646576656c6f702e323032302e372e3231
+        2b636f6d6d69742e63316635663761632e6d6f64005d"
+        .from_hex()
+        .unwrap();
+    let emit_on_time_address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::from(1),
+        &emit_on_time_code,
+    ).0;
+    let emit_on_time_creation_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: emit_on_time_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(1),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emit_on_time_creation_tx).unwrap();
+    };
+    assert!(state.is_contract(&emit_on_time_address));
+
+    let receiver_code = 
+        "608060405234801561001057600080fd5b5061001f61005060201b60201c565b6000801b6000819055506000600160006101000a81548163
+        ffffffff021916908363ffffffff16021790555061009c565b60405180807f526563656976655f66756e63286279746573333229000000000
+        000000000000081525060150190506040518091039020600381905550600354617530600a6020c1600255565b610258806100ab6000396000
+        f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80630eea95011461005c5780634b918fee1461008a578
+        06350bf8b0d146100a85780635e69ae7e146100c6578063fa7d84831461010a575b600080fd5b610088600480360360208110156100725760
+        0080fd5b8101908080359060200190929190505050610134565b005b610092610173565b6040518082815260200191505060405180910390f
+        35b6100b061017d565b6040518082815260200191505060405180910390f35b610108600480360360208110156100dc57600080fd5b810190
+        80803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610186565b005b6101126101de565b60405180826
+        3ffffffff1663ffffffff16815260200191505060405180910390f35b8060008190555060018060009054906101000a900463ffffffff1601
+        600160006101000a81548163ffffffff021916908363ffffffff16021790555050565b6000600354905090565b60008054905090565b60008
+        19050600060405180807f416c6572742829000000000000000000000000000000000000000000000000008152506007019050604051809103
+        9020905060006101cf610173565b9050808284c260405250505050565b6000600160009054906101000a900463ffffffff1690509056fea26
+        469706673582212203cfee692860ba7b0da766398b9f02169bc3b54127d9e342b5ca7233a8b83292f64736f6c63782c302e362e31312d6465
+        76656c6f702e323032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
+        .from_hex()
+        .unwrap();
+    let receiver_address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::from(2),
+        &receiver_code,
+    ).0;
+    let receiver_creation_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: receiver_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(2),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&receiver_creation_tx)
+    };
+    assert!(state.is_contract(&receiver_address));
+
+    // Bind receiver to each of the signals.
+    // keccak256("bind_to_signal(address)") = 5e69ae7e29957ae633e7e1889ffff5e98388c08ac61025880730a9e4a5249f85
+    // keccak256("get_alert_count()") = fa7d8483cb3c806d0cc2c575057b74d506ce0f06ef1cffc927b500ddc29c82c0
+    // keccak256("get_data()") = 50bf8b0d9555c4c967ba76650ec27a097cd05a0fdb928be06dad27b5ca0f2b2d
+    let mut receiver_bind_call_data = "5e69ae7e".from_hex().unwrap();
+    receiver_bind_call_data.extend_from_slice(
+        &(vec![0u8; 32 - 20])[..]
+    );
+    receiver_bind_call_data.extend_from_slice(&emit_late_address[..]);
+    let receiver_bind_tx = Transaction {
+        action: Action::Call(receiver_address.clone()),
+        value: U256::from(0),
+        data: receiver_bind_call_data.clone(),
+        gas: U256::from(200000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(3),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&receiver_bind_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some()); 
+
+    let mut receiver_bind_call_data = "5e69ae7e".from_hex().unwrap();
+    receiver_bind_call_data.extend_from_slice(
+        &(vec![0u8; 32 - 20])[..]
+    );
+    receiver_bind_call_data.extend_from_slice(&emit_on_time_address[..]);
+    let receiver_bind_tx = Transaction {
+        action: Action::Call(receiver_address.clone()),
+        value: U256::from(0),
+        data: receiver_bind_call_data.clone(),
+        gas: U256::from(200000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(4),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&receiver_bind_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some()); 
+
+    // Gas up...
+    state
+        .add_balance(
+            &sender.address(),
+            &U256::from(9_000_000_000_000_210_010u64),
+            CleanupMode::NoEmpty,
+        )
+        .unwrap();
+
+    // Emit both the signals.
+    // keccak("send_alert(bytes32)) = b5d3591711ff1f95e39893400602222afd9c57badda564e992f77a8aa4b6d250
+    let mut emit_late_call_data = "b5d35917".from_hex().unwrap();
+    emit_late_call_data.extend_from_slice(
+        &(vec![0u8; 32 - 4])[..]
+    );
+    emit_late_call_data.extend_from_slice(&("deadbeef".from_hex().unwrap()));
+    let emit_late_tx = Transaction {
+        action: Action::Call(emit_late_address.clone()),
+        value: U256::from(0),
+        data: emit_late_call_data.clone(),
+        gas: U256::from(200000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(5),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emit_late_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some()); 
+
+    let mut emit_on_time_call_data = "b5d35917".from_hex().unwrap();
+    emit_on_time_call_data.extend_from_slice(
+        &(vec![0u8; 32 - 4])[..]
+    );
+    emit_on_time_call_data.extend_from_slice(&("abcdabcd".from_hex().unwrap()));
+    let emit_on_time_tx = Transaction {
+        action: Action::Call(emit_on_time_address.clone()),
+        value: U256::from(0),
+        data: emit_on_time_call_data.clone(),
+        gas: U256::from(200000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(6),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emit_on_time_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some()); 
+
+    // Check to see what the slot tx queues look like.
+    let slot_tx_queue = state
+        .get_account_slot_tx_queue(&receiver_address)
+        .expect("No db errors pls");
+    assert!(slot_tx_queue.len() == 1);
+
+    state
+        .drain_global_slot_tx_queue(10)
+        .expect("No db errors!");
+    
+    let slot_tx_queue = state
+        .get_account_slot_tx_queue(&receiver_address)
+        .expect("No db errors pls");
+    assert!(slot_tx_queue.len() == 2);  
 }
 
 /* Signal and Slots end */
