@@ -1174,7 +1174,7 @@ impl ConsensusExecutionHandler {
                 if transaction.is_slot_tx() {
                     let address = transaction.slot_tx.as_ref().unwrap().address();
                     // Dequeue and make sure we executed the correct slot_tx!
-                    let state_slot_tx = state
+                    let _state_slot_tx = state
                         .dequeue_slot_tx_from_account(address)
                         .expect("Dequeue slot tx failed!");
                         //.unwrap();

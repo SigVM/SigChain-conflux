@@ -343,10 +343,8 @@ impl SlotTx {
     // }
 
     pub fn encode(&self) -> Bytes {
-        let mut ret = self.location.slot_key()[0..4].to_vec().clone();
-        let padding = vec![0u8; 32 - self.argv.len()];
+        let mut ret = self.get_method_id().clone();
         ret.extend_from_slice(&self.argv[..]);
-        ret.extend_from_slice(&padding[..]);
         ret
     }
     

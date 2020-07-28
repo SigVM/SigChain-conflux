@@ -1636,16 +1636,41 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let blk_delay = self.stack.pop_back(); // 1  
                 let mut key = vec![0; 32];
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
-                let _arg_size = self.stack.pop_back();  // 3
+                let is_fix = self.stack.pop_back();  // 3
                 let call_result = {
-                    let mut data = context.storage_at(&key).unwrap();
-                    let data = data.as_bytes_mut();
-                    data.reverse();
+                    let mut data = vec![];
+                    if is_fix == U256::from(1) {
+                        let mut rawdata = context.storage_at(&key).unwrap();
+                        data = rawdata.as_bytes_mut().to_vec();
+                        data.reverse();
+                    }else{
+                        let mut rawdata = context.storage_at(&key).unwrap();
+                        let len = rawdata.as_bytes_mut().to_vec();
+                        if len[31] < 63 {
+                            data = len;
+                            data[31] = 0;
+                            data.reverse();
+                        }else{
+                            let mul = (len[31]-1)/64;
+                            let res = (len[31]-1)%64/2;
+                            let mut datakey = keccak(key).as_bytes().to_vec();
+                            for _i in 0..mul {
+                                let mut temp_data  = context.storage_at(&datakey).unwrap();
+                                data.extend(temp_data.as_bytes_mut().to_vec().iter().clone());
+                                datakey[31] = datakey[31] + 1;//TODO: datakey now doesnt carry to higher position when adding
+                            }
+                            if res > 0 {
+                                let mut temp_res_data  = context.storage_at(&datakey).unwrap();
+                                data.extend(&(temp_res_data.as_bytes_mut().to_vec())[..]);
+                            }
+                            data.reverse();
+                        }
+                    }
                     context.emit_sig(
                         &self.params.address,
                         &sig_id,
                         &blk_delay,
-                        &data,
+                        &data[..],
                     )
                 };
 
