@@ -1710,14 +1710,33 @@ impl State {
     pub fn detach_slot_from_signal(
         &self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<()> {
-        // Ensure they are cached.
-        self.signal_at(sig_loc.address(), sig_loc.signal_key())?;
-        self.slot_at(slot_loc.address(), slot_loc.slot_key())?;
+        // Get signal info, make sure it exists.
+        let _sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
+        let _sig_info = match _sig_info {
+            Ok(Some(s)) => s,
+            _ => {
+                return Err(DbErrorKind::IncompleteDatabase(
+                    sig_loc.address().clone(),
+                )
+                .into());
+            }
+        };
+        // Get slot info, make sure it exists.
+        let _slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key());
+        let _slot_info = match _slot_info {
+            Ok(Some(s)) => s,
+            _ => {
+                return Err(DbErrorKind::IncompleteDatabase(
+                    slot_loc.address().clone(),
+                )
+                .into());
+            }
+        };
         // Signal account.
         self.require_exists(sig_loc.address(), false)?
             .remove_from_slot_list(&self.db, sig_loc, slot_loc);
         // Slot account.
-        self.require_exists(slot_loc.address(), false)?
+        self.require_exists(&slot_loc.address(), false)?
             .remove_from_bind_list(&self.db, slot_loc, sig_loc);
         Ok(())
     }

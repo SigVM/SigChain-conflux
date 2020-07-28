@@ -95,7 +95,12 @@ impl SignalInfo {
 
     // Removes a slot given a location.
     pub fn remove_from_slot_list(&mut self, loc: &SlotLocation) {
-        self.slot_list.retain(|s| (s.location.address != loc.address || s.location.slot_key != loc.slot_key));
+        for i in 0..self.slot_list.clone().len() {
+            let slot = &self.slot_list[i];
+            if slot.location().address() == loc.address() && slot.location().slot_key() == loc.slot_key() {
+                self.slot_list.remove(i);
+            }
+        }
     }
 
     // Getters
@@ -158,7 +163,12 @@ impl SlotInfo {
     }
     // Remove a signal from the bind list.
     pub fn remove_from_bind_list(&mut self, loc: &SignalLocation) {
-        self.bind_list.retain(|s| (s.address != loc.address || s.signal_key != loc.signal_key));
+        for i in 0..self.bind_list.clone().len() {
+            let sig = &self.bind_list[i];
+            if sig.address() == loc.address() && sig.signal_key() == loc.signal_key() {
+                self.bind_list.remove(i);
+            }
+        }
     }
 
     // Getters

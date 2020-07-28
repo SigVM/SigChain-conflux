@@ -1146,7 +1146,397 @@ fn test_multibind() {
         .get_account_slot_tx_queue(&receiver_address)
         .expect("No db errors pls");
     assert!(slot_tx_queue.len() == 2);  
+
+    // TODO: Check to see if the slottx's are correct.
 }
 
+#[test]
+fn test_bind_detach() {
+    // BEFORE PARSING:
+    //
+    // pragma solidity ^0.6.9;
+    // contract Emitter {
+    //     signal Alert();
+    //     function send_alert() public view {
+    //         emitsig Alert().delay(0);
+    //     }
+    // }
+    // contract Receiver {
+    //     uint data;
+    //     address source;
+    //     slot HandleAlert() {
+    //         data = 0;
+    //     }
+    //     function set_source(address addr) public {
+    //         source = addr;
+    //     }
+    //     function bind_to_alert() public view {
+    //         HandleAlert.bind(source.Alert);
+    //     }
+    //     function detach_from_alert() public view {
+    //         HandleAlert.detach(source.Alert);
+    //     }
+    // }
+    //
+    // AFTER PARSING:
+    //
+    // pragma solidity ^0.6.9;
+    // contract Emitter {
+    // 	bytes32 private Alert_dataslot;
+    // 	uint private Alert_status;
+    //     bytes32 private Alert_key;
+
+    // 	function get_Alert_key() public view returns (bytes32 key) {
+    //        return Alert_key;
+    //     }
+    //     function get_Alert_dataslot() private view returns (bytes32 dataslot) {
+    //        return Alert_dataslot;
+    //     }
+    //     function Alert() private {
+    //         Alert_key = keccak256("Alert()");
+    // 		assembly {
+    // 			sstore(Alert_status_slot, createsig(0, sload(Alert_key_slot)))
+    // 			sstore(Alert_dataslot_slot, 0x0)
+    // 		}
+    //     }
+    //     function send_alert() public view {
+    // 		bytes32 this_emitsig_Alert_dataslot = get_Alert_dataslot();
+    // 		bytes32 this_emitsig_Alert_key = get_Alert_key();
+    // 		assembly {
+    // 			mstore(0x40, emitsig(this_emitsig_Alert_key, 0, this_emitsig_Alert_dataslot, 0))
+    // 	    }
+    //     }
+    //     constructor() public {
+    //         Alert();
+    //     }
+    // }
+    // contract Receiver {
+    //     uint data;
+    //     address source;
+    
+    //     uint private HandleAlert_status;
+    //     bytes32 private HandleAlert_key;
+
+    // 	function get_HandleAlert_key() public view returns (bytes32 key) {
+    //        return HandleAlert_key;
+    //     }
+
+    //     function HandleAlert() private {
+    //         HandleAlert_key = keccak256("HandleAlert_func()");
+    //         assembly {
+    //             sstore(HandleAlert_status_slot, createslot(0, 10, 30000, sload(HandleAlert_key_slot)))
+    //         }
+    //     }
+    
+    //     function HandleAlert_func() public {
+    //         data = 0;
+    //     }
+    //     function set_source(address addr) public {
+    //         source = addr;
+    //     }
+    //     function bind_to_alert() public view {
+    // 		address source_bindslot_address = address(source);
+    // 		bytes32 source_bindslot_Alert_key = keccak256("Alert()");
+    //         bytes32 this_source_bindslot_HandleAlert_key = get_HandleAlert_key();
+    // 		assembly {
+    // 			mstore(0x40, bindslot(source_bindslot_address, source_bindslot_Alert_key, this_source_bindslot_HandleAlert_key))
+    // 	    }
+    //     }
+    //     function detach_from_alert() public view {
+    // 		bytes32 source_detach_Alert_key = keccak256("Alert()");
+    // 		address source_detach_address = address(source);
+    //         bytes32 this_source_bindslot_HandleAlert_key = get_HandleAlert_key();
+    // 		assembly{
+    // 			mstore(0x40, detachslot(source_detach_address, source_detach_Alert_key, this_source_bindslot_HandleAlert_key))
+    // 		}
+    //     }
+    //     constructor() public {
+    //         HandleAlert();
+    //     }
+    // }
+
+    // Test overview.
+    // 1. Deploy contract accounts
+    // 2. Bind slot to signal
+    // 3. Emit signal
+    // 4. Verify that slottx was created
+    // 5. Detach slot from signal
+    // 6. Emit signal
+    // 7. Verify that slottx was not created
+
+    // VM and state setup.
+    let factory = Factory::new(VMType::Interpreter, 1024 * 32);
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write_with_factory(&storage_manager, factory);
+    let machine = make_byzantium_machine(0);
+    let internal_contract_map = InternalContractMap::new();
+    let mut env = Env::default();
+    env.gas_limit = U256::MAX;
+    let spec = machine.spec(env.number);
+
+    // Create a sender account and give it balance.
+    let sender = Random.generate().unwrap();
+    state
+        .add_balance(
+            &sender.address(),
+            &U256::from(9_000_000_000_000_210_010u64),
+            CleanupMode::NoEmpty,
+        )
+        .unwrap();
+
+    // Deploy contracts
+    let emitter_code = 
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b61006f565b60405180807f416c657274282900000000000
+        000000000000000000000000000000000000000815250600701905060405180910390206002819055506002546000c060015560008055565
+        b60f08061007d6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806365410bf11460375780637
+        ced953e146053575b600080fd5b603d605b565b6040518082815260200191505060405180910390f35b60596065565b005b6000600254905
+        090565b6000606d6087565b905060006077605b565b9050600082600083c46040525050565b6000805490509056fea264697066735822122
+        085459ea7f4a172353367eec50d9bc9659f935303529da8b1b704f0e385a3311964736f6c63782c302e362e31312d646576656c6f702e323
+        032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
+        .from_hex()
+        .unwrap();
+    let emitter_address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::from(0),
+        &emitter_code,
+    ).0;
+    let emitter_creation_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: emitter_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(0),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emitter_creation_tx)
+    };
+    assert!(state.is_contract(&emitter_address));
+
+    let receiver_code = 
+        "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610070565b60405180807f48616e646c65416c6572745f6
+        6756e632829000000000000000000000000000081525060120190506040518091039020600381905550600354617530600a6000c16002555
+        65b6102858061007f6000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80630e3b859014610
+        05c57806314583309146100665780632de681eb1461007057806334bcebd0146100b45780639981f1bc146100be575b600080fd5b6100646
+        100dc565b005b61006e610155565b005b6100b26004803603602081101561008657600080fd5b81019080803573fffffffffffffffffffff
+        fffffffffffffffffff1690602001909291905050506101ce565b005b6100bc610212565b005b6100c661021b565b6040518082815260200
+        191505060405180910390f35b600060405180807f416c6572742829000000000000000000000000000000000000000000000000008152506
+        007019050604051809103902090506000600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16905060006
+        1014761021b565b9050808383c3604052505050565b6000600160009054906101000a900473fffffffffffffffffffffffffffffffffffff
+        fff169050600060405180807f416c65727428290000000000000000000000000000000000000000000000000081525060070190506040518
+        091039020905060006101c061021b565b9050808284c2604052505050565b80600160006101000a81548173fffffffffffffffffffffffff
+        fffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050565b60008081905550565b600060035
+        490509056fea2646970667358221220bb2082255fce9981e01c4df3acce2f17eef92d963d27a7cc464e97bbb4904d9864736f6c63782c302
+        e362e31312d646576656c6f702e323032302e372e32312b636f6d6d69742e63316635663761632e6d6f64005d"
+        .from_hex()
+        .unwrap();
+    let receiver_address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &sender.address(),
+        &U256::from(1),
+        &receiver_code,
+    ).0;
+    let receiver_creation_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: receiver_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(1),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&receiver_creation_tx)
+    };
+    assert!(state.is_contract(&receiver_address));
+
+    // Give emitter address to receiver.
+    // keccak("set_source(address)") = 2de681ebdca726d72c94bf1523fb481dc947bdf132d3b75dffb3671b5bcfb042
+    let mut set_source_call_data = "2de681eb".from_hex().unwrap();
+    set_source_call_data.extend_from_slice(
+        &(vec![0u8; 32 - 20])[..]
+    );
+    set_source_call_data.extend_from_slice(&emitter_address[..]);
+    let set_source_tx = Transaction {
+        action: Action::Call(receiver_address.clone()),
+        value: U256::from(0),
+        data: set_source_call_data,
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(2),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&set_source_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some());
+
+    // Bind slot to signal.
+    // keccak256("bind_to_alert()") = 14583309ad14d9f5f5ada6b94129244a6e5c5eb0d21ac966c65d03b8305854a1
+    let bind_call_data = "14583309".from_hex().unwrap();
+    let bind_tx = Transaction {
+        action: Action::Call(receiver_address.clone()),
+        value: U256::from(0),
+        data: bind_call_data,
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(3),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&bind_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some());
+
+    // Emit signal.
+    // keccak256("send_alert()") = 7ced953e3a98fed2864b59f525e7909dcb6165ad544dfec26c846abd73b6b8e1
+    let emit_call_data = "7ced953e".from_hex().unwrap();
+    let emit_tx = Transaction {
+        action: Action::Call(emitter_address.clone()),
+        value: U256::from(0),
+        data: emit_call_data,
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(4),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emit_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some());
+
+    // Verify that slottx has been generated.
+    let slot_tx_queue = state
+        .get_account_slot_tx_queue(&receiver_address)
+        .expect("No db errors pls");
+    assert!(slot_tx_queue.len() == 1);
+
+    // Gas Up!
+    state
+    .add_balance(
+        &sender.address(),
+        &U256::from(9_000_000_000_000_210_010u64),
+        CleanupMode::NoEmpty,
+    )
+    .unwrap();
+
+    // Detach slot from signal.
+    // keccak256("detach_from_alert()") = 0e3b8590bd5848e66f1d64b50c2998d1a10b7c8ff9d3296df4ec7c445f290d11
+    let detach_call_data = "0e3b8590".from_hex().unwrap();
+    let detach_tx = Transaction {
+        action: Action::Call(receiver_address.clone()),
+        value: U256::from(0),
+        data: detach_call_data,
+        gas: U256::from(10800000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(10000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(5),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&detach_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some());
+
+    // Emit a signal again.
+    let emit_call_data = "7ced953e".from_hex().unwrap();
+    let emit_tx = Transaction {
+        action: Action::Call(emitter_address.clone()),
+        value: U256::from(0),
+        data: emit_call_data,
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::from(6),
+        slot_tx: None,
+    }
+    .sign(sender.secret());
+    let res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&emit_tx).unwrap()
+    };
+    assert!(res.successfully_executed().is_some());
+
+    // Verify that no new slot tx has been created.
+    let slot_tx_queue = state
+        .get_account_slot_tx_queue(&receiver_address)
+        .expect("No db errors pls");
+    assert!(slot_tx_queue.len() == 1);
+}
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
