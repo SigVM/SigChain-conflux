@@ -45,13 +45,15 @@ impl SignalLocation {
 )]
 pub struct SlotLocation {
     address: Address,
+    contract_address: Address, 
     slot_key: Bytes,
 }
 
 impl SlotLocation {
-    pub fn new(owner: &Address, slot_key: &[u8]) -> Self {
+    pub fn new(owner: &Address, contract: &Address, slot_key: &[u8]) -> Self {
         let new = SlotLocation {
             address: owner.clone(),
+            contract_address: contract.clone(),
             slot_key: Bytes::from(slot_key),
         };
         new
@@ -59,6 +61,9 @@ impl SlotLocation {
     // Getters
     pub fn address(&self) -> &Address {
         &self.address
+    }
+    pub fn contract_address(&self) -> &Address {
+        &self.contract_address
     }
     pub fn slot_key(&self) -> &Bytes {
         &self.slot_key
@@ -137,10 +142,10 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], arg_count: &U256,
+        owner: &Address, contract: &Address, slot_key: &[u8], arg_count: &U256,
         gas_limit: &U256, numerator: &U256, denominator: &U256
     ) -> Self {
-        let loc = SlotLocation::new(owner, slot_key);
+        let loc = SlotLocation::new(owner, contract, slot_key);
         let new = SlotInfo {
             location:              loc,
             arg_count:             arg_count.clone(),
@@ -278,6 +283,9 @@ impl SlotTx {
     // Getters
     pub fn address(&self) -> &Address {
         &self.location.address()
+    }
+    pub fn contract_address(&self) -> &Address {
+        &self.location.contract_address()
     }
     pub fn slot_key(&self) -> &Bytes {
         &self.location.slot_key()

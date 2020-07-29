@@ -1452,7 +1452,7 @@ impl<'a> Executive<'a> {
                 tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
                 "We should have checked base gas requirement for slot tx when we received the block."
             );
-            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone();
+            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone();//TODO: need to set suitable value
         }
 
         let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() { 
@@ -1465,7 +1465,7 @@ impl<'a> Executive<'a> {
             } 
             true => {
                 (
-                    self.state.balance(tx.slot_tx.as_ref().unwrap().address())?,
+                    self.state.balance(&sender)?,
                     tx.slot_tx.as_ref().unwrap().gas_upfront().clone().full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
                     U512::from(0)
                 )
@@ -1485,11 +1485,11 @@ impl<'a> Executive<'a> {
                 //Here will check sponsor exising
                 //TODO: check sponsor balance is the same as sponsor owned balance or they are completely distinct
                 //      if it is the same, we don't need to check sponsor here, contract address is able to pay itself here
-                code_address = *tx.slot_tx.as_ref().unwrap().address();
+                code_address = *tx.slot_tx.as_ref().unwrap().contract_address();
                 if self.state.is_contract(&code_address) {//slottx address must be a contract address
                     if self
                         .state
-                        .check_commission_privilege(&code_address, &code_address)?
+                        .check_commission_privilege(&code_address, &sender)?
                     {
                         // No need to check for gas sponsor account existence.
                         gas_sponsored = gas_cost
@@ -1634,14 +1634,14 @@ impl<'a> Executive<'a> {
                 .unwrap();
                 // We don't want to bump nonce for non-existent account when we
                 // can't charge gas fee.
-                if !self.state.exists(tx.slot_tx.as_ref().unwrap().address())? {
+                if !self.state.exists(&sender)? {
                     return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                         ToRepackError::SenderDoesNotExist,
                     ));
                 }
                 //self.state.inc_nonce(&sender)?;
                 self.state.sub_balance(
-                    tx.slot_tx.as_ref().unwrap().address(),
+                    &sender,
                     &actual_gas_cost,
                     &mut substate.to_cleanup_mode(&spec),
                 )?;
@@ -1663,7 +1663,7 @@ impl<'a> Executive<'a> {
             // Subtract the transaction fee from contract.
             if !gas_free_of_charge {
                 self.state.sub_balance(
-                    &tx.slot_tx.as_ref().unwrap().address(),
+                    &sender,
                     &U256::try_from(gas_cost).unwrap(),
                     &mut substate.to_cleanup_mode(&spec),
                 )?;
@@ -1777,16 +1777,16 @@ impl<'a> Executive<'a> {
                 assert!(tx.is_slot_tx());
                 let tx = tx.slot_tx.as_ref().unwrap();
                 let params = ActionParams {
-                    code_address: tx.address().clone(),
-                    address: tx.address().clone(),
+                    code_address: tx.contract_address().clone(),
+                    address: tx.contract_address().clone(),
                     sender,
                     original_sender: sender,
                     storage_owner,
                     gas: init_gas,
                     gas_price: tx.gas_price().clone(),
                     value: ActionValue::Transfer(U256::zero()),
-                    code: self.state.code(tx.address())?,
-                    code_hash: self.state.code_hash(tx.address())?,
+                    code: self.state.code(tx.contract_address())?,
+                    code_hash: self.state.code_hash(tx.contract_address())?,
                     data: Some(tx.encode()),
                     call_type: CallType::Call,
                     params_type: vm::ParamsType::Separate,

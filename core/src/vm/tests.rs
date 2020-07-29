@@ -255,7 +255,8 @@ impl Context for MockContext {
     // Create a new slot definition
     // gas_ratio is out of 100
     fn create_slot(
-        &mut self, _sender_address: &Address, 
+        &mut self, _sender_address: &Address,
+        _contract_address: &Address, 
         _slot_key: &Vec<u8>,
         _argc: &U256, _gas_limit: &U256, 
         _numerator: &U256, _denominator: &U256,
@@ -267,6 +268,7 @@ impl Context for MockContext {
     // Bind a slot to a signal
     fn bind_slot(
         &mut self, _sender_address: &Address,
+        _contract_address: &Address, 
         _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
@@ -276,6 +278,7 @@ impl Context for MockContext {
     // Detach a slot from a signal
     fn detach_slot(
         &mut self, _sender_address: &Address,
+        _contract_address: &Address,
         _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO

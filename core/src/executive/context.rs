@@ -467,13 +467,15 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Create a new slot definition
     fn create_slot(
-        &mut self, sender_address: &Address, 
+        &mut self, sender_address: &Address,
+        contract_address: &Address, 
         slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256, 
         numerator: &U256, denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let result = self.state.create_slot(
-            sender_address, 
+            sender_address,
+            contract_address,
             slot_key,
             argc,
             gas_limit, 
@@ -489,10 +491,11 @@ impl<'a> ContextTrait for Context<'a> {
     // Bind a slot to a signal, gas is hardcoded for now
     fn bind_slot(
         &mut self, _sender_address: &Address,
+        contract_address: &Address, 
         _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let sig_loc = SignalLocation::new(&_signal_address, _signal_id);
-        let slt_loc = SlotLocation::new(&_sender_address, _slot_id);
+        let slt_loc = SlotLocation::new(&_sender_address, &contract_address, _slot_id);
         let result = self.state.bind_slot_to_signal(&sig_loc, &slt_loc);
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -503,10 +506,11 @@ impl<'a> ContextTrait for Context<'a> {
     // Detach a slot from a signal, gas is hardcoded for now
     fn detach_slot(
         &mut self, _sender_address: &Address,
+        contract_address: &Address, 
         _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let sig_loc = SignalLocation::new(&_signal_address, _signal_id);
-        let slt_loc = SlotLocation::new(&_sender_address, _slot_id);
+        let slt_loc = SlotLocation::new(&_sender_address,&contract_address,_slot_id);
         let result = self.state.detach_slot_from_signal(&sig_loc, &slt_loc);
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),

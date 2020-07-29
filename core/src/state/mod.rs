@@ -274,17 +274,17 @@ impl State {
         }
         if inc > 0 {
             let delta = U256::from(inc) * *COLLATERAL_PER_STORAGE_KEY;
-            // if self.is_contract(addr) {
-            //     let sponsor_balance =
-            //         self.sponsor_balance_for_collateral(addr)?;
-            //     // sponsor_balance is not enough to cover storage incremental.
-            //     if delta > sponsor_balance {
-            //         return Ok(CollateralCheckResult::NotEnoughBalance {
-            //             required: delta,
-            //             got: sponsor_balance,
-            //         });
-            //     }
-            // } else {
+            if self.is_contract(addr) {
+                let sponsor_balance =
+                    self.sponsor_balance_for_collateral(addr)?;
+                // sponsor_balance is not enough to cover storage incremental.
+                if delta > sponsor_balance {
+                    return Ok(CollateralCheckResult::NotEnoughBalance {
+                        required: delta,
+                        got: sponsor_balance,
+                    });
+                }
+            } else {
                 let balance = self.balance(addr).expect("no db error");
                 // balance is not enough to cover storage incremental.
                 if delta > balance {
@@ -293,7 +293,7 @@ impl State {
                         got: balance,
                     });
                 }
-            //}
+            }
             self.add_collateral_for_storage(addr, &delta)?;
         }
         Ok(CollateralCheckResult::Valid)
@@ -1607,18 +1607,20 @@ impl State {
     // Create a new slot definition.
     pub fn create_slot(
         &mut self, address: &Address,
+        contract_address: &Address,
         slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256,
         numerator: &U256, denominator: &U256
     ) -> DbResult<bool> {
         // Make sure account is cached.
-        let empty_slot = self.slot_at(address, slot_key)?;
+        let empty_slot = self.slot_at(address,contract_address,slot_key)?;
         if !empty_slot.is_none() {
             return Ok(false);
         }
         // Create new slot instance.
         let slot_info = SlotInfo::new(
             address,
+            contract_address,
             slot_key,
             argc,
             gas_limit,
@@ -1645,9 +1647,9 @@ impl State {
 
     // Get slot info from the cache.
     pub fn slot_at(
-        &self, address: &Address, key: &Vec<u8>,
+        &self, address: &Address, contract_address: &Address, key: &Vec<u8>,
     ) -> DbResult<Option<SlotInfo>> {
-        let loc = SlotLocation::new(address, key);
+        let loc = SlotLocation::new(address, contract_address, key);
         self.ensure_cached(address, RequireCache::None, |acc| {
             acc.map_or(None, |account| {
                 account.slot_at(&self.db, &loc)
@@ -1677,7 +1679,7 @@ impl State {
         };
 
         // Get slot info, make sure it exists.
-        let slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key());
+        let slot_info = self.slot_at(slot_loc.address(), slot_loc.contract_address(), slot_loc.slot_key());
         let slot_info = match slot_info {
             Ok(Some(s)) => s,
             _ => {
@@ -1712,7 +1714,7 @@ impl State {
     ) -> DbResult<()> {
         // Ensure they are cached.
         self.signal_at(sig_loc.address(), sig_loc.signal_key())?;
-        self.slot_at(slot_loc.address(), slot_loc.slot_key())?;
+        self.slot_at(slot_loc.address(), slot_loc.contract_address(), slot_loc.slot_key())?;
         // Signal account.
         self.require_exists(sig_loc.address(), false)?
             .remove_from_slot_list(&self.db, sig_loc, slot_loc);

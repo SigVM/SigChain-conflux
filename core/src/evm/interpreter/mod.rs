@@ -1564,6 +1564,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // Call context trait api to do the rest of the work.
                 let call_result =
                     context.create_slot(
+                        &self.params.sender,
                         &self.params.address,
                         &key,
                         &argc,
@@ -1590,6 +1591,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
                 let call_result =
                     context.bind_slot(
+                        &self.params.sender,
                         &self.params.address,
                         &u256_to_address(&emitter),
                         &sig_id,
@@ -1614,6 +1616,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
                 let call_result =
                     context.detach_slot(
+                        &self.params.sender,
                         &self.params.address,
                         &u256_to_address(&emitter),
                         &sig_id,
