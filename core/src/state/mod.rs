@@ -1627,10 +1627,12 @@ impl State {
             numerator,
             denominator
         );
-        println!("created slot {:?} at contract {:?}",slot_info, contract_address);
+        //TODO: remove println
+        //println!("created slot {:?} at contract {:?}",slot_info, contract_address);
         self.require_exists(contract_address, false)?
             .set_slot(slot_info);
-println!("created slot {:?}",self.require_exists(contract_address, false)?);
+        //TODO: remove println
+        //println!("created slot {:?}",self.require_exists(contract_address, false)?);
         Ok(true)
     }
 
