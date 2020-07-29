@@ -1636,7 +1636,7 @@ impl<Cost: CostType> Interpreter<Cost> {
             instructions::EMITSIG => {
                 let mut sig_id = vec![0; 32];          // 0
                 self.stack.pop_back().to_big_endian(sig_id.as_mut());
-                let blk_delay = self.stack.pop_back(); // 1  
+                let blk_delay = self.stack.pop_back(); // 1
                 let mut key = vec![0; 32];
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
                 let is_fix = self.stack.pop_back();  // 3

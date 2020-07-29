@@ -451,7 +451,7 @@ impl<'a> CallCreateExecutive<'a> {
     pub fn exec(
         mut self, state: &mut State, substate: &mut Substate,
     ) -> ExecutiveTrapResult<'a, FinalizationResult> {
-        
+
         match self.kind {
             CallCreateExecutiveKind::Transfer(ref params) => {
                 assert!(!self.is_create);
@@ -1394,7 +1394,7 @@ impl<'a> Executive<'a> {
                     },
                 ));
             }
-            // Contract wide locking when there are unhandled slot transactions. 
+            // Contract wide locking when there are unhandled slot transactions.
             // Normal transactions should not be executed until slot transactions are done.
             let call_address = tx.call_address();
             if call_address.is_some() {
@@ -1404,6 +1404,34 @@ impl<'a> Executive<'a> {
                     ));
                 }
             }
+        } else {
+            // // Slot transaction should not fail. Even if it fails we dequeue anyways.
+            let contract_address = tx.slot_tx.as_ref().unwrap().contract_address();
+            if self.state.is_account_slot_tx_queue_empty(contract_address).unwrap() {
+                // Not the first slot tx in queue, skipping execution.
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                    ToRepackError::DuplicatedSlotTx,
+                ));
+            }
+
+            // check the next transaction in the queue
+            let queue = self.state
+                .get_account_slot_tx_queue(contract_address)
+                .expect("Get slot tx queue failed!");
+
+            let peek_tx = queue.peek(0).unwrap().clone();
+            if !peek_tx.is_duplicated(tx.slot_tx.as_ref().unwrap()) {
+                // Not the first slot tx in queue, skipping execution.
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                    ToRepackError::DuplicatedSlotTx,
+                ));
+            }
+            let state_slot_tx = self.state.dequeue_slot_tx_from_account(contract_address)
+                 .expect("Dequeue slot tx failed!")
+                 .unwrap();
+            // Double checking.
+            assert!(state_slot_tx.is_duplicated(tx.slot_tx.as_ref().unwrap()));
+
         }
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
@@ -1455,21 +1483,21 @@ impl<'a> Executive<'a> {
             init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone();//TODO: need to set suitable value
         }
 
-        let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() { 
+        let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() {
             false => {
                 (
                     self.state.balance(&sender)?,
-                    tx.gas.full_mul(tx.gas_price), 
+                    tx.gas.full_mul(tx.gas_price),
                     U512::from(tx.value)
                 )
-            } 
+            }
             true => {
                 (
                     self.state.balance(&sender)?,
                     tx.slot_tx.as_ref().unwrap().gas_upfront().clone().full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
                     U512::from(0)
                 )
-            } 
+            }
         };
 
         // Check if contract will pay transaction fee for the sender.
@@ -1479,7 +1507,7 @@ impl<'a> Executive<'a> {
         match tx.action {
             Action::SlotTx => {
                 //There must be a sponsor for slot tx contract address
-                //Reason: After executing the slot tx, additional storage usage is used. 
+                //Reason: After executing the slot tx, additional storage usage is used.
                 //If the address is contract address, it forces its sponsor to pay for the addition usage
                 //Therefore, if not touching finalizing finalize function, it is set that contract address sponses itself right after deploying a contract
                 //Here will check sponsor exising
@@ -1582,7 +1610,7 @@ impl<'a> Executive<'a> {
                 let collateral_for_storage =
                     self.state.collateral_for_storage(&sender)?;
                 (
-                    tx_storage_limit_in_drip + collateral_for_storage, 
+                    tx_storage_limit_in_drip + collateral_for_storage,
                     sender
                 )
             }

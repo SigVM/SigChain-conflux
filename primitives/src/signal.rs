@@ -45,7 +45,7 @@ impl SignalLocation {
 )]
 pub struct SlotLocation {
     address: Address,
-    contract_address: Address, 
+    contract_address: Address,
     slot_key: Bytes,
 }
 
@@ -181,7 +181,7 @@ impl SlotInfo {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }  
+    }
     pub fn bind_list(&self) -> &Vec<SignalLocation> {
         &self.bind_list
     }
@@ -229,8 +229,8 @@ impl Slot {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }  
-    
+    }
+
     // Returns the method id of the slot
     pub fn get_method_id(&self) -> Bytes {
         self.location.slot_key()[0..4].to_vec()
@@ -286,6 +286,9 @@ impl SlotTx {
     }
 
     // Getters
+    pub fn location(&self) -> &SlotLocation {
+        &self.location
+    }
     pub fn address(&self) -> &Address {
         &self.location.address()
     }
@@ -303,7 +306,7 @@ impl SlotTx {
     }
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
-    }  
+    }
     pub fn epoch_height(&self) -> u64 {
         self.epoch_height
     }
@@ -315,6 +318,11 @@ impl SlotTx {
     }
     pub fn gas_upfront(&self) -> &U256 {
         &self.gas_upfront
+    }
+
+    pub fn is_duplicated(&self, tx: &SlotTx) -> bool {
+        self.location == *tx.location() && self.argv == tx.argv()
+        && self.epoch_height == tx.epoch_height()
     }
 
     // Functions for ABI purposes. This becomes important when calling slot code.
@@ -350,7 +358,7 @@ impl SlotTx {
         }
         ret
     }
-    
+
     // The two functions below are called in the tx pool, when these transactions are getting packed.
 
     // Calculate gas price.

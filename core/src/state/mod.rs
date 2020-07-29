@@ -192,7 +192,7 @@ impl State {
         // TODO: The below assertion fires. Not sure if this is imporant.
         // TODO: Investigate into the importance of checkpoints. Is the current
         // TODO: checkpoint implementation correct? is it important?
-        
+
         // assert!(self.global_slot_tx_queue_cache.get_mut().is_empty());
 
         /* Signal and Slots end */
@@ -1627,9 +1627,10 @@ impl State {
             numerator,
             denominator
         );
-        self.require_exists(address, false)?
+        println!("created slot {:?} at contract {:?}",slot_info, contract_address);
+        self.require_exists(contract_address, false)?
             .set_slot(slot_info);
-
+println!("created slot {:?}",self.require_exists(contract_address, false)?);
         Ok(true)
     }
 
@@ -1650,9 +1651,9 @@ impl State {
         &self, address: &Address, contract_address: &Address, key: &Vec<u8>,
     ) -> DbResult<Option<SlotInfo>> {
         let loc = SlotLocation::new(address, contract_address, key);
-        self.ensure_cached(address, RequireCache::None, |acc| {
-            acc.map_or(None, |account| {
-                account.slot_at(&self.db, &loc)
+        self.ensure_cached(contract_address, RequireCache::None, |acc| {
+            acc.map_or(None, |contract_address| {
+                contract_address.slot_at(&self.db, &loc)
             })
         })
     }
@@ -1684,7 +1685,7 @@ impl State {
             Ok(Some(s)) => s,
             _ => {
                 return Err(DbErrorKind::IncompleteDatabase(
-                    slot_loc.address().clone(),
+                    slot_loc.contract_address().clone(),
                 )
                 .into());
             }
@@ -1703,7 +1704,7 @@ impl State {
         self.require_exists(sig_loc.address(), false)?
             .add_to_slot_list(&self.db, sig_loc, &slot_info);
         // Slot account.
-        self.require_exists(&slot_loc.address(), false)?
+        self.require_exists(&slot_loc.contract_address(), false)?
             .add_to_bind_list(&self.db, slot_loc, sig_loc);
         Ok(())
     }
@@ -1750,11 +1751,11 @@ impl State {
                 let tx = SlotTx::new(
                     slot, &target_epoch_height, argv, is_fix, data_length
                 );
-                let address = tx.address().clone();
-                self.ensure_cached(&address, RequireCache::SlotTxQueue, |_acc| {})?;
-                self.require_exists(&address, false)?
+                let contract_address = tx.contract_address().clone();
+                self.ensure_cached(&contract_address, RequireCache::SlotTxQueue, |_acc| {})?;
+                self.require_exists(&contract_address, false)?
                     .enqueue_slot_tx(tx);
-                self.mark_address_with_ready_slot_tx(&address)?;
+                self.mark_address_with_ready_slot_tx(&contract_address)?;
             }
         }
         else {
@@ -1977,9 +1978,9 @@ impl State {
     ) -> DbResult<Option<SlotTx>> {
         self.ensure_cached(address, RequireCache::SlotTxQueue, |_acc| {})?;
         let result = self.require_exists(address, false)?
-            .dequeue_slot_tx();       
+            .dequeue_slot_tx();
         if self.require_exists(address, false)?
-            .is_slot_tx_queue_empty() 
+            .is_slot_tx_queue_empty()
         {
             self.remove_address_with_ready_slot_tx(address)?;
         }
