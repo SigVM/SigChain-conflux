@@ -1640,19 +1640,25 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let mut key = vec![0; 32];
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
                 let is_fix = self.stack.pop_back();  // 3
+                let fix_or_dyn: bool;
+                let data_length: u8;
                 let call_result = {
                     let mut data = vec![];
                     if is_fix == U256::from(1) {
+                        fix_or_dyn = true;
+                        data_length = 0;
                         let mut rawdata = context.storage_at(&key).unwrap();
                         data = rawdata.as_bytes_mut().to_vec();
-                        data.reverse();
+                        data.reverse();//only for js_test, will be removed after understanding the use of javascript
                     }else{
+                        fix_or_dyn = false;
                         let mut rawdata = context.storage_at(&key).unwrap();
                         let len = rawdata.as_bytes_mut().to_vec();
+                        data_length = (len[31] - 1 ) / 2;
                         if len[31] < 63 {
                             data = len;
                             data[31] = 0;
-                            data.reverse();
+                            //data.reverse();
                         }else{
                             let mul = (len[31]-1)/64;
                             let res = (len[31]-1)%64/2;
@@ -1666,7 +1672,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                                 let mut temp_res_data  = context.storage_at(&datakey).unwrap();
                                 data.extend(&(temp_res_data.as_bytes_mut().to_vec())[..]);
                             }
-                            data.reverse();
+                            //data.reverse();
                         }
                     }
                     context.emit_sig(
@@ -1674,6 +1680,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                         &sig_id,
                         &blk_delay,
                         &data[..],
+                        fix_or_dyn,
+                        data_length
                     )
                 };
 

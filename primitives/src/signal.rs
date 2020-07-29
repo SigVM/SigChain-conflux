@@ -254,8 +254,10 @@ pub struct SlotTx {
     epoch_height: u64,
     // Vector of arguments emitted by the signal.
     argv: Bytes,
-    //TODO: add new field in slottx: fixed_or_dynamic type : bool
-    //TODO: add new field in slottx: actual data_length: Bytes
+    //check data is fix or dynamic for abi encoding
+    is_fix : bool,
+    //the length of the data if dynamic
+    data_length: u8,
     // Gas price. Determined during packing.
     gas_price: U256,
     // Gas upfront cost.
@@ -264,7 +266,8 @@ pub struct SlotTx {
 
 impl SlotTx {
     pub fn new(
-        slot: &Slot, epoch_height: &u64, argv: &Bytes
+        slot: &Slot, epoch_height: &u64, argv: &Bytes,
+        is_fix: bool, data_length: u8
     ) -> Self {
         let new = SlotTx {
             location:              slot.location().clone(),
@@ -273,6 +276,8 @@ impl SlotTx {
             gas_ratio_denominator: slot.gas_ratio_denominator.clone(),
             epoch_height:          epoch_height.clone(),
             argv:                  argv.clone(),
+            is_fix:                is_fix,
+            data_length:           data_length,
             // Gas price is set when packed in the transaction pool.
             gas_price:             U256::zero(),
             gas_upfront:           U256::zero(),
@@ -330,29 +335,19 @@ impl SlotTx {
 
     Update: the arguements should already be padded by zeros, don't care about zeros, only care about it is fixed or dynamic type
     */
-    // pub fn encode(&self) -> Bytes {
-    //     let mut ret = self.get_method_id().clone();
-    //     let mut padding = vec![0u8; 32 - self.argv.len()%32];
-    //     if padding.len() == 32 { padding = vec![]; }
-    //     ret.extend_from_slice(&self.argv[..]);
-    //     ret.extend_from_slice(&padding[..]);
-    //     if self.is_fixed {//TODO: add new field in slottx: fixed_or_dynamic type
-    //         //if it is fixed
-    //         ret.extend_from_slice(&self.argv[..]);
-    //     }else{
-    //         //if it is bynamic
-    //         let mut off_part = vec![0u8; 30];
-    //         off_part.push(32);
-    //         ret.extend_from_slice(&off_part[..]);
-    //         ret.extend_from_slice(&self.datalength);
-    //         ret.extend_from_slice(&self.argv[..]);
-    //     }
-    //     ret
-    // }
-
     pub fn encode(&self) -> Bytes {
         let mut ret = self.get_method_id().clone();
-        ret.extend_from_slice(&self.argv[..]);
+        if self.is_fix {
+            ret.extend_from_slice(&self.argv[..]);
+        }else{
+            let mut off_part = vec![0u8; 31];
+            off_part.push(64);
+            let mut len_part = vec![0u8; 32];
+            len_part[31] = self.data_length;
+            ret.extend_from_slice(&off_part[..]);
+            ret.extend_from_slice(&len_part[..]);
+            ret.extend_from_slice(&self.argv[..]);
+        }
         ret
     }
     

@@ -521,7 +521,8 @@ impl<'a> ContextTrait for Context<'a> {
     // Emit a new signal instance, gas is hardcoded for now
     fn emit_sig(
         &mut self, sender_address: &Address,
-        signal_id: &Vec<u8>, epochs_delayed: &U256, data: &[u8]
+        signal_id: &Vec<u8>, epochs_delayed: &U256, data: &[u8],
+        is_fix: bool, data_length: u8
     ) -> Result<SignalSlotOpResult, TrapKind> {
         // Get signal location.
         let sig_loc = SignalLocation::new(
@@ -532,7 +533,9 @@ impl<'a> ContextTrait for Context<'a> {
             &sig_loc, 
             self.env.epoch_height, 
             epochs_delayed.as_u64(), 
-            &data.to_vec()
+            &data.to_vec(),
+            is_fix,
+            data_length
         );
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -981,6 +984,7 @@ mod tests {
 
         let result = ctx.create_slot(
             &Address::zero(),
+            &Address::zero(),
             &vec![std::u8::MAX],
             &U256::zero(),
             &U256::zero(),
@@ -993,6 +997,7 @@ mod tests {
         let result = ctx.bind_slot(
             &Address::zero(),
             &Address::zero(),
+            &Address::zero(),
             &vec![std::u8::MIN],
             &vec![std::u8::MAX],
         ).ok()
@@ -1000,6 +1005,7 @@ mod tests {
         check_sig_slot_result(result);
 
         let result = ctx.detach_slot(
+            &Address::zero(),
             &Address::zero(),
             &Address::zero(),
             &vec![std::u8::MIN],

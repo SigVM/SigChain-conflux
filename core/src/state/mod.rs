@@ -1728,7 +1728,7 @@ impl State {
     pub fn emit_signal_and_queue_slot_tx(
         &mut self, sig_loc: &SignalLocation,
         current_epoch_height: u64, epoch_height_delay: u64,
-        argv: &Bytes,
+        argv: &Bytes, is_fix: bool, data_length: u8
     ) -> DbResult<()> {
         // Get signal info.
         let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
@@ -1748,7 +1748,7 @@ impl State {
         if epoch_height_delay == 0 {
             for slot in sig_info.slot_list() {
                 let tx = SlotTx::new(
-                    slot, &target_epoch_height, argv
+                    slot, &target_epoch_height, argv, is_fix, data_length
                 );
                 let address = tx.address().clone();
                 self.ensure_cached(&address, RequireCache::SlotTxQueue, |_acc| {})?;
@@ -1760,7 +1760,7 @@ impl State {
         else {
             for slot in sig_info.slot_list() {
                 let tx = SlotTx::new(
-                    slot, &target_epoch_height, argv
+                    slot, &target_epoch_height, argv, is_fix, data_length
                 );
                 self.enqueue_slot_tx_to_global_queue(tx)?;
             }
