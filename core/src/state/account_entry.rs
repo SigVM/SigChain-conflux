@@ -1068,7 +1068,7 @@ impl OverlayAccount {
         slot_cache: &mut HashMap<Vec<u8>, SlotInfo>,
         slot_loc: &SlotLocation, db: &StateDb
     ) -> Option<SlotInfo> {
-        match db.get_slot_info(&slot_loc.address(), &slot_loc.slot_key()) {
+        match db.get_slot_info(&slot_loc.contract_address(), &slot_loc.slot_key()) {
             Ok(Some(slot_info)) => {
                 slot_cache.insert(slot_loc.slot_key().clone(), slot_info.clone());
                 Some(slot_info.clone())

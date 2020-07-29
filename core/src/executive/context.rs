@@ -467,13 +467,15 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Create a new slot definition
     fn create_slot(
-        &mut self, sender_address: &Address, 
+        &mut self, sender_address: &Address,
+        contract_address: &Address, 
         slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256, 
         numerator: &U256, denominator: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         let result = self.state.create_slot(
-            sender_address, 
+            sender_address,
+            contract_address,
             slot_key,
             argc,
             gas_limit, 
@@ -488,11 +490,12 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Bind a slot to a signal, gas is hardcoded for now
     fn bind_slot(
-        &mut self, sender_address: &Address,
-        signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
+        &mut self, _sender_address: &Address,
+        contract_address: &Address, 
+        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let sig_loc = SignalLocation::new(&signal_address, signal_id);
-        let slt_loc = SlotLocation::new(&sender_address, slot_id);
+        let sig_loc = SignalLocation::new(&_signal_address, _signal_id);
+        let slt_loc = SlotLocation::new(&_sender_address, &contract_address, _slot_id);
         let result = self.state.bind_slot_to_signal(&sig_loc, &slt_loc);
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -502,11 +505,12 @@ impl<'a> ContextTrait for Context<'a> {
 
     // Detach a slot from a signal, gas is hardcoded for now
     fn detach_slot(
-        &mut self, sender_address: &Address,
-        signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
+        &mut self, _sender_address: &Address,
+        contract_address: &Address, 
+        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
-        let sig_loc = SignalLocation::new(&signal_address, signal_id);
-        let slt_loc = SlotLocation::new(&sender_address, slot_id);
+        let sig_loc = SignalLocation::new(&_signal_address, _signal_id);
+        let slt_loc = SlotLocation::new(&_sender_address,&contract_address,_slot_id);
         let result = self.state.detach_slot_from_signal(&sig_loc, &slt_loc);
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -517,7 +521,8 @@ impl<'a> ContextTrait for Context<'a> {
     // Emit a new signal instance, gas is hardcoded for now
     fn emit_sig(
         &mut self, sender_address: &Address,
-        signal_id: &Vec<u8>, epochs_delayed: &U256, data: &[u8]
+        signal_id: &Vec<u8>, epochs_delayed: &U256, data: &[u8],
+        is_fix: bool, data_length: u8
     ) -> Result<SignalSlotOpResult, TrapKind> {
         // Get signal location.
         let sig_loc = SignalLocation::new(
@@ -528,7 +533,9 @@ impl<'a> ContextTrait for Context<'a> {
             &sig_loc, 
             self.env.epoch_height, 
             epochs_delayed.as_u64(), 
-            &data.to_vec()
+            &data.to_vec(),
+            is_fix,
+            data_length
         );
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -977,6 +984,7 @@ mod tests {
 
         let result = ctx.create_slot(
             &Address::zero(),
+            &Address::zero(),
             &vec![std::u8::MAX],
             &U256::zero(),
             &U256::zero(),
@@ -989,6 +997,7 @@ mod tests {
         let result = ctx.bind_slot(
             &Address::zero(),
             &Address::zero(),
+            &Address::zero(),
             &vec![std::u8::MIN],
             &vec![std::u8::MAX],
         ).ok()
@@ -996,6 +1005,7 @@ mod tests {
         check_sig_slot_result(result);
 
         let result = ctx.detach_slot(
+            &Address::zero(),
             &Address::zero(),
             &Address::zero(),
             &vec![std::u8::MIN],

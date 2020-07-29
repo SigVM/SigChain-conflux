@@ -410,7 +410,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                         ));
                     }
                 };
-
+                //TODO: remove println
+                //println!("instruction execute: {:?}", instruction);
                 let info = instruction.info();
                 self.last_stack_ret_len = info.ret;
                 if let Err(e) =
@@ -1564,6 +1565,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // Call context trait api to do the rest of the work.
                 let call_result =
                     context.create_slot(
+                        &self.params.sender,
                         &self.params.address,
                         &key,
                         &argc,
@@ -1590,6 +1592,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
                 let call_result =
                     context.bind_slot(
+                        &self.params.sender,
                         &self.params.address,
                         &u256_to_address(&emitter),
                         &sig_id,
@@ -1614,6 +1617,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
                 let call_result =
                     context.detach_slot(
+                        &self.params.sender,
                         &self.params.address,
                         &u256_to_address(&emitter),
                         &sig_id,
@@ -1633,18 +1637,52 @@ impl<Cost: CostType> Interpreter<Cost> {
             instructions::EMITSIG => {
                 let mut sig_id = vec![0; 32];          // 0
                 self.stack.pop_back().to_big_endian(sig_id.as_mut());
-                let blk_delay = self.stack.pop_back(); // 1  
+                let blk_delay = self.stack.pop_back(); // 1
                 let mut key = vec![0; 32];
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
-                let _arg_size = self.stack.pop_back();  // 3
+                let is_fix = self.stack.pop_back();  // 3
+                let fix_or_dyn: bool;
+                let data_length: u8;
                 let call_result = {
-                    let data = context.storage_at(&key).unwrap();
-                    let data = data.as_bytes();
+                    let mut data = vec![];
+                    if is_fix == U256::from(1) {
+                        fix_or_dyn = true;
+                        data_length = 0;
+                        let mut rawdata = context.storage_at(&key).unwrap();
+                        data = rawdata.as_bytes_mut().to_vec();
+                        data.reverse();//only for js_test, will be removed after understanding the use of javascript
+                    }else{
+                        fix_or_dyn = false;
+                        let mut rawdata = context.storage_at(&key).unwrap();
+                        let len = rawdata.as_bytes_mut().to_vec();
+                        data_length = (len[31] - 1 ) / 2;
+                        if len[31] < 63 {
+                            data = len;
+                            data[31] = 0;
+                            //data.reverse();
+                        }else{
+                            let mul = (len[31]-1)/64;
+                            let res = (len[31]-1)%64/2;
+                            let mut datakey = keccak(key).as_bytes().to_vec();
+                            for _i in 0..mul {
+                                let mut temp_data  = context.storage_at(&datakey).unwrap();
+                                data.extend(temp_data.as_bytes_mut().to_vec().iter().clone());
+                                datakey[31] = datakey[31] + 1;//TODO: datakey now doesnt carry to higher position when adding
+                            }
+                            if res > 0 {
+                                let mut temp_res_data  = context.storage_at(&datakey).unwrap();
+                                data.extend(&(temp_res_data.as_bytes_mut().to_vec())[..]);
+                            }
+                            //data.reverse();
+                        }
+                    }
                     context.emit_sig(
                         &self.params.address,
                         &sig_id,
                         &blk_delay,
-                        &data,
+                        &data[..],
+                        fix_or_dyn,
+                        data_length
                     )
                 };
 

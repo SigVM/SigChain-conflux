@@ -678,7 +678,13 @@ impl TransactionPool {
         } 
         
         // Create a pool of slot transactions. The gas price for each one is also set.
-        let slot_tx_limit: usize = transactions_from_pool.len() / Self::TX_TO_SLOT_TX_RATIO;
+        let slot_tx_limit: usize;
+        if transactions_from_pool.len() < Self::TX_TO_SLOT_TX_RATIO {
+            slot_tx_limit = 1;
+        }else{
+            slot_tx_limit = transactions_from_pool.len() / Self::TX_TO_SLOT_TX_RATIO;
+        }
+
         let slot_tx_pool = self.get_list_of_slot_tx(
             slot_tx_limit, 
             self_gas_limit.clone(),

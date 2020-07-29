@@ -207,7 +207,8 @@ pub trait Context {
     // Create a new slot definition
     // gas_ratio is out of 100
     fn create_slot(
-        &mut self, sender_address: &Address, 
+        &mut self, sender_address: &Address,
+        contract_address: &Address, 
         slot_key: &Vec<u8>,
         argc: &U256, gas_limit: &U256, 
         numerator: &U256, denominator: &U256,
@@ -216,19 +217,22 @@ pub trait Context {
     // Bind a slot to a signal
     fn bind_slot(
         &mut self, sender_address: &Address,
+        contract_address: &Address, 
         signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Detach a slot from a signal
     fn detach_slot(
         &mut self, sender_address: &Address,
+        contract_address: &Address, 
         signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     // Emit a new signal instance
     fn emit_sig(
         &mut self, sender_address: &Address,
-        signal_id: &Vec<u8>, blocks_delayed: &U256, data: &[u8]
+        signal_id: &Vec<u8>, blocks_delayed: &U256, data: &[u8],
+        is_fix: bool, data_length: u8
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     /* Signal and Slots end */

@@ -45,13 +45,15 @@ impl SignalLocation {
 )]
 pub struct SlotLocation {
     address: Address,
+    contract_address: Address,
     slot_key: Bytes,
 }
 
 impl SlotLocation {
-    pub fn new(owner: &Address, slot_key: &[u8]) -> Self {
+    pub fn new(owner: &Address, contract: &Address, slot_key: &[u8]) -> Self {
         let new = SlotLocation {
             address: owner.clone(),
+            contract_address: contract.clone(),
             slot_key: Bytes::from(slot_key),
         };
         new
@@ -59,6 +61,9 @@ impl SlotLocation {
     // Getters
     pub fn address(&self) -> &Address {
         &self.address
+    }
+    pub fn contract_address(&self) -> &Address {
+        &self.contract_address
     }
     pub fn slot_key(&self) -> &Bytes {
         &self.slot_key
@@ -142,10 +147,10 @@ pub struct SlotInfo {
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, slot_key: &[u8], arg_count: &U256,
+        owner: &Address, contract: &Address, slot_key: &[u8], arg_count: &U256,
         gas_limit: &U256, numerator: &U256, denominator: &U256
     ) -> Self {
-        let loc = SlotLocation::new(owner, slot_key);
+        let loc = SlotLocation::new(owner, contract, slot_key);
         let new = SlotInfo {
             location:              loc,
             arg_count:             arg_count.clone(),
@@ -259,8 +264,10 @@ pub struct SlotTx {
     epoch_height: u64,
     // Vector of arguments emitted by the signal.
     argv: Bytes,
-    //TODO: add new field in slottx: fixed_or_dynamic type : bool
-    //TODO: add new field in slottx: actual data_length: Bytes
+    //check data is fix or dynamic for abi encoding
+    is_fix : bool,
+    //the length of the data if dynamic
+    data_length: u8,
     // Gas price. Determined during packing.
     gas_price: U256,
     // Gas upfront cost.
@@ -269,7 +276,8 @@ pub struct SlotTx {
 
 impl SlotTx {
     pub fn new(
-        slot: &Slot, epoch_height: &u64, argv: &Bytes
+        slot: &Slot, epoch_height: &u64, argv: &Bytes,
+        is_fix: bool, data_length: u8
     ) -> Self {
         let new = SlotTx {
             location:              slot.location().clone(),
@@ -278,6 +286,8 @@ impl SlotTx {
             gas_ratio_denominator: slot.gas_ratio_denominator.clone(),
             epoch_height:          epoch_height.clone(),
             argv:                  argv.clone(),
+            is_fix:                is_fix,
+            data_length:           data_length,
             // Gas price is set when packed in the transaction pool.
             gas_price:             U256::zero(),
             gas_upfront:           U256::zero(),
@@ -286,8 +296,14 @@ impl SlotTx {
     }
 
     // Getters
+    pub fn location(&self) -> &SlotLocation {
+        &self.location
+    }
     pub fn address(&self) -> &Address {
         &self.location.address()
+    }
+    pub fn contract_address(&self) -> &Address {
+        &self.location.contract_address()
     }
     pub fn slot_key(&self) -> &Bytes {
         &self.location.slot_key()
@@ -314,6 +330,11 @@ impl SlotTx {
         &self.gas_upfront
     }
 
+    pub fn is_duplicated(&self, tx: &SlotTx) -> bool {
+        self.location == *tx.location() && self.argv == tx.argv()
+        && self.epoch_height == tx.epoch_height()
+    }
+
     // Functions for ABI purposes. This becomes important when calling slot code.
     // The standard ABI protocol involves having each function assigned a method id.
     // To call a function, the 4 byte method ID is prepended to the argument/data vector.
@@ -332,31 +353,19 @@ impl SlotTx {
 
     Update: the arguements should already be padded by zeros, don't care about zeros, only care about it is fixed or dynamic type
     */
-    // pub fn encode(&self) -> Bytes {
-    //     let mut ret = self.get_method_id().clone();
-    //     let mut padding = vec![0u8; 32 - self.argv.len()%32];
-    //     if padding.len() == 32 { padding = vec![]; }
-    //     ret.extend_from_slice(&self.argv[..]);
-    //     ret.extend_from_slice(&padding[..]);
-    //     if self.is_fixed {//TODO: add new field in slottx: fixed_or_dynamic type
-    //         //if it is fixed
-    //         ret.extend_from_slice(&self.argv[..]);
-    //     }else{
-    //         //if it is bynamic
-    //         let mut off_part = vec![0u8; 30];
-    //         off_part.push(32);
-    //         ret.extend_from_slice(&off_part[..]);
-    //         ret.extend_from_slice(&self.datalength);
-    //         ret.extend_from_slice(&self.argv[..]);
-    //     }
-    //     ret
-    // }
-
     pub fn encode(&self) -> Bytes {
-        let mut ret = self.location.slot_key()[0..4].to_vec().clone();
-        let padding = vec![0u8; 32 - self.argv.len()];
-        ret.extend_from_slice(&self.argv[..]);
-        ret.extend_from_slice(&padding[..]);
+        let mut ret = self.get_method_id().clone();
+        if self.is_fix {
+            ret.extend_from_slice(&self.argv[..]);
+        }else{
+            let mut off_part = vec![0u8; 31];
+            off_part.push(64);
+            let mut len_part = vec![0u8; 32];
+            len_part[31] = self.data_length;
+            ret.extend_from_slice(&off_part[..]);
+            ret.extend_from_slice(&len_part[..]);
+            ret.extend_from_slice(&self.argv[..]);
+        }
         ret
     }
 

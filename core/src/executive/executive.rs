@@ -451,7 +451,7 @@ impl<'a> CallCreateExecutive<'a> {
     pub fn exec(
         mut self, state: &mut State, substate: &mut Substate,
     ) -> ExecutiveTrapResult<'a, FinalizationResult> {
-        
+
         match self.kind {
             CallCreateExecutiveKind::Transfer(ref params) => {
                 assert!(!self.is_create);
@@ -1394,7 +1394,7 @@ impl<'a> Executive<'a> {
                     },
                 ));
             }
-            // Contract wide locking when there are unhandled slot transactions. 
+            // Contract wide locking when there are unhandled slot transactions.
             // Normal transactions should not be executed until slot transactions are done.
             let call_address = tx.call_address();
             if call_address.is_some() {
@@ -1404,6 +1404,34 @@ impl<'a> Executive<'a> {
                     ));
                 }
             }
+        } else {
+            // // Slot transaction should not fail. Even if it fails we dequeue anyways.
+            let contract_address = tx.slot_tx.as_ref().unwrap().contract_address();
+            if self.state.is_account_slot_tx_queue_empty(contract_address).unwrap() {
+                // Not the first slot tx in queue, skipping execution.
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                    ToRepackError::DuplicatedSlotTx,
+                ));
+            }
+
+            // check the next transaction in the queue
+            let queue = self.state
+                .get_account_slot_tx_queue(contract_address)
+                .expect("Get slot tx queue failed!");
+
+            let peek_tx = queue.peek(0).unwrap().clone();
+            if !peek_tx.is_duplicated(tx.slot_tx.as_ref().unwrap()) {
+                // Not the first slot tx in queue, skipping execution.
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                    ToRepackError::DuplicatedSlotTx,
+                ));
+            }
+            let state_slot_tx = self.state.dequeue_slot_tx_from_account(contract_address)
+                 .expect("Dequeue slot tx failed!")
+                 .unwrap();
+            // Double checking.
+            assert!(state_slot_tx.is_duplicated(tx.slot_tx.as_ref().unwrap()));
+
         }
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
@@ -1452,24 +1480,24 @@ impl<'a> Executive<'a> {
                 tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
                 "We should have checked base gas requirement for slot tx when we received the block."
             );
-            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront() - base_gas_required;
+            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone();//TODO: need to set suitable value
         }
 
-        let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() { 
+        let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() {
             false => {
                 (
                     self.state.balance(&sender)?,
-                    tx.gas.full_mul(tx.gas_price), 
+                    tx.gas.full_mul(tx.gas_price),
                     U512::from(tx.value)
                 )
-            } 
+            }
             true => {
                 (
-                    self.state.balance(tx.slot_tx.as_ref().unwrap().address())?,
+                    self.state.balance(&sender)?,
                     tx.slot_tx.as_ref().unwrap().gas_upfront().clone().full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
                     U512::from(0)
                 )
-            } 
+            }
         };
 
         // Check if contract will pay transaction fee for the sender.
@@ -1479,17 +1507,17 @@ impl<'a> Executive<'a> {
         match tx.action {
             Action::SlotTx => {
                 //There must be a sponsor for slot tx contract address
-                //Reason: After executing the slot tx, additional storage usage is used. 
+                //Reason: After executing the slot tx, additional storage usage is used.
                 //If the address is contract address, it forces its sponsor to pay for the addition usage
                 //Therefore, if not touching finalizing finalize function, it is set that contract address sponses itself right after deploying a contract
                 //Here will check sponsor exising
                 //TODO: check sponsor balance is the same as sponsor owned balance or they are completely distinct
                 //      if it is the same, we don't need to check sponsor here, contract address is able to pay itself here
-                code_address = *tx.slot_tx.as_ref().unwrap().address();
+                code_address = *tx.slot_tx.as_ref().unwrap().contract_address();
                 if self.state.is_contract(&code_address) {//slottx address must be a contract address
                     if self
                         .state
-                        .check_commission_privilege(&code_address, &code_address)?
+                        .check_commission_privilege(&code_address, &sender)?
                     {
                         // No need to check for gas sponsor account existence.
                         gas_sponsored = gas_cost
@@ -1582,7 +1610,7 @@ impl<'a> Executive<'a> {
                 let collateral_for_storage =
                     self.state.collateral_for_storage(&sender)?;
                 (
-                    tx_storage_limit_in_drip + collateral_for_storage, 
+                    tx_storage_limit_in_drip + collateral_for_storage,
                     sender
                 )
             }
@@ -1634,14 +1662,14 @@ impl<'a> Executive<'a> {
                 .unwrap();
                 // We don't want to bump nonce for non-existent account when we
                 // can't charge gas fee.
-                if !self.state.exists(tx.slot_tx.as_ref().unwrap().address())? {
+                if !self.state.exists(&sender)? {
                     return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                         ToRepackError::SenderDoesNotExist,
                     ));
                 }
                 //self.state.inc_nonce(&sender)?;
                 self.state.sub_balance(
-                    tx.slot_tx.as_ref().unwrap().address(),
+                    &sender,
                     &actual_gas_cost,
                     &mut substate.to_cleanup_mode(&spec),
                 )?;
@@ -1663,7 +1691,7 @@ impl<'a> Executive<'a> {
             // Subtract the transaction fee from contract.
             if !gas_free_of_charge {
                 self.state.sub_balance(
-                    &tx.slot_tx.as_ref().unwrap().address(),
+                    &sender,
                     &U256::try_from(gas_cost).unwrap(),
                     &mut substate.to_cleanup_mode(&spec),
                 )?;
@@ -1777,16 +1805,16 @@ impl<'a> Executive<'a> {
                 assert!(tx.is_slot_tx());
                 let tx = tx.slot_tx.as_ref().unwrap();
                 let params = ActionParams {
-                    code_address: tx.address().clone(),
-                    address: tx.address().clone(),
+                    code_address: tx.contract_address().clone(),
+                    address: tx.contract_address().clone(),
                     sender,
                     original_sender: sender,
                     storage_owner,
                     gas: init_gas,
                     gas_price: tx.gas_price().clone(),
                     value: ActionValue::Transfer(U256::zero()),
-                    code: self.state.code(tx.address())?,
-                    code_hash: self.state.code_hash(tx.address())?,
+                    code: self.state.code(tx.contract_address())?,
+                    code_hash: self.state.code_hash(tx.contract_address())?,
                     data: Some(tx.encode()),
                     call_type: CallType::Call,
                     params_type: vm::ParamsType::Separate,

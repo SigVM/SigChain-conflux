@@ -998,7 +998,7 @@ impl ConsensusExecutionHandler {
 
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
-    
+
         // Drain global slot transaction queue for this epoch.
         let pivot_block_header = self
             .data_man
@@ -1128,6 +1128,8 @@ impl ConsensusExecutionHandler {
             pivot_block.block_header.parent_hash().clone();
         for block in epoch_blocks.iter() {
             let mut receipts = Vec::new();
+            //TODO: remove println
+            //println!("bugbug: {:?} blocks in current epoch",epoch_blocks.len());
             debug!(
                 "process txs in block: hash={:?}, tx count={:?}",
                 block.hash(),
@@ -1151,12 +1153,15 @@ impl ConsensusExecutionHandler {
 
             block_number += 1;
             last_block_hash = block.hash();
+            //TODO: remove println
+            //println!("bugbug: process_epoch_transactions processing {:?} transactions in height {:?}",block.transactions.len(), pivot_block.block_header.height());
             for (idx, transaction) in block.transactions.iter().enumerate() {
                 let tx_outcome_status;
                 let mut transaction_logs = Vec::new();
                 let mut storage_released = Vec::new();
                 let mut storage_collateralized = Vec::new();
-
+                //TODO: remove println
+                //if transaction.is_slot_tx() {println!("bugbug: process_epoch_transactions processing slot tx {:?}", transaction);}
                 let r = {
                     Executive::new(
                         state,
@@ -1168,20 +1173,6 @@ impl ConsensusExecutionHandler {
                     .transact(transaction)?
                 };
 
-                //////////////////////////////////////////////////////////////////////
-                /* Signal and Slots begin */
-                // Slot transaction should not fail. Even if it fails we dequeue anyways.
-                if transaction.is_slot_tx() {
-                    let address = transaction.slot_tx.as_ref().unwrap().address();
-                    // Dequeue and make sure we executed the correct slot_tx!
-                    let state_slot_tx = state
-                        .dequeue_slot_tx_from_account(address)
-                        .expect("Dequeue slot tx failed!")
-                        .unwrap();
-                    assert_eq!(transaction.slot_tx.as_ref().unwrap().clone(), state_slot_tx);
-                }
-                /* Signal and Slots end */
-                //////////////////////////////////////////////////////////////////////
 
                 let gas_fee;
                 let mut gas_sponsor_paid = false;
@@ -1208,7 +1199,8 @@ impl ConsensusExecutionHandler {
                             transaction,
                             e
                         );
-                        if on_local_pivot {
+                        // Don't recycle slot transaction.
+                        if on_local_pivot && !transaction.is_slot_tx() {
                             trace!(
                                 "To re-add transaction to transaction pool. \
                                  transaction={:?}",
