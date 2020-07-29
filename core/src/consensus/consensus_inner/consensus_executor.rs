@@ -1128,8 +1128,6 @@ impl ConsensusExecutionHandler {
             pivot_block.block_header.parent_hash().clone();
         for block in epoch_blocks.iter() {
             let mut receipts = Vec::new();
-            //TODO: remove println
-            //println!("bugbug: {:?} blocks in current epoch",epoch_blocks.len());
             debug!(
                 "process txs in block: hash={:?}, tx count={:?}",
                 block.hash(),
@@ -1153,15 +1151,11 @@ impl ConsensusExecutionHandler {
 
             block_number += 1;
             last_block_hash = block.hash();
-            //TODO: remove println
-            //println!("bugbug: process_epoch_transactions processing {:?} transactions in height {:?}",block.transactions.len(), pivot_block.block_header.height());
             for (idx, transaction) in block.transactions.iter().enumerate() {
                 let tx_outcome_status;
                 let mut transaction_logs = Vec::new();
                 let mut storage_released = Vec::new();
                 let mut storage_collateralized = Vec::new();
-                //TODO: remove println
-                //if transaction.is_slot_tx() {println!("bugbug: process_epoch_transactions processing slot tx {:?}", transaction);}
                 let r = {
                     Executive::new(
                         state,
