@@ -336,18 +336,30 @@ impl VerificationConfig {
         }
 
         // check transaction intrinsic gas
-        let tx_intrinsic_gas = Executive::gas_required_for(
-            tx.action == Action::Create,
-            &tx.data,
-            &self.vm_spec,
-        );
-        if tx.gas < (tx_intrinsic_gas as usize).into() {
-            bail!(TransactionError::NotEnoughBaseGas {
-                required: tx_intrinsic_gas.into(),
-                got: tx.gas
-            });
+        if tx.is_slot_tx() {
+            let tx_intrinsic_gas = Executive::gas_required_for_slot_tx(
+                &tx.slot_tx.as_ref().unwrap(),
+                &self.vm_spec,
+            );
+            if *tx.slot_tx.as_ref().unwrap().gas_upfront() < (tx_intrinsic_gas as usize).into() {
+                bail!(TransactionError::NotEnoughBaseGas {
+                    required: tx_intrinsic_gas.into(),
+                    got: *tx.slot_tx.as_ref().unwrap().gas_upfront()
+                });
+            }            
+        }else{
+            let tx_intrinsic_gas = Executive::gas_required_for(
+                tx.action == Action::Create,
+                &tx.data,
+                &self.vm_spec,
+            );
+            if tx.gas < (tx_intrinsic_gas as usize).into() {
+                bail!(TransactionError::NotEnoughBaseGas {
+                    required: tx_intrinsic_gas.into(),
+                    got: tx.gas
+                });
+            }
         }
-
         Ok(())
     }
 }
