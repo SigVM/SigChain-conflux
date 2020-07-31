@@ -1928,7 +1928,7 @@ impl State {
                 while !global_queue.is_empty() {
                     // unwrap is okay to use here because queue is not empty
                     let slot_tx = global_queue.dequeue().unwrap();
-                    let address = slot_tx.address().clone();
+                    let address = slot_tx.contract_address().clone();
                     self.ensure_cached(&address, RequireCache::SlotTxQueue, |_acc| {})?;
                     self.require_exists(&address, false)?
                         .enqueue_slot_tx(slot_tx);

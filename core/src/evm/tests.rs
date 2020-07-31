@@ -1352,7 +1352,7 @@ fn should_detach(factory: super::Factory) {
 
 evm_test! {should_emit: should_emit_int}
 fn should_emit(factory: super::Factory) {
-    let code = "6009602060216022c4".from_hex().unwrap();
+    let code = "6001602060216022c4".from_hex().unwrap();
 
     let mut params = ActionParams::default();
     params.gas = U256::from(100_000);

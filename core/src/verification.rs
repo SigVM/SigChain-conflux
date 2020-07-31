@@ -244,7 +244,7 @@ impl VerificationConfig {
         for t in &block.transactions {
             self.verify_transaction_in_block(t, chain_id, block_height)?;
             block_size += t.rlp_size();
-            block_total_gas += *t.gas_limit();
+            block_total_gas += *t.gas_limit();//TODO: need to include slottx gas limit
         }
 
         if block_size > self.max_block_size_in_bytes {

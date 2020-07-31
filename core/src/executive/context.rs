@@ -1019,6 +1019,8 @@ mod tests {
             &vec![std::u8::MIN],
             &U256::zero(),
             &vec![std::u8::MIN],
+            true,
+            0
         ).ok()
         .unwrap();
         check_sig_slot_result(result);

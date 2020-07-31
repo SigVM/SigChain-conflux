@@ -410,8 +410,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                         ));
                     }
                 };
-                //TODO: remove println
-                //println!("instruction execute: {:?}", instruction);
+                
                 let info = instruction.info();
                 self.last_stack_ret_len = info.ret;
                 if let Err(e) =
@@ -1645,7 +1644,10 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let data_length: u8;
                 let call_result = {
                     let mut data = vec![];
-                    if is_fix == U256::from(1) {
+                    if is_fix == U256::from(2) {
+                        fix_or_dyn = true;
+                        data_length = 0;
+                    }else if is_fix == U256::from(1) {
                         fix_or_dyn = true;
                         data_length = 0;
                         let mut rawdata = context.storage_at(&key).unwrap();
