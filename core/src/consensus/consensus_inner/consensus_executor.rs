@@ -15,7 +15,7 @@ use crate::{
         },
         ConsensusGraphInner,
     },
-    executive::{ExecutionOutcome, Executive, InternalContractMap},
+    executive::{ExecutionOutcome, Executive, InternalContractMap, ToRepackError},
     machine::Machine,
     parameters::{consensus::*, consensus_internal::*},
     rpc_errors::{invalid_params_check, Result as RpcResult},
@@ -1202,7 +1202,17 @@ impl ConsensusExecutionHandler {
                             );
                             to_pending.push(transaction.clone())
                         }
-                        gas_fee = U256::zero();
+
+                        if let ToRepackError::SlotExecutionError(ee, ex) = e{
+                            env.accumulated_gas_used += ex.gas_used;
+                            gas_fee = ex.fee;
+                            debug!(
+                                "tx execution error: transaction={:?}, err={:?}",
+                                transaction, ee
+                            );
+                        }else{
+                            gas_fee = U256::zero();
+                        }
                     }
                     ExecutionOutcome::ExecutionErrorBumpNonce(
                         error,

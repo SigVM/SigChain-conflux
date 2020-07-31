@@ -30,6 +30,165 @@ fn make_byzantium_machine(max_depth: usize) -> Machine {
 }
 
 #[test]
+#[should_panic]
+fn test_slot_exec_error() {
+    // pragma solidity ^0.6.9;
+    // contract B {
+    //     bytes3 public LocalPriceSum;
+    //     uint public priceReceive_status;
+    //     bytes32 public priceReceive_codePtr;//codePtr is useless now
+    //     bytes32 public priceReceive_key;
+    //     function priceReceive() public{
+    //         priceReceive_key = keccak256("priceReceive_func(bytes3)");
+    //         assembly {
+    //             sstore(priceReceive_status_slot,createslot(3,10,30000,sload(priceReceive_key_slot)))
+    //         }		
+    //     }
+    //     function priceReceive_func(bytes3 obj) public returns (bytes3 ret){
+    //         ret = ~ obj;
+    //     }
+    //     constructor() public {
+    //         priceReceive();
+    //     }
+    // }
+    //
+    //the test will execute slot priceReceive, it will do call priceReceive_func(bytes3 obj)
+    //the solidity source code is in solidity/signalslot_parse_script/tb/tb7
+
+    let factory = Factory::new(VMType::Interpreter, 1024 * 32);
+    let create_code = "608060405234801561001057600080fd5b5061001f61002460201b60201c565b610
+    070565b60405180807f7072696365526563656976655f66756e63286279746573332900000000000000815
+    25060190190506040518091039020600381905550600354617530600a6003c1600155565b6102d08061007
+    f6000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c80630cd
+    2542e146100675780630f91288114610085578063255286301461012757806368c0b03814610145578063b
+    6675486146101a3578063fd0bf5a3146101ad575b600080fd5b61006f6101cb565b6040518082815260200
+    191505060405180910390f35b6100d16004803603602081101561009b57600080fd5b8101908080357cfff
+    fffffffffffffffffffffffffffffffffffffffffffffffffffffff191690602001909291905050506101d
+    1565b60405180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cfffff
+    fffffffffffffffffffffffffffffffffffffffffffffffffffff191681526020019150506040518091039
+    0f35b61012f610206565b6040518082815260200191505060405180910390f35b61014d61020c565b60405
+    180827cffffffffffffffffffffffffffffffffffffffffffffffffffffffffff19167cfffffffffffffff
+    fffffffffffffffffffffffffffffffffffffffffff1916815260200191505060405180910390f35b6101a
+    b61021e565b005b6101b561026a565b6040518082815260200191505060405180910390f35b60025481565
+    b6000816000806101000a81548162ffffff021916908360e81c02179055506000809054906101000a90046
+    0e81b199050919050565b60015481565b6000809054906101000a900460e81b81565b60405180807f70726
+    96365526563656976655f66756e63286279746573332900000000000000815250601901905060405180910
+    39020600381905550600354617530600a6003c1600155565b6003548156fea26469706673582212206c5d6
+    5486a71d7534b8309409b32ebcf14c1b19d5f661a088a2b3cb3360a5a8164736f6c63782c302e362e31312
+    d646576656c6f702e323032302e372e31342b636f6d6d69742e63333731353564362e6d6f64005d"
+    .from_hex().unwrap();
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state =
+        get_state_for_genesis_write_with_factory(&storage_manager, factory);
+    let mut env = Env::default();
+    env.gas_limit = U256::MAX;
+    let machine = make_byzantium_machine(0);
+    let internal_contract_map = InternalContractMap::new();
+    let spec = machine.spec(env.number);
+
+    let receiver = Random.generate().unwrap();
+    let address = contract_address(
+        CreateContractAddress::FromSenderNonceAndCodeHash,
+        &receiver.address(),
+        &U256::zero(),
+        &create_code,
+    )
+    .0;
+    state
+        .add_balance(
+            &receiver.address(),
+            &U256::from(2_000_000_000_000_210_010u64),
+            CleanupMode::NoEmpty,
+        )
+        .unwrap();
+    //deploy contract
+    let contract_tx = Transaction {
+        action: Action::Create,
+        value: U256::from(0),
+        data: create_code.clone(),
+        gas: U256::from(1080000),
+        gas_price: U256::one(),
+        storage_limit: U256::from(1000),
+        epoch_height: 0,
+        chain_id: 0,
+        nonce: U256::zero(),
+        slot_tx: None,
+    }
+    .sign(receiver.secret());
+    let _res = {
+        let mut ex = Executive::new(
+            &mut state,
+            &env,
+            &machine,
+            &spec,
+            &internal_contract_map,
+        );
+        ex.transact(&contract_tx).unwrap()
+    };
+    assert_eq!(state.is_contract(&address),true);
+
+    //create a virtual signal
+    let sigkey = vec![0x01u8, 0x02u8, 0x03u8];
+    let _result = state.create_signal(
+        &receiver.address(), 
+        &sigkey,
+        &U256::from(3),
+    );
+    
+    let slot_key = "0f912881556b2e01fbe4a30eea53c1e292615c8fc30a7893a93ff5a64aea4e8a".from_hex().unwrap();
+
+    //bind slot with signal
+    let sig_loc = SignalLocation::new(&receiver.address(), &sigkey);
+    let slt_loc = SlotLocation::new(&receiver.address(), &address, &slot_key);
+    let _bindresult = state.bind_slot_to_signal(&sig_loc, &slt_loc).unwrap();
+
+    // fake emit sig
+    let current_epoch_height: u64 = 0;
+    let epoch_height_delay: u64 = 0;
+    let argv = vec![0x12u8,0x34u8,0x56u8];
+    let _emitsigresult = state.emit_signal_and_queue_slot_tx(
+        &sig_loc, 
+        current_epoch_height, 
+        epoch_height_delay, 
+        &argv,
+        true,
+        0
+    ).unwrap();
+
+    let queue = state
+    .get_account_slot_tx_queue(&address)
+    .unwrap();
+    let mut slttx = queue.peek(0).unwrap().clone();
+    slttx.calculate_and_set_gas_price(&U256::from(100));
+    slttx.set_gas_upfront(U256::from(1021301));
+    //now fake get slot tx
+    let tx = Transaction {
+        nonce: U256::zero(),
+        gas_price: U256::zero(),
+        gas: U256::zero(),
+        value: U256::zero(),
+        action: Action::SlotTx,
+        storage_limit: U256::zero(),
+        epoch_height: 0,
+        chain_id: 0,
+        data: Vec::new(),
+        slot_tx: Some(slttx),
+    };
+    let tx = Transaction::create_signed_tx_with_slot_tx(tx.clone());
+    Executive::new(
+        &mut state,
+        &env,
+        &machine,
+        &spec,
+        &internal_contract_map,
+    )
+    .transact(&tx)
+    .unwrap()
+    .successfully_executed()
+    .expect("Should get SlotExecutionError(VmError(Reverted)");
+}
+
+#[test]
 fn test_slottx_execute() {
     // pragma solidity ^0.6.9;
     // contract B {

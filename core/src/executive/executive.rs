@@ -1674,7 +1674,7 @@ impl<'a> Executive<'a> {
                     &mut substate.to_cleanup_mode(&spec),
                 )?;
 
-                return Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
+                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(ToRepackError::SlotExecutionError(
                     ExecutionError::NotEnoughCash {
                         required: total_cost,
                         got: balance512,
@@ -1682,11 +1682,7 @@ impl<'a> Executive<'a> {
                         max_storage_limit_cost: tx_storage_limit_in_drip,
                     },
                     Executed::not_enough_balance_fee_charged(tx, &actual_gas_cost),
-                ));
-            } else {
-                // From now on sender balance >= total_cost, transaction execution
-                // is guaranteed.
-                //self.state.inc_nonce(&sender)?;
+                )));
             }
             // Subtract the transaction fee from contract.
             if !gas_free_of_charge {
@@ -1947,10 +1943,19 @@ impl<'a> Executive<'a> {
 
         match result {
             Err(vm::Error::StateDbError(e)) => bail!(e),
-            Err(exception) => Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
-                ExecutionError::VmError(exception),
-                Executed::execution_error_fully_charged(tx),
-            )),
+            Err(exception) => {
+                if tx.is_slot_tx(){
+                    Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(ToRepackError::SlotExecutionError(
+                        ExecutionError::VmError(exception),
+                        Executed::execution_error_fully_charged(tx),
+                    )))
+                }else{
+                    Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
+                    ExecutionError::VmError(exception),
+                    Executed::execution_error_fully_charged(tx),
+                    ))
+                }
+            },
             Ok(r) => {
                 let mut storage_collateralized = Vec::new();
                 let mut storage_released = Vec::new();
@@ -2008,10 +2013,17 @@ impl<'a> Executive<'a> {
                     Ok(ExecutionOutcome::Finished(executed))
                 } else {
                     // Transaction reverted by vm instruction.
-                    Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
-                        ExecutionError::VmError(vm::Error::Reverted),
-                        executed,
-                    ))
+                    if tx.is_slot_tx(){
+                        Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(ToRepackError::SlotExecutionError(
+                            ExecutionError::VmError(vm::Error::Reverted),
+                            executed,
+                        )))                        
+                    }else{
+                        Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
+                            ExecutionError::VmError(vm::Error::Reverted),
+                            executed,
+                        ))
+                    }
                 }
             }
         }
