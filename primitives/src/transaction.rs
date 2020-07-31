@@ -689,12 +689,11 @@ impl MallocSizeOf for SignedTransaction {
 mod tests {
     use rlp::{Rlp, RlpStream, };
     use crate::transaction::{Action, Transaction, };
-    use cfx_types::{Address, U256, };
+    use cfx_types::{Address, U256, address_util::AddressUtil};
     use keylib::{
         self, public_to_address, Random, Generator,
     };
     use crate::{SlotTx, SlotInfo, Slot, };
-
     #[test]
     fn test_encode_decode_normal_transaction() {
         let tx = Transaction {
@@ -719,6 +718,8 @@ mod tests {
     }
 
     fn get_slot_tx(address : &Address) -> SlotTx {
+        let mut contract_address = address.clone();
+        contract_address.set_contract_type_bits();
         let key = vec![0x31u8, 0x32u8, 0x33u8];
         let argc = U256::from(3);
         let target_epoch_height : u64 = 0;
@@ -728,6 +729,7 @@ mod tests {
         let denominator = U256::from(2);
         let slot_info = SlotInfo::new(
             address,
+            &contract_address,
             &key,
             &argc,
             &gas_limit,
@@ -736,7 +738,7 @@ mod tests {
         );
         let slot = Slot::new(&slot_info);
         let slot_tx = SlotTx::new(
-            &slot, &target_epoch_height, &argv
+            &slot, &target_epoch_height, &argv, true, 0
         );
         slot_tx
     }
