@@ -232,7 +232,7 @@ pub trait Context {
     fn emit_sig(
         &mut self, sender_address: &Address,
         signal_id: &Vec<u8>, blocks_delayed: &U256, data: &[u8],
-        is_fix: bool, data_length: u8
+        is_fix: bool, data_length: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     /* Signal and Slots end */

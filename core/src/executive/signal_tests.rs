@@ -152,7 +152,7 @@ fn test_slot_exec_error() {
         epoch_height_delay, 
         &argv,
         true,
-        0
+        &vec![0u8,32]
     ).unwrap();
 
     let queue = state
@@ -333,7 +333,7 @@ fn test_slottx_execute() {
         epoch_height_delay, 
         &argv,
         true,
-        0
+        &vec![0u8,32]
     ).unwrap();
 
     let queue = state

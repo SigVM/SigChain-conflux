@@ -522,7 +522,7 @@ impl<'a> ContextTrait for Context<'a> {
     fn emit_sig(
         &mut self, sender_address: &Address,
         signal_id: &Vec<u8>, epochs_delayed: &U256, data: &[u8],
-        is_fix: bool, data_length: u8
+        is_fix: bool, data_length: &Vec<u8>
     ) -> Result<SignalSlotOpResult, TrapKind> {
         // Get signal location.
         let sig_loc = SignalLocation::new(
@@ -535,7 +535,7 @@ impl<'a> ContextTrait for Context<'a> {
             epochs_delayed.as_u64(), 
             &data.to_vec(),
             is_fix,
-            data_length
+            &data_length
         );
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),
@@ -1020,7 +1020,7 @@ mod tests {
             &U256::zero(),
             &vec![std::u8::MIN],
             true,
-            0
+            &vec![0u8,32]
         ).ok()
         .unwrap();
         check_sig_slot_result(result);

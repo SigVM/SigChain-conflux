@@ -1746,7 +1746,7 @@ impl State {
     pub fn emit_signal_and_queue_slot_tx(
         &mut self, sig_loc: &SignalLocation,
         current_epoch_height: u64, epoch_height_delay: u64,
-        argv: &Bytes, is_fix: bool, data_length: u8
+        argv: &Bytes, is_fix: bool, data_length: &Vec<u8>
     ) -> DbResult<()> {
         // Get signal info.
         let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());

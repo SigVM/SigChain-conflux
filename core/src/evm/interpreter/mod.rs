@@ -1641,15 +1641,13 @@ impl<Cost: CostType> Interpreter<Cost> {
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
                 let is_fix = self.stack.pop_back();  // 3
                 let fix_or_dyn: bool;
-                let data_length: u8;
+                let mut data_length = vec![];
                 let call_result = {
                     let mut data = vec![];
                     if is_fix == U256::from(2) {
                         fix_or_dyn = true;
-                        data_length = 0;
                     }else if is_fix == U256::from(1) {
                         fix_or_dyn = true;
-                        data_length = 0;
                         let mut rawdata = context.storage_at(&key).unwrap();
                         data = rawdata.as_bytes_mut().to_vec();
                         data.reverse();//only for js_test, will be removed after understanding the use of javascript
@@ -1657,19 +1655,22 @@ impl<Cost: CostType> Interpreter<Cost> {
                         fix_or_dyn = false;
                         let mut rawdata = context.storage_at(&key).unwrap();
                         let len = rawdata.as_bytes_mut().to_vec();
-                        data_length = (len[31] - 1 ) / 2;
-                        if len[31] < 63 {
+                        data_length = len.iter().map(|i| i/2).collect();
+                        let len128 = Self::length_from_vec_to_u128(&data_length);
+                        if len128 < 32 {
                             data = len;
                             data[31] = 0;
                             //data.reverse();
+                            data_length = vec![0u8;31];
+                            data_length.push(len128 as u8);
                         }else{
-                            let mul = (len[31]-1)/64;
-                            let res = (len[31]-1)%64/2;
+                            let mul = len128/32;
+                            let res = len128%32;
                             let mut datakey = keccak(key).as_bytes().to_vec();
                             for _i in 0..mul {
                                 let mut temp_data  = context.storage_at(&datakey).unwrap();
                                 data.extend(temp_data.as_bytes_mut().to_vec().iter().clone());
-                                datakey[31] = datakey[31] + 1;//TODO: datakey now doesnt carry to higher position when adding
+                                Self::dynamic_data_pointer_inc(&mut datakey);
                             }
                             if res > 0 {
                                 let mut temp_res_data  = context.storage_at(&datakey).unwrap();
@@ -1684,7 +1685,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                         &blk_delay,
                         &data[..],
                         fix_or_dyn,
-                        data_length
+                        &data_length
                     )
                 };
 
@@ -1701,6 +1702,41 @@ impl<Cost: CostType> Interpreter<Cost> {
             //////////////////////////////////////////////////////////////////////
         };
         Ok(InstructionResult::Ok)
+    }
+
+    fn length_from_vec_to_u128(len: &Vec<u8>) -> u128{
+        let mut templen = len.clone();
+        templen.reverse();
+        let mut times: u128 = 1;
+        let mut res: u128 = 0;
+        let mut index = 0;
+        for val in templen.iter() {
+            if index >= 8 {//only accept 2^256 bits emitted data
+                if *val > 0 {
+                    res = templen[0].into();
+                    break;
+                }
+            }else{
+                let tempval: u128 = (*val).into();
+                res = res + tempval*times;
+                times = times * 256;
+            }
+            index = index + 1;
+        }
+        res
+    }
+
+    fn dynamic_data_pointer_inc(key: &mut Vec<u8>){
+        key.reverse();
+        for val in key.iter_mut() {
+            if *val == 0xff {
+                *val = 0;
+            }else{
+                *val = *val + 1;
+                break;
+            }
+        }
+        key.reverse();
     }
 
     fn copy_data_to_memory(

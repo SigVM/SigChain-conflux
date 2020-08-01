@@ -267,7 +267,7 @@ pub struct SlotTx {
     //check data is fix or dynamic for abi encoding
     is_fix : bool,
     //the length of the data if dynamic
-    data_length: u8,
+    data_length: Vec<u8>,
     // Gas price. Determined during packing.
     gas_price: U256,
     // Gas upfront cost.
@@ -277,7 +277,7 @@ pub struct SlotTx {
 impl SlotTx {
     pub fn new(
         slot: &Slot, epoch_height: &u64, argv: &Bytes,
-        is_fix: bool, data_length: u8
+        is_fix: bool, data_length: &Vec<u8>
     ) -> Self {
         let new = SlotTx {
             location:              slot.location().clone(),
@@ -287,7 +287,7 @@ impl SlotTx {
             epoch_height:          epoch_height.clone(),
             argv:                  argv.clone(),
             is_fix:                is_fix,
-            data_length:           data_length,
+            data_length:           data_length.to_vec(),
             // Gas price is set when packed in the transaction pool.
             gas_price:             U256::zero(),
             gas_upfront:           U256::zero(),
@@ -360,10 +360,10 @@ impl SlotTx {
         }else{
             let mut off_part = vec![0u8; 31];
             off_part.push(64);
-            let mut len_part = vec![0u8; 32];
-            len_part[31] = self.data_length;
+            // let mut len_part = vec![0u8; 32];
+            // len_part[31] = self.data_length;
             ret.extend_from_slice(&off_part[..]);
-            ret.extend_from_slice(&len_part[..]);
+            ret.extend_from_slice(&self.data_length[..]);
             ret.extend_from_slice(&self.argv[..]);
         }
         ret

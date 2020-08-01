@@ -738,7 +738,7 @@ mod tests {
         );
         let slot = Slot::new(&slot_info);
         let slot_tx = SlotTx::new(
-            &slot, &target_epoch_height, &argv, true, 0
+            &slot, &target_epoch_height, &argv, true, &vec![0u8,32]
         );
         slot_tx
     }

@@ -289,7 +289,7 @@ impl Context for MockContext {
     fn emit_sig(
         &mut self, _sender_address: &Address,
         _signal_id: &Vec<u8>, _blocks_delayed: &U256, _data: &[u8],
-        _is_fix: bool, _data_length: u8
+        _is_fix: bool, _data_length: &Vec<u8>
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
         // TODO
         Ok(SignalSlotOpResult::Success)

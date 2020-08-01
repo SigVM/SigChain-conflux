@@ -234,7 +234,7 @@ fn signal_emit_and_slot_tx_distribution_no_delay() {
 
     // Emit the signal.
     state
-        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data1, true, 0)
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data1, true, &vec![0u8,32])
         .expect("Emit signal should not fail.");
 
     // Check slot transaction queues.
@@ -317,7 +317,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
 
     // Emit signal with delay.
     state
-        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 1, &sig_data1, true, 0)
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 1, &sig_data1, true, &vec![0u8,32])
         .expect("Emit signal should not fail.");
 
     // Make sure queues have no element.
@@ -353,7 +353,7 @@ fn signal_emit_and_slot_tx_distribution_with_delay() {
 
     // Emit another Signal.
     state
-        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data2, true, 0)
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data2, true, &vec![0u8,32])
         .expect("Emit signal should not fail.");
 
     // Dequeue both slot transactions and make sure the ordering is correct.
@@ -449,12 +449,12 @@ fn commit_signal_and_slots() {
 
     // Emit the signal.
     state
-        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data1, true, 0)
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 0, &sig_data1, true, &vec![0u8,32])
         .expect("Emit signal should not fail.");
 
     // Emit signal again, but with delay.
     state
-        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 1, &sig_data2, true, 0)
+        .emit_signal_and_queue_slot_tx(&sig_loc, 0, 1, &sig_data2, true, &vec![0u8,32])
         .expect("Emit signal should not fail.");
 
     // Commit these changes.
