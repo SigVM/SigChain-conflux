@@ -359,9 +359,7 @@ impl SlotTx {
             ret.extend_from_slice(&self.argv[..]);
         }else{
             let mut off_part = vec![0u8; 31];
-            off_part.push(64);
-            // let mut len_part = vec![0u8; 32];
-            // len_part[31] = self.data_length;
+            off_part.push(32);
             ret.extend_from_slice(&off_part[..]);
             ret.extend_from_slice(&self.data_length[..]);
             ret.extend_from_slice(&self.argv[..]);
