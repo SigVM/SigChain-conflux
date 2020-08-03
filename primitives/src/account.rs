@@ -190,7 +190,7 @@ impl SlotTxAddressList {
         }
     }
 
-    pub fn merge(&mut self, mut address_list: SlotTxAddressList) {
+    pub fn merge(&mut self, address_list: SlotTxAddressList) {
         self.append(address_list.get_list());
     }
 

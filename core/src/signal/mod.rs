@@ -9,7 +9,7 @@
 // When a new epoch starts, all the slot transactions that become available are
 // pushed into the queues of individual accounts.
 
-use cfx_types::{Address};
+use cfx_types::{Address, U256};
 use std::str::FromStr;
 
 lazy_static! {
@@ -19,6 +19,12 @@ lazy_static! {
 
     pub static ref GLOBAL_SLOT_TX_ACCOUNT_LIST_ADDRESS: Address =
         Address::from_str("bab69eae9ea958e501ea40b8c6dc27a9614a5b9b").unwrap();
+
+    // Gas price used for slot tx gas estimation
+    pub static ref SLOT_TX_EST_GAS_PRICE: U256 = U256::from(3000);
+
+    // Gas used for slot tx gas estimation
+    pub static ref SLOT_TX_EST_GAS: U256  = U256::from(1000000);
 }
 
 /* Signal and Slots end */

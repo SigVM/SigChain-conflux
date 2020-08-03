@@ -34,6 +34,9 @@ use crate::{
     vm::{Env, Spec},
     vm_factory::VmFactory,
     SharedTransactionPool,
+    signal::{
+        SLOT_TX_EST_GAS_PRICE, SLOT_TX_EST_GAS,
+    }
 };
 use cfx_types::{BigEndianHash, H256, KECCAK_EMPTY_BLOOM, U256, U512};
 use core::convert::TryFrom;
@@ -855,14 +858,14 @@ impl ConsensusExecutionHandler {
             debug_record,
             task.force_recompute,
         );
-
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
         if state.is_none() {
             return;
         }
 
         let mut state = state.unwrap();
-        //////////////////////////////////////////////////////////////////////
-        /* Signal and Slots begin */
+
         // only do those if it's a pivot
         if task.on_local_pivot {
             let epoch_hash = task.epoch_hash.clone();
@@ -878,9 +881,8 @@ impl ConsensusExecutionHandler {
                 .drain_global_slot_tx_queue(pivot_block_header.height())
                 .expect("Global slot tx queue drain failed!");
 
+            //////////////////////////////////////////////////////////////
             // estimate gas and collateral for all ready transactions
-            let epoch_height = pivot_block_header.height();
-
             let addresses = state.get_cached_addresses_with_ready_slot_tx()
                                  .expect("get_cached_addresses_with_ready_slot_tx should not fail.");
 
@@ -895,20 +897,19 @@ impl ConsensusExecutionHandler {
                 for idx in 0..size
                 {
                     let mut slot_tx = queue.peek(idx).unwrap().clone();
-        println!("bugbug: trying to estimate gas for {:?} ", slot_tx);
+
                     // do not queue duplicated slot tx in tx pool
                     if self.tx_pool.is_packed(&slot_tx) {
-        println!("bugbug: seeing duplicated {:?}, skipped", slot_tx);
                         continue;
                     }
 
                     // Using a hardcoded gas price to estimate gas.
                     // This is overwritten in transaction pool when packing.
-                    slot_tx.calculate_and_set_gas_price(&U256::from(300));
+                    slot_tx.calculate_and_set_gas_price(&*SLOT_TX_EST_GAS_PRICE);
 
                     // Set large enough gas for the fake transaction call,
                     // This is overwritten later in this function.
-                    slot_tx.set_gas_upfront(U256::from(1000000));
+                    slot_tx.set_gas(*SLOT_TX_EST_GAS);
 
                     // Calculate the upfront gas cost.
                     // Create the signed tx.
@@ -930,7 +931,6 @@ impl ConsensusExecutionHandler {
                     // make a fake call to estimate gas and collateral
                     let r = self.call_virtual(&tx, &epoch_hash, epoch_size)
                                 .expect("Slot tx gas and collateral estiamtion failed!");
-        println!("bugbug: estimation result for slot tx is {:?} ", r);
                     let executed = match r {
                         ExecutionOutcome::Finished(executed) => Some(executed),
                         _ => {
@@ -953,17 +953,16 @@ impl ConsensusExecutionHandler {
 
                     let gas_used = executed.gas_used.into();
                     let storage_collateralized : U256 = storage_collateralized.into();
-        println!("bugbug: estimation result for slot tx is gas used {}, storage {} ", gas_used, storage_collateralized);
+
                     // update the gas and collaterial for the slot tx
-                    slot_tx.set_gas_upfront(gas_used);
+                    slot_tx.set_gas(gas_used);
+                    slot_tx.set_storage_limit(storage_collateralized);
 
                     // record the slot tx
                     self.tx_pool.set_packed(&slot_tx);
                     queue.update(idx, slot_tx);
                  }
                 self.tx_pool.update_slot_tx_map(addr.clone(), queue.clone());
-                println!("bugbug: updated queue at {:?} is {:?}", addr, queue);
-
              }
          }
         /* Signal and Slots end */
@@ -1250,9 +1249,7 @@ impl ConsensusExecutionHandler {
 
             block_number += 1;
             last_block_hash = block.hash();
-println!("bugbug: process_epoch_transactions processing {:?} transactions in height {:?}",block.transactions.len(), pivot_block.block_header.height());
             for (idx, transaction) in block.transactions.iter().enumerate() {
-println!("bugbug_transaction: going to execute {:?}", transaction);
                 let tx_outcome_status;
                 let mut transaction_logs = Vec::new();
                 let mut storage_released = Vec::new();
@@ -1267,7 +1264,6 @@ println!("bugbug_transaction: going to execute {:?}", transaction);
                     )
                     .transact(transaction)?
                 };
-
 
                 let gas_fee;
                 let mut gas_sponsor_paid = false;

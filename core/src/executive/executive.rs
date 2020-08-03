@@ -1476,12 +1476,11 @@ impl<'a> Executive<'a> {
                 &tx.slot_tx.as_ref().unwrap(),
                 spec,
             );
-    println!("bugbug: base gas requirement is {:?}, we have {} ", base_gas_required, tx.slot_tx.as_ref().unwrap().gas_upfront());
             assert!(
-                tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
+                tx.slot_tx.as_ref().unwrap().gas().clone() >= base_gas_required.into(),
                 "We should have checked base gas requirement for slot tx when we received the block."
             );
-            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone() - base_gas_required;
+            init_gas = tx.slot_tx.as_ref().unwrap().gas().clone() - base_gas_required;
         }
 
         let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() {
@@ -1495,7 +1494,7 @@ impl<'a> Executive<'a> {
             true => {
                 (
                     self.state.balance(&sender)?,
-                    tx.slot_tx.as_ref().unwrap().gas_upfront().clone().full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
+                    tx.slot_tx.as_ref().unwrap().gas().clone().full_mul(*tx.slot_tx.as_ref().unwrap().gas_price()),
                     U512::from(0)
                 )
             }
@@ -1573,7 +1572,11 @@ impl<'a> Executive<'a> {
         /* Signal and Slots begin */
         let tx_storage_limit_in_drip =
             if tx.is_slot_tx() {
-                U256::from(100) * *COLLATERAL_PER_BYTE //TODO: slot tx storage_limit is now hardcoded
+                if *tx.slot_tx.clone().unwrap().storage_limit() >= U256::from(std::u64::MAX) {
+                    U256::from(std::u64::MAX) * *COLLATERAL_PER_BYTE
+                } else {
+                    *tx.slot_tx.clone().unwrap().storage_limit() * *COLLATERAL_PER_BYTE
+                }
             } else {
                 if tx.storage_limit >= U256::from(std::u64::MAX) {
                     U256::from(std::u64::MAX) * *COLLATERAL_PER_BYTE
@@ -1884,7 +1887,7 @@ impl<'a> Executive<'a> {
         //////////////////////////////////
         /* Signal and Slots begin */
         let (tx_sender, tx_gas,tx_gas_price) = match tx.is_slot_tx() {
-            true => (tx.slot_tx.as_ref().unwrap().address().clone(), tx.slot_tx.as_ref().unwrap().gas_upfront().clone(), tx.slot_tx.as_ref().unwrap().gas_price().clone()),
+            true => (tx.slot_tx.as_ref().unwrap().address().clone(), tx.slot_tx.as_ref().unwrap().gas().clone(), tx.slot_tx.as_ref().unwrap().gas_price().clone()),
             false => (tx.sender().clone(), tx.gas, tx.gas_price),
         };
         // gas_used is only used to estimate gas needed

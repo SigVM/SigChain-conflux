@@ -270,8 +270,10 @@ pub struct SlotTx {
     data_length: Vec<u8>,
     // Gas price. Determined during packing.
     gas_price: U256,
-    // Gas upfront cost.
-    gas_upfront: U256,
+    // Gas. Determined before packing.
+    gas: U256,
+    // Storage limit. Determined before packing.
+    storage_limit: U256,
 }
 
 impl SlotTx {
@@ -290,7 +292,8 @@ impl SlotTx {
             data_length:           data_length.to_vec(),
             // Gas price is set when packed in the transaction pool.
             gas_price:             U256::zero(),
-            gas_upfront:           U256::zero(),
+            gas:                   U256::zero(),
+            storage_limit:         U256::zero(),
         };
         new
     }
@@ -326,8 +329,11 @@ impl SlotTx {
     pub fn gas_price(&self) -> &U256 {
         &self.gas_price
     }
-    pub fn gas_upfront(&self) -> &U256 {
-        &self.gas_upfront
+    pub fn gas(&self) -> &U256 {
+        &self.gas
+    }
+    pub fn storage_limit(&self) -> &U256 {
+        &self.storage_limit
     }
 
     pub fn is_duplicated(&self, tx: &SlotTx) -> bool {
@@ -373,9 +379,13 @@ impl SlotTx {
     pub fn calculate_and_set_gas_price(&mut self, average_gas_price: &U256) {
         self.gas_price = average_gas_price * self.gas_ratio_numerator / self.gas_ratio_denominator;
     }
-    // Calculate gas upfront cost.
-    pub fn set_gas_upfront(&mut self, gas_upfront: U256) {
-        self.gas_upfront = gas_upfront;
+    // Set gas.
+    pub fn set_gas(&mut self, gas: U256) {
+        self.gas = gas;
+    }
+    // Set storage limit.
+    pub fn set_storage_limit(&mut self, storage_limit: U256) {
+        self.storage_limit = storage_limit;
     }
 
 }

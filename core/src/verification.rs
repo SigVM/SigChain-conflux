@@ -341,12 +341,12 @@ impl VerificationConfig {
                 &tx.slot_tx.as_ref().unwrap(),
                 &self.vm_spec,
             );
-            if *tx.slot_tx.as_ref().unwrap().gas_upfront() < (tx_intrinsic_gas as usize).into() {
+            if *tx.slot_tx.as_ref().unwrap().gas() < (tx_intrinsic_gas as usize).into() {
                 bail!(TransactionError::NotEnoughBaseGas {
                     required: tx_intrinsic_gas.into(),
-                    got: *tx.slot_tx.as_ref().unwrap().gas_upfront()
+                    got: *tx.slot_tx.as_ref().unwrap().gas()
                 });
-            }            
+            }
         }else{
             let tx_intrinsic_gas = Executive::gas_required_for(
                 tx.action == Action::Create,

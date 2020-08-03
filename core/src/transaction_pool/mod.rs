@@ -23,8 +23,6 @@ use crate::{
     statedb::{Result as StateDbResult, StateDb},
     storage::{Result as StorageResult, StateIndex, StorageManagerTrait},
     verification::VerificationConfig,
-    executive::{Executive},
-    vm::{Spec},
 };
 use account_cache::AccountCache;
 use cfx_types::{Address, H256, U256};
@@ -793,7 +791,6 @@ impl TransactionPool {
     pub fn update_slot_tx_map(&self, addr: Address, queue: SlotTxQueue) {
         let mut test = self.slot_tx_map.write();
         test.insert(addr, queue);
-        println!("bugbug: slot_tx_map is now {:?}", *test);
     }
 
     pub fn is_packed(&self, tx: &SlotTx) -> bool{
@@ -810,7 +807,6 @@ impl TransactionPool {
 
     pub fn set_packed(&self, tx: &SlotTx) {
         self.packed_slot_tx.write().push(tx.clone());
-        println!("bugbug: in tx pool, currently packed: {:?}", self.packed_slot_tx.read());
     }
 
     fn get_list_of_slot_tx(
@@ -820,9 +816,6 @@ impl TransactionPool {
         address_list: Option<Vec<Address>>,
         average_gas_price: U256
     ) -> Vec<Arc<SignedTransaction>> {
-        // Get best estimate of state.
-        let storage = (&*self.best_executed_state.lock()).clone();
-
         // List of slot transactions packed.
         let mut slot_tx_list: Vec<Arc<SignedTransaction>> = Vec::new();
         let mut cnt: usize = 0;
@@ -844,9 +837,7 @@ impl TransactionPool {
             let queue =
                 match slot_tx_map.get(&addr) {
                     Some(queue) => queue,
-                    None => {
-println!("bugbug: Nothing queued at {:?}!!!!!!!!!!!!! ", addr);
-                        continue;},
+                    None => {continue;},
                 };
             let size = queue.len();
 
@@ -855,7 +846,7 @@ println!("bugbug: Nothing queued at {:?}!!!!!!!!!!!!! ", addr);
             {
                 let mut tx = queue.peek(idx).unwrap().clone();
                 // skip if gas is not set yet
-                if tx.gas_upfront().is_zero() {
+                if tx.gas().is_zero() {
                     continue;
                 }
 
@@ -905,7 +896,6 @@ println!("bugbug: Nothing queued at {:?}!!!!!!!!!!!!! ", addr);
             }
 
         }
-        println!("bugbug: returning slot tx list: {:?}", slot_tx_list);
         slot_tx_list
     }
 
