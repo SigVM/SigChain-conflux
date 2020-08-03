@@ -49,7 +49,7 @@ use primitives::{
         TRANSACTION_OUTCOME_SUCCESS,
     },
     Action, Block, BlockHeaderBuilder, EpochId, SignedTransaction,
-    TransactionIndex, MERKLE_NULL_NODE,
+    TransactionIndex, MERKLE_NULL_NODE, Transaction
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -846,7 +846,7 @@ impl ConsensusExecutionHandler {
     )
     {
         let _timer = MeterTimer::time_func(CONSENSIS_EXECUTION_TIMER.as_ref());
-        self.compute_epoch(
+        let state = self.compute_epoch(
             &task.epoch_hash,
             &task.epoch_block_hashes,
             task.start_block_number,
@@ -855,6 +855,120 @@ impl ConsensusExecutionHandler {
             debug_record,
             task.force_recompute,
         );
+
+        if state.is_none() {
+            return;
+        }
+
+        let mut state = state.unwrap();
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+        // only do those if it's a pivot
+        if task.on_local_pivot {
+            let epoch_hash = task.epoch_hash.clone();
+            let epoch_size = task.epoch_block_hashes.len();
+
+            // Drain global slot transaction queue for this epoch.
+            let pivot_block_header = self
+                .data_man
+                .block_header_by_hash(&epoch_hash)
+                .expect("must exists");
+
+            state
+                .drain_global_slot_tx_queue(pivot_block_header.height())
+                .expect("Global slot tx queue drain failed!");
+
+            // estimate gas and collateral for all ready transactions
+            let epoch_height = pivot_block_header.height();
+
+            let addresses = state.get_cached_addresses_with_ready_slot_tx()
+                                 .expect("get_cached_addresses_with_ready_slot_tx should not fail.");
+
+            // go through all the addr with ready slot tx
+            for addr in addresses.get_list() {
+                // Get the slot tx queue at the addr from state
+                let mut queue = state
+                    .get_account_slot_tx_queue(&addr)
+                    .expect("Account must exist. Slot tx addr list is corrupted");
+                let size = queue.len();
+
+                for idx in 0..size
+                {
+                    let mut slot_tx = queue.peek(idx).unwrap().clone();
+        println!("bugbug: trying to estimate gas for {:?} ", slot_tx);
+                    // do not queue duplicated slot tx in tx pool
+                    if self.tx_pool.is_packed(&slot_tx) {
+        println!("bugbug: seeing duplicated {:?}, skipped", slot_tx);
+                        continue;
+                    }
+
+                    // Using a hardcoded gas price to estimate gas.
+                    // This is overwritten in transaction pool when packing.
+                    slot_tx.calculate_and_set_gas_price(&U256::from(300));
+
+                    // Set large enough gas for the fake transaction call,
+                    // This is overwritten later in this function.
+                    slot_tx.set_gas_upfront(U256::from(1000000));
+
+                    // Calculate the upfront gas cost.
+                    // Create the signed tx.
+                    let tx = Transaction::create_signed_tx_with_slot_tx(
+                        Transaction {
+                            nonce: U256::zero(),
+                            gas_price: U256::zero(),
+                            gas: U256::zero(),
+                            action: Action::SlotTx,
+                            value: U256::zero(),
+                            storage_limit: U256::zero(),
+                            epoch_height: 0,
+                            chain_id: 0,
+                            data: Vec::new(),
+                            slot_tx: Some(slot_tx.clone()),
+                        }
+                    );
+
+                    // make a fake call to estimate gas and collateral
+                    let r = self.call_virtual(&tx, &epoch_hash, epoch_size)
+                                .expect("Slot tx gas and collateral estiamtion failed!");
+        println!("bugbug: estimation result for slot tx is {:?} ", r);
+                    let executed = match r {
+                        ExecutionOutcome::Finished(executed) => Some(executed),
+                        _ => {
+                            trace!("Can not estimate for slot tx: transaction execution failed, \
+                             all gas will be charged");
+                            // Note: do not fail this because it is possible that we are trying to
+                            // estimate in a state where the slot tx is dequeued already
+                            None
+                        }
+                    };
+                    if executed.is_none() {
+                        return;
+                    }
+
+                    let executed = executed.unwrap();
+                    let mut storage_collateralized = 0;
+                    for storage_change in &executed.storage_collateralized {
+                        storage_collateralized += storage_change.amount;
+                    }
+
+                    let gas_used = executed.gas_used.into();
+                    let storage_collateralized : U256 = storage_collateralized.into();
+        println!("bugbug: estimation result for slot tx is gas used {}, storage {} ", gas_used, storage_collateralized);
+                    // update the gas and collaterial for the slot tx
+                    slot_tx.set_gas_upfront(gas_used);
+
+                    // record the slot tx
+                    self.tx_pool.set_packed(&slot_tx);
+                    queue.update(idx, slot_tx);
+                 }
+                self.tx_pool.update_slot_tx_map(addr.clone(), queue.clone());
+                println!("bugbug: updated queue at {:?} is {:?}", addr, queue);
+
+             }
+         }
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+
     }
 
     fn handle_get_result_task(&self, task: GetExecutionResultTask) {
@@ -893,7 +1007,7 @@ impl ConsensusExecutionHandler {
         on_local_pivot: bool,
         mut debug_record: Option<&mut ComputeEpochDebugRecord>,
         force_recompute: bool,
-    )
+    ) -> Option<State> // for signal slot impl
     {
         // FIXME: Question: where to calculate if we should make a snapshot?
         // FIXME: Currently we make the snapshotting decision when committing
@@ -950,7 +1064,7 @@ impl ConsensusExecutionHandler {
                 .adjust_upper_bound(pivot_block_header.as_ref());
             debug!("Skip execution in prefix {:?}", epoch_hash);
 
-            return;
+            return None;
         }
 
         // Get blocks in this epoch after skip checking
@@ -995,22 +1109,6 @@ impl ConsensusExecutionHandler {
             &spec,
             start_block_number - 1, /* block_number */
         );
-
-        //////////////////////////////////////////////////////////////////////
-        /* Signal and Slots begin */
-
-        // Drain global slot transaction queue for this epoch.
-        let pivot_block_header = self
-            .data_man
-            .block_header_by_hash(epoch_hash)
-            .expect("must exists");
-
-        state
-            .drain_global_slot_tx_queue(pivot_block_header.height())
-            .expect("Global slot tx queue drain failed!");
-
-        /* Signal and Slots end */
-        //////////////////////////////////////////////////////////////////////
 
         let epoch_receipts = self
             .process_epoch_transactions(
@@ -1075,6 +1173,7 @@ impl ConsensusExecutionHandler {
             .state_availability_boundary
             .write()
             .adjust_upper_bound(&pivot_block.block_header);
+        Some(state)
     }
 
     fn process_epoch_transactions(
@@ -1151,7 +1250,9 @@ impl ConsensusExecutionHandler {
 
             block_number += 1;
             last_block_hash = block.hash();
+println!("bugbug: process_epoch_transactions processing {:?} transactions in height {:?}",block.transactions.len(), pivot_block.block_header.height());
             for (idx, transaction) in block.transactions.iter().enumerate() {
+println!("bugbug_transaction: going to execute {:?}", transaction);
                 let tx_outcome_status;
                 let mut transaction_logs = Vec::new();
                 let mut storage_released = Vec::new();

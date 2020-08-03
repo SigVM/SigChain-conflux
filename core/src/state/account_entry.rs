@@ -1174,6 +1174,12 @@ impl OverlayAccount {
         self.slot_tx_queue.as_ref().unwrap().clone()
     }
 
+    // Overwrite slot tx queue in the address.
+    // This is for setting gas and collateral only.
+    pub fn set_slot_tx_queue(&mut self, queue: SlotTxQueue) {
+        self.slot_tx_queue = Some(queue);
+    }
+
     // Is the slot tx queue empty.
     pub fn is_slot_tx_queue_empty(&self) -> bool {
         self.slot_tx_queue.as_ref().unwrap().is_empty()

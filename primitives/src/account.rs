@@ -134,6 +134,14 @@ impl SlotTxQueue {
         None
     }
 
+    pub fn update(&mut self, idx: usize, updated: SlotTx) -> Option<&SlotTx> {
+    if let Some(elem) = self.list.get_mut(idx) {
+        *elem = updated;
+        return Some(elem);
+    }
+    None
+}
+
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
@@ -166,7 +174,7 @@ impl SlotTxAddressList {
         new
     }
 
-    pub fn get_list(&mut self) -> &Vec<Address> {
+    pub fn get_list(&self) -> &Vec<Address> {
         &self.addresses
     }
 

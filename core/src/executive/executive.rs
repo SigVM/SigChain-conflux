@@ -1476,11 +1476,12 @@ impl<'a> Executive<'a> {
                 &tx.slot_tx.as_ref().unwrap(),
                 spec,
             );
+    println!("bugbug: base gas requirement is {:?}, we have {} ", base_gas_required, tx.slot_tx.as_ref().unwrap().gas_upfront());
             assert!(
                 tx.slot_tx.as_ref().unwrap().gas_upfront().clone() >= base_gas_required.into(),
                 "We should have checked base gas requirement for slot tx when we received the block."
             );
-            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone();//TODO: need to set suitable value
+            init_gas = tx.slot_tx.as_ref().unwrap().gas_upfront().clone() - base_gas_required;
         }
 
         let (balance, gas_cost, mut total_cost) = match tx.is_slot_tx() {
@@ -2017,7 +2018,7 @@ impl<'a> Executive<'a> {
                         Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(ToRepackError::SlotExecutionError(
                             ExecutionError::VmError(vm::Error::Reverted),
                             executed,
-                        )))                        
+                        )))
                     }else{
                         Ok(ExecutionOutcome::ExecutionErrorBumpNonce(
                             ExecutionError::VmError(vm::Error::Reverted),

@@ -46,7 +46,7 @@ use transaction_pool_inner::TransactionPoolInner;
 
 /////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
-use primitives::{Transaction, Action, SlotTx};
+use primitives::{Transaction, Action, SlotTx, SlotTxQueue};
 /* Signal and Slots end */
 /////////////////////////////////////////////////////////////////////
 
@@ -131,6 +131,10 @@ pub struct TransactionPool {
     // As the stateDb here is best_executed instead of the newest,
     // added this vector to keep track of packed slot tx to avoid duplications
     packed_slot_tx: RwLock<Vec<SlotTx>>,
+
+    slot_tx_map: RwLock<HashMap<Address,SlotTxQueue>>,
+
+    test_bool: RwLock<bool>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
     machine: Arc<Machine>,
@@ -199,6 +203,8 @@ impl TransactionPool {
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             packed_slot_tx:  RwLock::new(Vec::new()),
+            slot_tx_map: RwLock::new(HashMap::new()),
+            test_bool: RwLock::new(false),
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
             machine,
@@ -769,6 +775,8 @@ impl TransactionPool {
         /* Signal and Slots begin */
         // clear packed slot tx list every time epoch is updated
         *self.packed_slot_tx.write() = Vec::new();
+        *self.slot_tx_map.write() = HashMap::new();
+        *self.test_bool.write() = false;
         /* Signal and Slots end */
         /////////////////////////////////////////////////////////////////////
 
@@ -782,6 +790,28 @@ impl TransactionPool {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
+    pub fn update_slot_tx_map(&self, addr: Address, queue: SlotTxQueue) {
+        let mut test = self.slot_tx_map.write();
+        test.insert(addr, queue);
+        println!("bugbug: slot_tx_map is now {:?}", *test);
+    }
+
+    pub fn is_packed(&self, tx: &SlotTx) -> bool{
+        let packed_slot_tx_buffer = self.packed_slot_tx.read().clone();
+        // do not queue duplicated transaction
+        for packed_slot_tx in &packed_slot_tx_buffer {
+            if packed_slot_tx.is_duplicated(tx) {
+                // already packed, skip
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn set_packed(&self, tx: &SlotTx) {
+        self.packed_slot_tx.write().push(tx.clone());
+        println!("bugbug: in tx pool, currently packed: {:?}", self.packed_slot_tx.read());
+    }
 
     fn get_list_of_slot_tx(
         &self, num_tx: usize,
@@ -792,10 +822,6 @@ impl TransactionPool {
     ) -> Vec<Arc<SignedTransaction>> {
         // Get best estimate of state.
         let storage = (&*self.best_executed_state.lock()).clone();
-        let packed_slot_tx_buffer =
-        {
-            self.packed_slot_tx.read().clone()
-        };
 
         // List of slot transactions packed.
         let mut slot_tx_list: Vec<Arc<SignedTransaction>> = Vec::new();
@@ -814,35 +840,28 @@ impl TransactionPool {
                 break;
             }
             // Get the slot tx queue at the addr
-            let queue = storage
-                .get_account_slot_tx_queue(&addr)
-                .expect("Account must exist. Slot tx addr list is corrupted")
-                .unwrap();
+            let slot_tx_map = self.slot_tx_map.read();
+            let queue =
+                match slot_tx_map.get(&addr) {
+                    Some(queue) => queue,
+                    None => {
+println!("bugbug: Nothing queued at {:?}!!!!!!!!!!!!! ", addr);
+                        continue;},
+                };
             let size = queue.len();
 
             // Pack all slot tx that are not packed before.
             for idx in 0..size
             {
                 let mut tx = queue.peek(idx).unwrap().clone();
-                for packed_slot_tx in &packed_slot_tx_buffer {
-                    if packed_slot_tx.is_duplicated(&tx) {
-                        // already packed, skip
-                        continue;
-                    }
+                // skip if gas is not set yet
+                if tx.gas_upfront().is_zero() {
+                    continue;
                 }
 
                 // Set gas price.
                 tx.calculate_and_set_gas_price(&average_gas_price);
-                // Calculate the upfront gas cost.
-                tx.set_gas_upfront(
-                    U256::from(
-                        Executive::gas_required_for_slot_tx(
-                            &tx,
-                            // we just need spec for two fields, arguments arnt important.
-                            &Spec::new(123456789, false, false, false),
-                        )
-                    )
-                );
+
                 // Save gas limit.
                 let tx_gas_limit = tx.gas_limit().clone();
 
@@ -879,14 +898,14 @@ impl TransactionPool {
                     Arc::new(signed_tx)
                 );
 
-                // Record the packed slot tx
-                self.packed_slot_tx.write().push(tx.clone());
 
                 total_tx_gas_limit = total_tx_gas_limit + tx_gas_limit;
                 total_tx_size = total_tx_size + tx_size;
                 cnt = cnt + 1;
             }
+
         }
+        println!("bugbug: returning slot tx list: {:?}", slot_tx_list);
         slot_tx_list
     }
 
