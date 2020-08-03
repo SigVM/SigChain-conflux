@@ -1643,15 +1643,15 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let fix_or_dyn: bool;
                 let mut data_length = vec![];
                 let call_result = {
-                    let mut data = vec![];
+                    let mut data = vec![0;32];
                     if is_fix == U256::from(2) {
                         fix_or_dyn = true;
                     }else if is_fix == U256::from(1) {
                         fix_or_dyn = true;
-                        let mut rawdata = context.storage_at(&key).unwrap();
-                        data = rawdata.as_bytes_mut().to_vec();
-                        data.reverse();//only for js_test, will be removed after understanding the use of javascript
+                        let rawdata = context.storage_at(&key).unwrap().into_uint();
+                        rawdata.to_big_endian(data.as_mut());//TODO: no handling bytes<M>
                     }else{
+                        data.clear();
                         fix_or_dyn = false;
                         let mut rawdata = context.storage_at(&key).unwrap();
                         let len = rawdata.as_bytes_mut().to_vec();
