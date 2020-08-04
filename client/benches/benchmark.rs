@@ -44,6 +44,7 @@ fn txexe_benchmark(c: &mut Criterion) {
         epoch_height: 0,
         chain_id: 0,
         data: Bytes::new(),
+        slot_tx: None,
     };
     let tx = tx.sign(kp.secret());
     let machine = new_machine_with_builtin();
