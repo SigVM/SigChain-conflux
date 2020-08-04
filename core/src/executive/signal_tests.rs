@@ -342,6 +342,7 @@ fn test_slottx_execute() {
     let mut slttx = queue.peek(0).unwrap().clone();
     slttx.calculate_and_set_gas_price(&U256::from(100));
     slttx.set_gas(U256::from(1021301));
+    slttx.set_storage_limit(U256::from(100));
     //now fake get slot tx
     let tx = Transaction {
         nonce: U256::zero(),

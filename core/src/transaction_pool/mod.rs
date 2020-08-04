@@ -129,10 +129,9 @@ pub struct TransactionPool {
     // As the stateDb here is best_executed instead of the newest,
     // added this vector to keep track of packed slot tx to avoid duplications
     packed_slot_tx: RwLock<Vec<SlotTx>>,
-
+    // Local cacheing of slot tx queue.
+    // This is set after global slot tx queue is drained in consensus executor.
     slot_tx_map: RwLock<HashMap<Address,SlotTxQueue>>,
-
-    test_bool: RwLock<bool>,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
     machine: Arc<Machine>,
@@ -202,7 +201,6 @@ impl TransactionPool {
             /* Signal and Slots begin */
             packed_slot_tx:  RwLock::new(Vec::new()),
             slot_tx_map: RwLock::new(HashMap::new()),
-            test_bool: RwLock::new(false),
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
             machine,
@@ -774,7 +772,6 @@ impl TransactionPool {
         // clear packed slot tx list every time epoch is updated
         *self.packed_slot_tx.write() = Vec::new();
         *self.slot_tx_map.write() = HashMap::new();
-        *self.test_bool.write() = false;
         /* Signal and Slots end */
         /////////////////////////////////////////////////////////////////////
 
@@ -888,7 +885,6 @@ impl TransactionPool {
                 slot_tx_list.push(
                     Arc::new(signed_tx)
                 );
-
 
                 total_tx_gas_limit = total_tx_gas_limit + tx_gas_limit;
                 total_tx_size = total_tx_size + tx_size;
