@@ -871,16 +871,6 @@ impl ConsensusExecutionHandler {
             let epoch_hash = task.epoch_hash.clone();
             let epoch_size = task.epoch_block_hashes.len();
 
-            // Drain global slot transaction queue for this epoch.
-            let pivot_block_header = self
-                .data_man
-                .block_header_by_hash(&epoch_hash)
-                .expect("must exists");
-
-            state
-                .drain_global_slot_tx_queue(pivot_block_header.height())
-                .expect("Global slot tx queue drain failed!");
-
             //////////////////////////////////////////////////////////////
             // estimate gas and collateral for all ready transactions
             let addresses = state.get_cached_addresses_with_ready_slot_tx()
@@ -1109,6 +1099,22 @@ impl ConsensusExecutionHandler {
             start_block_number - 1, /* block_number */
         );
 
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */
+
+        // Drain global slot transaction queue for this epoch.
+        let pivot_block_header = self
+            .data_man
+            .block_header_by_hash(epoch_hash)
+            .expect("must exists");
+
+        state
+            .drain_global_slot_tx_queue(pivot_block_header.height())
+            .expect("Global slot tx queue drain failed!");
+
+        /* Signal and Slots end */
+        //////////////////////////////////////////////////////////////////////
+        
         let epoch_receipts = self
             .process_epoch_transactions(
                 &spec,
