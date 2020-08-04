@@ -1645,6 +1645,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let call_result = {
                     let mut data = vec![0;32];
                     if is_fix == U256::from(2) {
+                        data.clear();
                         fix_or_dyn = true;
                     }else if is_fix == U256::from(1) {
                         fix_or_dyn = true;
