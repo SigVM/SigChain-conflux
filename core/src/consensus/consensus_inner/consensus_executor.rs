@@ -957,7 +957,6 @@ impl ConsensusExecutionHandler {
          }
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
-
     }
 
     fn handle_get_result_task(&self, task: GetExecutionResultTask) {
