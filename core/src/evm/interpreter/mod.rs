@@ -1640,18 +1640,29 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let mut key = vec![0; 32];
                 self.stack.pop_back().to_big_endian(key.as_mut());// 2
                 let is_fix = self.stack.pop_back();  // 3
+                let mut is_fix_as_vec = vec![0;32];
+                is_fix.to_big_endian(is_fix_as_vec.as_mut());
                 let fix_or_dyn: bool;
                 let mut data_length = vec![];
                 let call_result = {
                     let mut data = vec![0;32];
-                    if is_fix == U256::from(2) {
+                    if is_fix_as_vec[31] == 2u8 {
                         data.clear();
                         fix_or_dyn = true;
-                    }else if is_fix == U256::from(1) {
+                    }else if is_fix_as_vec[31] == 1u8 {//if data is the fixed non-byte
                         fix_or_dyn = true;
                         let rawdata = context.storage_at(&key).unwrap().into_uint();
-                        rawdata.to_big_endian(data.as_mut());//TODO: no handling bytes<M>
-                    }else{
+                        rawdata.to_big_endian(data.as_mut());
+                    }else if is_fix_as_vec[31] == 3u8 {//if data is the fixed byte
+                        data.clear();
+                        fix_or_dyn = true;
+                        let rawdata = context.storage_at(&key).unwrap().into_uint();
+                        let mut tempdata = vec![0; 32];
+                        rawdata.to_big_endian(tempdata.as_mut());
+                        let bytenumber = is_fix.byte(1) as usize;
+                        data.extend_from_slice(&tempdata[(32 - bytenumber) ..]);
+                        data.extend_from_slice(&vec![0u8;32 - bytenumber]);
+                    }else{//if data is dynamics bytes
                         data.clear();
                         fix_or_dyn = false;
                         let mut rawdata = context.storage_at(&key).unwrap();
