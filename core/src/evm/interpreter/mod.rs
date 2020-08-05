@@ -1653,7 +1653,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                         fix_or_dyn = true;
                         let rawdata = context.storage_at(&key).unwrap().into_uint();
                         rawdata.to_big_endian(data.as_mut());
-                    }else if is_fix_as_vec[31] == 3u8 {//if data is the fixed byte
+                    }else if is_fix_as_vec[31] == 5u8 {//if data is the fixed byte
                         data.clear();
                         fix_or_dyn = true;
                         let rawdata = context.storage_at(&key).unwrap().into_uint();
