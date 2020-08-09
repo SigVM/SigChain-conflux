@@ -410,7 +410,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                         ));
                     }
                 };
-                
+                //TODO: print for debugging. remove when project ends
+                //println!("exec instr: {:?}", instruction);
                 let info = instruction.info();
                 self.last_stack_ret_len = info.ret;
                 if let Err(e) =

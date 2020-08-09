@@ -25,6 +25,10 @@ lazy_static! {
 
     // Gas used for slot tx gas estimation
     pub static ref SLOT_TX_EST_GAS: U256  = U256::from(1000000);
+
+    // storage limit used for slot tx gas estimation
+    pub static ref SLOT_TX_EST_STORAGE_LIMIT: U256  = U256::from(175);
+    
 }
 
 /* Signal and Slots end */

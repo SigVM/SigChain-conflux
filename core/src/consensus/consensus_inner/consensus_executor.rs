@@ -35,7 +35,7 @@ use crate::{
     vm_factory::VmFactory,
     SharedTransactionPool,
     signal::{
-        SLOT_TX_EST_GAS_PRICE, SLOT_TX_EST_GAS,
+        SLOT_TX_EST_GAS_PRICE, SLOT_TX_EST_GAS, SLOT_TX_EST_STORAGE_LIMIT
     }
 };
 use cfx_types::{BigEndianHash, H256, KECCAK_EMPTY_BLOOM, U256, U512};
@@ -900,6 +900,8 @@ impl ConsensusExecutionHandler {
                     // Set large enough gas for the fake transaction call,
                     // This is overwritten later in this function.
                     slot_tx.set_gas(*SLOT_TX_EST_GAS);
+
+                    slot_tx.set_storage_limit(*SLOT_TX_EST_STORAGE_LIMIT);
 
                     // Calculate the upfront gas cost.
                     // Create the signed tx.

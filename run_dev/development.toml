@@ -53,11 +53,11 @@ dev_block_interval_ms = 50
 # By default, the value is not set.
 #
 #Signal and Slots begin: this addr is corrosponding to private key: 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-#mining_author="1cad0b19bb29d4674531d6f115237e16afce377c"
+mining_author="1cad0b19bb29d4674531d6f115237e16afce377c"
 
 
 #Signal and Slots begin: this addr is corrosponding to private key: 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde0
-mining_author="132d19e6a0cd13185a0d3000123c000d7b253375"
+#mining_author="132d19e6a0cd13185a0d3000123c000d7b253375"
 
 # `use_stratum` controls whether the mining process goes through the
 # stratum protocol.
