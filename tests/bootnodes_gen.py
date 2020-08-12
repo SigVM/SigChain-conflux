@@ -23,9 +23,14 @@ for i in range(len(pri_key_list)):
     fin = open("../run_multinodes_dev/development.toml", "rt")
     fout = open("../run_multinodes_dev_" + str(i) + "/development.toml", "wt")
     bootnodes = 'bootnodes="'
+    first = True
     for j in range(len(BOOTNODE_URL)):
         if (i!=j):
-            bootnodes += BOOTNODE_URL[j]
+            if first:
+                bootnodes += BOOTNODE_URL[j]
+                first = False
+            else:
+                bootnodes += "," + BOOTNODE_URL[j]
     bootnodes += '"'
     #print(bootnodes)
     new_data = ""
