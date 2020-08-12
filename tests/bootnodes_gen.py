@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+import shlex, subprocess, signal # for running the node processes
 from conflux.utils import *
 
 if (len(sys.argv) != 2):
@@ -53,4 +54,18 @@ for i in range(len(pri_key_list)):
     fout.write(new_data)
     fout.close()
 
-
+# execute shell commands to run the nodes
+process_list = []
+try:
+    for i in range(num_of_bootnodes):
+        node_dir = '../run_multinodes_dev_' + str(i)
+        log_file_path = node_dir + '/temp.log'
+        log_file = open(log_file_path, "w")
+        cmd = '../target/debug/conflux --config ../run_multinodes_dev_' + str(i) + '/development.toml'
+        args = shlex.split(cmd)
+        a = subprocess.Popen(args, stdout=log_file, cwd = node_dir)
+        process_list.extend([a])
+    process_list[0].wait()
+except KeyboardInterrupt:
+    for i in range(len(process_list)):
+        os.kill(process_list[i].pid, signal.SIGTERM)
