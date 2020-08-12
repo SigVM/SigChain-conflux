@@ -18,6 +18,7 @@ BOOTNODE_URL = []
 for i in range(len(pri_key_list)):
     BOOTNODE_URL.extend(["cfxnode://"+str(node_id_list[i])+"@127.0.0.1:"+str(32323+i)])
 for i in range(len(pri_key_list)):
+    os.system("rm -rf ../run_multinodes_dev_" + str(i))
     os.system("cp -r ../run_multinodes_dev ../run_multinodes_dev_" + str(i))
     fin = open("../run_multinodes_dev/development.toml", "rt")
     fout = open("../run_multinodes_dev_" + str(i) + "/development.toml", "wt")
@@ -26,15 +27,15 @@ for i in range(len(pri_key_list)):
         if (i!=j):
             bootnodes += BOOTNODE_URL[j]
     bootnodes += '"'
-    print(bootnodes)
+    #print(bootnodes)
     new_data = ""
     for line in fin:
         if(line.find("bootnodes=")!=-1):
             new_data += bootnodes + "\n"
-        elif(line.find("tcp_port=32323")!=-1):
-            new_data += "tcp_port=" + str(32323+i) + "\n"
         elif(line.find("public_tcp_port=32323")!=-1):
             new_data += "public_tcp_port=" + str(32323+i) + "\n"
+        elif(line.find("tcp_port=32323")!=-1):
+            new_data += "tcp_port=" + str(32323+i) + "\n"
         elif(line.find("udp_port=32323")!=-1):
             new_data += "udp_port=" + str(32323+i) + "\n"
         elif(line.find("net_key=")!=-1):

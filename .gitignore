@@ -16,3 +16,4 @@ build/
 *~
 core/conflux_unit_test_data_dir
 run_dev/storage_db/
+run_multinodes_dev_*

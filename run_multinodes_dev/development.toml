@@ -45,7 +45,7 @@ mode = "test"
 # If not set, the node will not start mining blocks.
 # If the value is true, `mining_author` must be set.
 #
-# start_mining=true
+start_mining=true
 
 # `mining_author` is the address to receive mining rewards.
 # The value is a 40-digit hex string without 0x prefix.
