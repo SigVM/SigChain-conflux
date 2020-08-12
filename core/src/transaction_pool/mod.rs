@@ -694,7 +694,7 @@ impl TransactionPool {
         // Create a pool of slot transactions. The gas price for each one is also set.
         let slot_tx_limit: usize;
         if transactions_from_pool.len() < Self::TX_TO_SLOT_TX_RATIO {
-            slot_tx_limit = 1;
+            slot_tx_limit = Self::TX_TO_SLOT_TX_RATIO;
         }else{
             slot_tx_limit = transactions_from_pool.len() / Self::TX_TO_SLOT_TX_RATIO;
         }
@@ -706,6 +706,9 @@ impl TransactionPool {
             slot_tx_address_list,
             U256::from(gas_price_average)
         );
+        if slot_tx_pool.len() != 0{
+            println!("slot_tx_pool len is {}",slot_tx_pool.len());
+        }
 
         // /////////////////////////////////////////////////////////
         // // Test purposes...

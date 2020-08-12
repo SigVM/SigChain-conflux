@@ -65,7 +65,8 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
-
+use std::time::{Duration, SystemTime};
+use std::convert::TryInto;
 lazy_static! {
     static ref CONSENSIS_EXECUTION_TIMER: Arc<dyn Meter> =
         register_meter_with_group("timer", "consensus::handle_epoch_execution");
@@ -1231,6 +1232,9 @@ impl ConsensusExecutionHandler {
         let mut block_number = start_block_number;
         let mut last_block_hash =
             pivot_block.block_header.parent_hash().clone();
+        
+        let mut slot_tx_time_total = Duration::from_micros(0);
+        //println!("Now measure SlotTx execuation time ...");
         for block in epoch_blocks.iter() {
             let mut receipts = Vec::new();
             debug!(
@@ -1257,6 +1261,7 @@ impl ConsensusExecutionHandler {
             block_number += 1;
             last_block_hash = block.hash();
             for (idx, transaction) in block.transactions.iter().enumerate() {
+                let slot_tx_time_start = SystemTime::now();
                 let tx_outcome_status;
                 let mut transaction_logs = Vec::new();
                 let mut storage_released = Vec::new();
@@ -1375,6 +1380,17 @@ impl ConsensusExecutionHandler {
                             .insert_transaction_index(&hash, &tx_index);
                     }
                 }
+                if transaction.is_slot_tx(){
+                    match slot_tx_time_start.elapsed() {
+                        Ok(elapsed) => {
+                            println!("Exec SlotTx: {:?}",transaction.slot_tx);
+                            slot_tx_time_total = slot_tx_time_total
+                            .checked_add(Duration::from_micros(elapsed.as_micros().try_into().unwrap())).unwrap();
+                        }
+                        Err(_) => {}
+                    }
+                    
+                }
             }
 
             let block_receipts = Arc::new(BlockReceipts {
@@ -1396,6 +1412,9 @@ impl ConsensusExecutionHandler {
         }
 
         debug!("Finish processing tx for epoch");
+        if slot_tx_time_total.as_micros() != 0{
+            println!("SlotTx execuation time is {} us", slot_tx_time_total.as_micros());
+        }
         Ok(epoch_receipts)
     }
 
