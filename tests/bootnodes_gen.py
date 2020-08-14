@@ -21,6 +21,7 @@ for i in range(len(pri_key_list)):
 for i in range(len(pri_key_list)):
     os.system("rm -rf ../run_multinodes_dev_" + str(i))
     os.system("cp -r ../run_multinodes_dev ../run_multinodes_dev_" + str(i))
+    os.system("cp ../target/debug/conflux ../run_multinodes_dev_" + str(i))
     fin = open("../run_multinodes_dev/development.toml", "rt")
     fout = open("../run_multinodes_dev_" + str(i) + "/development.toml", "wt")
     bootnodes = 'bootnodes="'
@@ -61,8 +62,9 @@ try:
         node_dir = '../run_multinodes_dev_' + str(i)
         log_file_path = node_dir + '/temp.log'
         log_file = open(log_file_path, "w")
-        cmd = '../target/debug/conflux --config ../run_multinodes_dev_' + str(i) + '/development.toml'
+        cmd = '../run_multinodes_dev_' + str(i) + '/conflux --config ../run_multinodes_dev_' + str(i) + '/development.toml'
         args = shlex.split(cmd)
+        print ("Node " + str(i) + " is running")
         a = subprocess.Popen(args, stdout=log_file, cwd = node_dir)
         process_list.extend([a])
     process_list[0].wait()
