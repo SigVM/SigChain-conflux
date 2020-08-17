@@ -279,6 +279,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
             instructions::BLOCKHASH => {
                 Request::Gas(Gas::from(spec.blockhash_gas))
             }
+            //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             instructions::CREATESIG => {
                 // fixed single return value
@@ -297,7 +298,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 Request::Gas(Gas::from(spec.slot_detach_gas))
             }
             instructions::EMITSIG => {
-                let base = Gas::from(spec.signal_emit_gas);
+                let base = Gas::from(spec.sig_emit_gas);
                 let start = stack.peek(2);
                 let len = stack.peek(3);
 
@@ -310,7 +311,14 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 
                 Request::GasMemProvide(gas, mem, None)
             }
+            instructions::DELETESIG => {
+                Request::Gas(Gas::from(spec.sig_delete_gas))
+            }
+            instructions::DELETESLOT => {
+                Request::Gas(Gas::from(spec.slot_delete_gas))
+            }
             /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
             _ => Request::Gas(default_gas),
         };
 

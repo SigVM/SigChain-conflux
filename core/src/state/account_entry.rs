@@ -102,9 +102,11 @@ pub struct OverlayAccount {
     // Signal cache.
     signal_cache: RwLock<HashMap<Vec<u8>, SignalInfo>>,
     signal_changes: HashMap<Vec<u8>, SignalInfo>,
+    signal_deletions: HashMap<Vec<u8>, bool>,
     // Slot cache.
     slot_cache: RwLock<HashMap<Vec<u8>, SlotInfo>>,
     slot_changes: HashMap<Vec<u8>, SlotInfo>,
+    slot_deletions: HashMap<Vec<u8>, bool>,
     // Slot transaction queue. If it's None it means it has
     // not been cached from the db.
     slot_tx_queue: Option<SlotTxQueue>,
@@ -143,8 +145,10 @@ impl OverlayAccount {
             /* Signal and Slots begin */
             signal_cache: Default::default(),
             signal_changes: HashMap::new(),
+            signal_deletions: HashMap::new(),
             slot_cache: Default::default(),
             slot_changes: HashMap::new(),
+            slot_deletions: HashMap::new(),
             slot_tx_queue: None,
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
@@ -182,8 +186,10 @@ impl OverlayAccount {
             /* Signal and Slots begin */
             signal_cache: Default::default(),
             signal_changes: HashMap::new(),
+            signal_deletions: HashMap::new(),
             slot_cache: Default::default(),
             slot_changes: HashMap::new(),
+            slot_deletions: HashMap::new(),
             slot_tx_queue: None,
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
@@ -259,8 +265,10 @@ impl OverlayAccount {
             /* Signal and Slots begin */
             signal_cache: Default::default(),
             signal_changes: HashMap::new(),
+            signal_deletions: HashMap::new(),
             slot_cache: Default::default(),
             slot_changes: HashMap::new(),
+            slot_deletions: HashMap::new(),
             slot_tx_queue: None,
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
@@ -699,8 +707,10 @@ impl OverlayAccount {
             /* Signal and Slots begin */
             signal_cache: Default::default(),
             signal_changes: HashMap::new(),
+            signal_deletions: HashMap::new(),
             slot_cache: Default::default(),
             slot_changes: HashMap::new(),
+            slot_deletions: HashMap::new(),
             slot_tx_queue: self.slot_tx_queue.clone(),
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
@@ -1021,6 +1031,14 @@ impl OverlayAccount {
         for (k, slot) in self.slot_changes.drain() {
             db.set_slot_info(&self.address, k.as_ref(), &slot, debug_record.as_deref_mut())?;
         }
+        // Handle deletions.
+        for (k, _bit) in self.signal_deletions.drain() {
+            db.delete_signal_info(&self.address, k.as_ref(), debug_record.as_deref_mut())?;
+        }
+        for (k, _bit) in self.slot_deletions.drain() {
+            db.delete_slot_info(&self.address, k.as_ref(), debug_record.as_deref_mut())?;
+        }
+
         // Commit slot transaction queue.
         match self.slot_tx_queue.as_ref() {
             None => {}
@@ -1068,7 +1086,7 @@ impl OverlayAccount {
         slot_cache: &mut HashMap<Vec<u8>, SlotInfo>,
         slot_loc: &SlotLocation, db: &StateDb
     ) -> Option<SlotInfo> {
-        match db.get_slot_info(&slot_loc.contract_address(), &slot_loc.slot_key()) {
+        match db.get_slot_info(&slot_loc.address(), &slot_loc.slot_key()) {
             Ok(Some(slot_info)) => {
                 slot_cache.insert(slot_loc.slot_key().clone(), slot_info.clone());
                 Some(slot_info.clone())
@@ -1141,6 +1159,18 @@ impl OverlayAccount {
     // Set a new slot info in cache.
     pub fn set_slot(&mut self, slot_info: SlotInfo) {
         self.slot_changes.insert(slot_info.location().slot_key().clone(), slot_info);
+    }
+
+    // Delete a signal.
+    pub fn delete_signal(&mut self, location: &SignalLocation) {
+        // Mark the bit map
+        self.signal_deletions.insert(location.signal_key().clone(), true);
+    }
+
+    // Delete a slot.
+    pub fn delete_slot(&mut self, location: &SlotLocation) {
+        // Mark the bit map
+        self.slot_deletions.insert(location.slot_key().clone(), true);
     }
 
     // Get slot transaction queue.

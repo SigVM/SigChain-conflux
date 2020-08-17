@@ -243,54 +243,70 @@ impl Context for MockContext {
 
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-    // Create a new signal definition
+    /// Create a new signal definition
     fn create_sig(
-        &mut self, _sender_address: &Address, _signal_key: &Vec<u8>,
-        _num_arg: &U256
-    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        &mut self, 
+        _signal_address: &Address, _signal_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }
-
-    // Create a new slot definition
-    // gas_ratio is out of 100
+    
+    /// Create a new slot definition, gas_ratio is out of 100.
     fn create_slot(
-        &mut self, _sender_address: &Address,
-        _contract_address: &Address, 
-        _slot_key: &Vec<u8>,
-        _argc: &U256, _gas_limit: &U256, 
-        _numerator: &U256, _denominator: &U256,
-    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        &mut self, 
+        _slot_address: &Address, _slot_key: &Vec<u8>, 
+        _method_hash: &H256, _gas_sponsor: &Address,
+        _gas_limit: &U256, _gas_ratio: &U256,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }
 
-    // Bind a slot to a signal
+    /// Bind a slot to a signal.
     fn bind_slot(
-        &mut self, _sender_address: &Address,
-        _contract_address: &Address, 
-        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
-    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        &mut self, 
+        _slot_address: &Address, _slot_key: &Vec<u8>, 
+        _signal_address: &Address, _signal_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }
 
-    // Detach a slot from a signal
+    /// Detach a slot from a signal.
     fn detach_slot(
-        &mut self, _sender_address: &Address,
-        _contract_address: &Address,
-        _signal_address: &Address, _signal_id: &Vec<u8>, _slot_id: &Vec<u8>
-    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        &mut self, 
+        _slot_address: &Address, _slot_key: &Vec<u8>, 
+        _signal_address: &Address, _signal_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }
 
-    // Emit a new signal instance
+    /// Emit a signal to all binded slots.
     fn emit_sig(
-        &mut self, _sender_address: &Address,
-        _signal_id: &Vec<u8>, _blocks_delayed: &U256, _data: &[u8],
-        _is_fix: bool, _data_length: &Vec<u8>
-    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        &mut self, 
+        _signal_address: &Address, _signal_key: &Vec<u8>, 
+        _raw_data: &Vec<u8>, _signal_delay: &U256,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
+        // TODO
+        Ok(SignalSlotOpResult::Success)
+    }
+
+    /// Delete a signal.
+    fn delete_sig(
+        &mut self,
+        _signal_address: &Address, _signal_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
+        // TODO
+        Ok(SignalSlotOpResult::Success)
+    }
+
+    /// Delete a slot.
+    fn delete_slot(
+        &mut self,
+        _slot_address: &Address, _slot_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }

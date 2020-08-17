@@ -146,7 +146,6 @@ struct InterpreterParams {
     pub call_type: CallType,
     /// Param types encoding
     pub params_type: ParamsType,
-
 }
 
 impl From<ActionParams> for InterpreterParams {
@@ -1528,18 +1527,19 @@ impl<Cost: CostType> Interpreter<Cost> {
             }
             //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
+            // These are the opcodes that handle signals and handlers/slots. If you're coming from the solidity
+            // repository and are confused why handlers have just become slots, don't worry. Everytime you see the
+            // word 'slot', think of 'handler, and you'll be okay (We changed the naming midway and have not gone
+            // through the source code yet :D).
             instructions::CREATESIG => {
-                let argc = self.stack.pop_back();  // 0
-                let mut key = vec![0; 32];         // 1
-                self.stack.pop_back().to_big_endian(key.as_mut());
-
-                let call_result =
-                    context.create_sig(
-                        &self.params.address,
-                        &key,
-                        &argc,
-                    );
-
+                // Stack arguments
+                let mut signal_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(signal_key.as_mut()); // 0
+                // Call context to perform state change.
+                let call_result = context.create_sig(
+                    &self.params.address,
+                    &signal_key,
+                );
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {
                         self.stack.push(U256::one());
@@ -1550,30 +1550,23 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
             }
             instructions::CREATESLOT => {
-                // Argument count
-                let argc = self.stack.pop_back(); // 0
-
-                // Gas ratio and limit, the denominator is always 100.
-                let gas_ratio_numerator = self.stack.pop_back(); // 1
-                let gas_ratio_denominator = U256::from(100);
-                let gas_limit = self.stack.pop_back(); // 2
-
-                // Slot key.
-                let mut key = vec![0; 32];
-                self.stack.pop_back().to_big_endian(key.as_mut()); // 3
-
-                // Call context trait api to do the rest of the work.
-                let call_result =
-                    context.create_slot(
-                        &self.params.sender,
-                        &self.params.address,
-                        &key,
-                        &argc,
-                        &gas_limit,
-                        &gas_ratio_numerator,
-                        &gas_ratio_denominator,
-                    );
-
+                // Stack arguments
+                let mut slot_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(slot_key.as_mut());            // 0
+                let method_hash = u256_to_h256(&self.stack.pop_back());                       // 1
+                let gas_limit: U256 = self.stack.pop_back();                                  // 2
+                let gas_ratio: U256 = self.stack.pop_back();                                  // 3
+                // The denominator of the gas ratio is automatically set to 100.
+                // The gas sponsor address is set to the external account that sent this transaction.
+                // Use context functions to perform state changes.
+                let call_result = context.create_slot(
+                    &self.params.address,
+                    &slot_key,
+                    &method_hash,
+                    &self.params.sender,
+                    &gas_limit,
+                    &gas_ratio,
+                );
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {
                         self.stack.push(U256::one());
@@ -1584,21 +1577,19 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
             }
             instructions::BINDSLOT => {
-                let emitter = self.stack.pop_back(); // 0
-                let mut sig_id = vec![0; 32];        // 1
-                self.stack.pop_back().to_big_endian(sig_id.as_mut());
-                let mut slot_id = vec![0; 32];       // 2
-                self.stack.pop_back().to_big_endian(slot_id.as_mut());
-
-                let call_result =
-                    context.bind_slot(
-                        &self.params.sender,
-                        &self.params.address,
-                        &u256_to_address(&emitter),
-                        &sig_id,
-                        &slot_id,
-                    );
-
+                // Stack arguments
+                let mut slot_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(slot_key.as_mut());      // 0
+                let signal_address = u256_to_address(&self.stack.pop_back()); // 1
+                let mut signal_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(signal_key.as_mut());    // 2
+                // Call context to perform state change.
+                let call_result = context.bind_slot(
+                    &self.params.address,
+                    &slot_key,
+                    &signal_address,
+                    &signal_key,
+                );
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {
                         self.stack.push(U256::one());
@@ -1609,21 +1600,62 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
             }
             instructions::DETACHSLOT => {
-                let emitter = self.stack.pop_back(); // 0
-                let mut sig_id = vec![0; 32];        // 1
-                self.stack.pop_back().to_big_endian(sig_id.as_mut());
-                let mut slot_id = vec![0; 32];       // 2
-                self.stack.pop_back().to_big_endian(slot_id.as_mut());
-
-                let call_result =
-                    context.detach_slot(
-                        &self.params.sender,
-                        &self.params.address,
-                        &u256_to_address(&emitter),
-                        &sig_id,
-                        &slot_id,
-                    );
-
+                // Stack arguments
+                let mut slot_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(slot_key.as_mut());      // 0
+                let signal_address = u256_to_address(&self.stack.pop_back()); // 1
+                let mut signal_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(signal_key.as_mut());    // 2
+                // Call context to perform state change.
+                let call_result = context.detach_slot(
+                    &self.params.address,
+                    &slot_key,
+                    &signal_address,
+                    &signal_key,
+                );
+                match call_result {
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
+            }
+            instructions::EMITSIG => {
+                // Stack arguments
+                let mut signal_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(signal_key.as_mut()); // 0
+                let data_offset = self.stack.pop_back();                  // 1
+                let data_length = self.stack.pop_back();                  // 2
+                let signal_delay = self.stack.pop_back();                 // 3
+                // Get data from memory
+                let raw_data = self.mem.read_slice(data_offset, data_length).to_vec();
+                // Call context to make state changes
+                let call_result = context.emit_sig(
+                    &self.params.address,
+                    &signal_key,
+                    &raw_data,
+                    &signal_delay,
+                );
+                match call_result {
+                    Ok(SignalSlotOpResult::Success) => {
+                        self.stack.push(U256::one());
+                    }
+                    _ => {
+                        self.stack.push(U256::zero());
+                    }
+                };
+            }
+            instructions::DELETESIG => {
+                // Stack arguments
+                let mut signal_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(signal_key.as_mut()); // 0
+                // Call context to make state changes
+                let call_result = context.delete_sig(
+                    &self.params.address,
+                    &signal_key,
+                );
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {
                         self.stack.push(U256::one());
@@ -1634,74 +1666,15 @@ impl<Cost: CostType> Interpreter<Cost> {
                 };
 
             }
-            instructions::EMITSIG => {
-                let mut sig_id = vec![0; 32];          // 0
-                self.stack.pop_back().to_big_endian(sig_id.as_mut());
-                let blk_delay = self.stack.pop_back(); // 1
-                let mut key = vec![0; 32];
-                self.stack.pop_back().to_big_endian(key.as_mut());// 2
-                let is_fix = self.stack.pop_back();  // 3
-                let mut is_fix_as_vec = vec![0;32];
-                is_fix.to_big_endian(is_fix_as_vec.as_mut());
-                let fix_or_dyn: bool;
-                let mut data_length = vec![];
-                let call_result = {
-                    let mut data = vec![0;32];
-                    if is_fix_as_vec[31] == 2u8 {
-                        data.clear();
-                        fix_or_dyn = true;
-                    }else if is_fix_as_vec[31] == 1u8 {//if data is the fixed non-byte
-                        fix_or_dyn = true;
-                        let rawdata = context.storage_at(&key).unwrap().into_uint();
-                        rawdata.to_big_endian(data.as_mut());
-                    }else if is_fix_as_vec[31] == 5u8 {//if data is the fixed byte
-                        data.clear();
-                        fix_or_dyn = true;
-                        let rawdata = context.storage_at(&key).unwrap().into_uint();
-                        let mut tempdata = vec![0; 32];
-                        rawdata.to_big_endian(tempdata.as_mut());
-                        let bytenumber = is_fix.byte(1) as usize;
-                        data.extend_from_slice(&tempdata[(32 - bytenumber) ..]);
-                        data.extend_from_slice(&vec![0u8;32 - bytenumber]);
-                    }else{//if data is dynamics bytes
-                        data.clear();
-                        fix_or_dyn = false;
-                        let mut rawdata = context.storage_at(&key).unwrap();
-                        let len = rawdata.as_bytes_mut().to_vec();
-                        data_length = len.iter().map(|i| i/2).collect();
-                        let len128 = Self::length_from_vec_to_u128(&data_length);
-                        if len128 < 32 {
-                            data = len;
-                            data[31] = 0;
-                            //data.reverse();
-                            data_length = vec![0u8;31];
-                            data_length.push(len128 as u8);
-                        }else{
-                            let mul = len128/32;
-                            let res = len128%32;
-                            let mut datakey = keccak(key).as_bytes().to_vec();
-                            for _i in 0..mul {
-                                let mut temp_data  = context.storage_at(&datakey).unwrap();
-                                data.extend(temp_data.as_bytes_mut().to_vec().iter().clone());
-                                Self::dynamic_data_pointer_inc(&mut datakey);
-                            }
-                            if res > 0 {
-                                let mut temp_res_data  = context.storage_at(&datakey).unwrap();
-                                data.extend(&(temp_res_data.as_bytes_mut().to_vec())[..]);
-                            }
-                            //data.reverse();
-                        }
-                    }
-                    context.emit_sig(
-                        &self.params.address,
-                        &sig_id,
-                        &blk_delay,
-                        &data[..],
-                        fix_or_dyn,
-                        &data_length
-                    )
-                };
-
+            instructions::DELETESLOT => {
+                // Stack arguments
+                let mut slot_key = vec![0u8; 32];
+                self.stack.pop_back().to_big_endian(slot_key.as_mut()); // 0
+                // Call context to make state changes
+                let call_result = context.delete_slot(
+                    &self.params.address,
+                    &slot_key,
+                );
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {
                         self.stack.push(U256::one());
@@ -1717,40 +1690,40 @@ impl<Cost: CostType> Interpreter<Cost> {
         Ok(InstructionResult::Ok)
     }
 
-    fn length_from_vec_to_u128(len: &Vec<u8>) -> u128{
-        let mut templen = len.clone();
-        templen.reverse();
-        let mut times: u128 = 1;
-        let mut res: u128 = 0;
-        let mut index = 0;
-        for val in templen.iter() {
-            if index >= 8 {//only accept 2^256 bits emitted data
-                if *val > 0 {
-                    res = templen[0].into();
-                    break;
-                }
-            }else{
-                let tempval: u128 = (*val).into();
-                res = res + tempval*times;
-                times = times * 256;
-            }
-            index = index + 1;
-        }
-        res
-    }
+    // fn length_from_vec_to_u128(len: &Vec<u8>) -> u128{
+    //     let mut templen = len.clone();
+    //     templen.reverse();
+    //     let mut times: u128 = 1;
+    //     let mut res: u128 = 0;
+    //     let mut index = 0;
+    //     for val in templen.iter() {
+    //         if index >= 8 {//only accept 2^256 bits emitted data
+    //             if *val > 0 {
+    //                 res = templen[0].into();
+    //                 break;
+    //             }
+    //         }else{
+    //             let tempval: u128 = (*val).into();
+    //             res = res + tempval*times;
+    //             times = times * 256;
+    //         }
+    //         index = index + 1;
+    //     }
+    //     res
+    // }
 
-    fn dynamic_data_pointer_inc(key: &mut Vec<u8>){
-        key.reverse();
-        for val in key.iter_mut() {
-            if *val == 0xff {
-                *val = 0;
-            }else{
-                *val = *val + 1;
-                break;
-            }
-        }
-        key.reverse();
-    }
+    // fn dynamic_data_pointer_inc(key: &mut Vec<u8>){
+    //     key.reverse();
+    //     for val in key.iter_mut() {
+    //         if *val == 0xff {
+    //             *val = 0;
+    //         }else{
+    //             *val = *val + 1;
+    //             break;
+    //         }
+    //     }
+    //     key.reverse();
+    // }
 
     fn copy_data_to_memory(
         mem: &mut Vec<u8>, stack: &mut dyn Stack<U256>, source: &[u8],
@@ -1827,6 +1800,11 @@ fn set_sign(value: U256, sign: bool) -> U256 {
 fn u256_to_address(value: &U256) -> Address {
     let addr: H256 = BigEndianHash::from_uint(value);
     Address::from(addr)
+}
+
+#[inline]
+fn u256_to_h256(value: &U256) -> H256 {
+    BigEndianHash::from_uint(value)
 }
 
 #[inline]

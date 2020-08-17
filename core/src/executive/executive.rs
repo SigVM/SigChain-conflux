@@ -1248,7 +1248,7 @@ impl<'a> Executive<'a> {
     //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
     pub fn gas_required_for_slot_tx(slot_tx: &SlotTx, spec: &Spec) -> u64 {
-        let data = slot_tx.argv();
+        let data = slot_tx.raw_data();
         data.iter().fold(
             (spec.tx_gas) as u64,
             |g, b| {
@@ -1371,11 +1371,11 @@ impl<'a> Executive<'a> {
         &mut self, tx: &SignedTransaction,
     ) -> DbResult<ExecutionOutcome> {
         let spec = &self.spec;
-        let sender = tx.slot_tx.as_ref().unwrap().address().clone();
+        let sender = tx.slot_tx.as_ref().unwrap().gas_sponsor().clone();
 
         // Check that the slot transaction queue in the state is valid for the
         // execution of this slot transaction. This involves checking for duplicates.
-        let contract_address = tx.slot_tx.as_ref().unwrap().contract_address();
+        let contract_address = tx.slot_tx.as_ref().unwrap().address();
         if self.state.is_account_slot_tx_queue_empty(contract_address).unwrap() {
             return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                 ToRepackError::DuplicatedSlotTx,
@@ -1436,7 +1436,7 @@ impl<'a> Executive<'a> {
 
         // Slot transactions are paid for by the external account that deployed the contract 
         // containing the slot code.
-        let code_address = *tx.slot_tx.as_ref().unwrap().contract_address();
+        let code_address = *tx.slot_tx.as_ref().unwrap().address();
         assert!(self.state.is_contract(&code_address));
         let mut gas_sponsored = false;
         let mut storage_sponsored = false;
@@ -1586,17 +1586,17 @@ impl<'a> Executive<'a> {
         let (result, output) = {
             let tx = tx.slot_tx.as_ref().unwrap();
             let params = ActionParams {
-                code_address: tx.contract_address().clone(),
-                address: tx.contract_address().clone(),
+                code_address: tx.address().clone(),
+                address: tx.address().clone(),
                 sender,
                 original_sender: sender,
                 storage_owner,
                 gas: init_gas,
                 gas_price: tx.gas_price().clone(),
                 value: ActionValue::Transfer(U256::zero()),
-                code: self.state.code(tx.contract_address())?,
-                code_hash: self.state.code_hash(tx.contract_address())?,
-                data: Some(tx.encode()),
+                code: self.state.code(tx.address())?,
+                code_hash: self.state.code_hash(tx.address())?,
+                data: Some(tx.get_encoded_data()),
                 call_type: CallType::Call,
                 params_type: vm::ParamsType::Separate,
                 storage_limit: total_storage_limit,

@@ -196,44 +196,54 @@ pub trait Context {
     /// Check if running in static context.
     fn is_static(&self) -> bool;
 
+    //////////////////////////////////////////////////////////////////////
     /* Signal and Slots begin */
-
-    // Create a new signal definition
+    /// Create a new signal definition
     fn create_sig(
-        &mut self, sender_address: &Address, 
-        signal_key: &Vec<u8>, argc: &U256
+        &mut self, 
+        signal_address: &Address, signal_key: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
-
-    // Create a new slot definition
-    // gas_ratio is out of 100
+    
+    /// Create a new slot definition, gas_ratio is out of 100.
     fn create_slot(
-        &mut self, sender_address: &Address,
-        contract_address: &Address, 
-        slot_key: &Vec<u8>,
-        argc: &U256, gas_limit: &U256, 
-        numerator: &U256, denominator: &U256,
+        &mut self, 
+        slot_address: &Address, slot_key: &Vec<u8>, 
+        method_hash: &H256, gas_sponsor: &Address,
+        gas_limit: &U256, gas_ratio: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
-    // Bind a slot to a signal
+    /// Bind a slot to a signal.
     fn bind_slot(
-        &mut self, sender_address: &Address,
-        contract_address: &Address, 
-        signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
+        &mut self, 
+        slot_address: &Address, slot_key: &Vec<u8>, 
+        signal_address: &Address, signal_key: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
-    // Detach a slot from a signal
+    /// Detach a slot from a signal.
     fn detach_slot(
-        &mut self, sender_address: &Address,
-        contract_address: &Address, 
-        signal_address: &Address, signal_id: &Vec<u8>, slot_id: &Vec<u8>
+        &mut self, 
+        slot_address: &Address, slot_key: &Vec<u8>, 
+        signal_address: &Address, signal_key: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
-    // Emit a new signal instance
+    /// Emit a signal to all binded slots.
     fn emit_sig(
-        &mut self, sender_address: &Address,
-        signal_id: &Vec<u8>, blocks_delayed: &U256, data: &[u8],
-        is_fix: bool, data_length: &Vec<u8>
+        &mut self, 
+        signal_address: &Address, signal_key: &Vec<u8>, 
+        raw_data: &Vec<u8>, signal_delay: &U256,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
+    /// Delete a signal.
+    fn delete_sig(
+        &mut self,
+        signal_address: &Address, signal_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
+
+    /// Delete a slot.
+    fn delete_slot(
+        &mut self,
+        slot_address: &Address, slot_key: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
     /* Signal and Slots end */
+    //////////////////////////////////////////////////////////////////////
 }

@@ -142,16 +142,20 @@ pub struct Spec {
     pub wasm: Option<WasmCosts>,
 
     /* Signal and Slots begin */
-    /// Gas for registering new signal
+    /// Gas for creating new signal
     pub sig_create_gas: usize,
-    /// Gas for registering new slot
+    /// Gas for creating new slot
     pub slot_create_gas: usize,
-    /// Gas for binding slot
+    /// Gas for binding slot to signal
     pub slot_bind_gas: usize,
-    /// Gas for registering new slot
+    /// Gas for detaching from signal
     pub slot_detach_gas: usize,
-    /// Gas for registering new slot
-    pub signal_emit_gas: usize,
+    /// Gas for emitting a signal
+    pub sig_emit_gas: usize,
+    /// Gas for deleting a signal
+    pub sig_delete_gas: usize,
+    /// Gas for deleting a slot
+    pub slot_delete_gas: usize,
     /* Signal and Slots end */
 }
 
@@ -282,13 +286,17 @@ impl Spec {
             kill_dust: CleanDustMode::Off,
             keep_unsigned_nonce: false,
             wasm: None,
+            //////////////////////////////////////////////////////////////////////
             /* Signal and Slots begin */
             sig_create_gas: 20000,
             slot_create_gas: 20000,
             slot_bind_gas: 5000,
             slot_detach_gas: 5000,
-            signal_emit_gas: 700,
+            sig_emit_gas: 700,
+            sig_delete_gas: 100,
+            slot_delete_gas: 100,
             /* Signal and Slots end */
+            //////////////////////////////////////////////////////////////////////
         }
     }
 

@@ -1,15 +1,15 @@
 //////////////////////////////////////////////////////////////////////
 /* Signal and Slots begin */
 
-// High level overview:
-// This source file provides the method for storing information in the state with respect to
-// signals and slots. SignalLocation and SlotLocation define the locations in the state trie.
-// SignalInfo and SlotInfo are held in the state information of the account that owns them.
-// Slot is the structure appended to a signal. It's purpose is to aid in the generation of
-// slot transactions, which are described by SlotTx.
+// This source file holds the primitive structures for implementing signals and slots.
+// SignalLocation and SlotLocation describe unique locations on the state where information is stored.
+// SignalInfo and SlotInfo holds the complete information about a signal or slot. This is maintained 
+// by the contract account that owns them.
+// Slot holds essential information neccessary to create a slot transactions. 
+// These are stored in the signal slot_list.
 
 use crate::{bytes::Bytes};
-use cfx_types::{Address, U256};
+use cfx_types::{Address, U256, H256};
 use serde::{Deserialize, Serialize};
 
 // SignalLocation and SlotLocation.
@@ -22,7 +22,6 @@ pub struct SignalLocation {
     address: Address,
     signal_key: Bytes,
 }
-
 impl SignalLocation {
     pub fn new(owner: &Address, signal_key: &[u8]) -> Self {
         let new = SignalLocation {
@@ -45,15 +44,12 @@ impl SignalLocation {
 )]
 pub struct SlotLocation {
     address: Address,
-    contract_address: Address,
     slot_key: Bytes,
 }
-
 impl SlotLocation {
-    pub fn new(owner: &Address, contract: &Address, slot_key: &[u8]) -> Self {
+    pub fn new(owner: &Address, slot_key: &[u8]) -> Self {
         let new = SlotLocation {
             address: owner.clone(),
-            contract_address: contract.clone(),
             slot_key: Bytes::from(slot_key),
         };
         new
@@ -61,9 +57,6 @@ impl SlotLocation {
     // Getters
     pub fn address(&self) -> &Address {
         &self.address
-    }
-    pub fn contract_address(&self) -> &Address {
-        &self.contract_address
     }
     pub fn slot_key(&self) -> &Bytes {
         &self.slot_key
@@ -77,27 +70,22 @@ impl SlotLocation {
 )]
 pub struct SignalInfo {
     location:  SignalLocation,
-    arg_count: U256,
     slot_list: Vec::<Slot>,
 }
-
 impl SignalInfo {
-    // Return a fresh SignalInfo.
-    pub fn new(owner: &Address, signal_key: &[u8], arg_count: &U256) -> Self {
+    // Return an empty SignalInfo.
+    pub fn new(owner: &Address, signal_key: &[u8]) -> Self {
         let new = SignalInfo {
             location:  SignalLocation::new(owner, signal_key),
-            arg_count: arg_count.clone(),
             slot_list: Vec::new(),
         };
         new
     }
-
     // Bind a slot to this signal.
     pub fn add_to_slot_list(&mut self, slot_info: &SlotInfo) {
         let slot = Slot::new(slot_info);
         self.slot_list.push(slot);
     }
-
     // Removes a slot given a location.
     pub fn remove_from_slot_list(&mut self, loc: &SlotLocation) {
         for i in 0..self.slot_list.clone().len() {
@@ -107,13 +95,9 @@ impl SignalInfo {
             }
         }
     }
-
     // Getters
     pub fn location(&self) -> &SignalLocation {
         &self.location
-    }
-    pub fn arg_count(&self) -> &U256 {
-        &self.arg_count
     }
     pub fn slot_list(&self) -> &Vec::<Slot> {
         &self.slot_list
@@ -131,32 +115,36 @@ impl SignalInfo {
 pub struct SlotInfo {
     // Location on the network. Used to identify this slot uniquely.
     location: SlotLocation,
-    // Number of arguments expected from a binded signal
-    arg_count: U256,
+    // Method hash. Hash of the method that this slot should execute.
+    method_hash: H256,
+    // Gas sponsor. External account that pays for execution of slot transactions for this slot.
+    gas_sponsor: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
     gas_ratio_numerator: U256,
     gas_ratio_denominator: U256,
     // List of keys to the signals that this slot is binded to.
-    // This may not be neccessary for functionality, but might be
-    // useful down the road when implementing automatic cleanup.
     bind_list: Vec::<SignalLocation>,
 }
-
 impl SlotInfo {
     // Create a new SlotInfo.
     pub fn new(
-        owner: &Address, contract: &Address, slot_key: &[u8], arg_count: &U256,
-        gas_limit: &U256, numerator: &U256, denominator: &U256
+        owner: &Address, 
+        slot_key: &[u8],
+        method_hash: &H256, 
+        gas_sponsor: &Address, 
+        gas_limit: &U256, 
+        gas_ratio: &U256
     ) -> Self {
-        let loc = SlotLocation::new(owner, contract, slot_key);
+        let loc = SlotLocation::new(owner, slot_key);
         let new = SlotInfo {
             location:              loc,
-            arg_count:             arg_count.clone(),
+            method_hash:           method_hash.clone(),
+            gas_sponsor:           gas_sponsor.clone(),
             gas_limit:             gas_limit.clone(),
-            gas_ratio_numerator:   numerator.clone(),
-            gas_ratio_denominator: denominator.clone(),
+            gas_ratio_numerator:   gas_ratio.clone(),
+            gas_ratio_denominator: U256::from(100),
             bind_list:             Vec::new(),
         };
         new
@@ -175,13 +163,12 @@ impl SlotInfo {
             }
         }
     }
-
     // Getters
     pub fn location(&self) -> &SlotLocation {
         &self.location
     }
-    pub fn arg_count(&self) -> &U256 {
-        &self.arg_count
+    pub fn gas_sponsor(&self) -> &Address {
+        &self.gas_sponsor
     }
     pub fn gas_limit(&self) -> &U256 {
         &self.gas_limit
@@ -206,30 +193,40 @@ impl SlotInfo {
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct Slot {
-    // Address of contract that owns this slot.
+    // Location of original SlotInfo.
     location: SlotLocation,
+    // Method hash. Hash of the method that this slot should execute.
+    method_hash: H256,
+    // Gas sponsor. External account that pays for execution of slot transactions for this slot.
+    gas_sponsor: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
     gas_ratio_numerator: U256,
     gas_ratio_denominator: U256,
 }
-
 impl Slot {
     // Create a new slot out of a SlotInfo.
     pub fn new(slot_info: &SlotInfo) -> Self {
         let new = Slot {
             location:              slot_info.location.clone(),
+            method_hash:           slot_info.method_hash.clone(),
+            gas_sponsor:           slot_info.gas_sponsor.clone(),
             gas_limit:             slot_info.gas_limit.clone(),
             gas_ratio_numerator:   slot_info.gas_ratio_numerator.clone(),
             gas_ratio_denominator: slot_info.gas_ratio_denominator.clone(),
         };
         new
     }
-
     // Getters.
     pub fn location(&self) -> &SlotLocation {
         &self.location
+    }
+    pub fn method_hash(&self) -> &H256 {
+        &self.method_hash
+    }
+    pub fn gas_sponsor(&self) -> &Address {
+        &self.gas_sponsor
     }
     pub fn gas_limit(&self) -> &U256 {
         &self.gas_limit
@@ -240,21 +237,23 @@ impl Slot {
     pub fn gas_ratio_denominator(&self) -> &U256 {
         &self.gas_ratio_denominator
     }
-
-    // Returns the method id of the slot
+    // Returns the first 4 bytes of the method_hash. This forms the method ID in solidity ABI.
     pub fn get_method_id(&self) -> Bytes {
-        self.location.slot_key()[0..4].to_vec()
+        self.method_hash()[0..4].to_vec()
     }
 }
 
-// SlotTx. Transactions that execute a slot. It holds a slot as well as the block number for execution and
-// the a vector of arguments passed in by the signal.
+// Slot transaction struct. Includes all information needed to execute 
 #[derive(
     Clone, Debug, RlpDecodable, RlpEncodable, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct SlotTx {
     // Address of contract that owns this slot.
     location: SlotLocation,
+    // Method hash.
+    method_hash: H256,
+    // Gas sponsor.
+    gas_sponsor: Address,
     // Gas limit for slot execution.
     gas_limit: U256,
     // Gas ratio for slot execution.
@@ -262,12 +261,8 @@ pub struct SlotTx {
     gas_ratio_denominator: U256,
     // Block number of when this transaction becomes available for execution.
     epoch_height: u64,
-    // Vector of arguments emitted by the signal.
-    argv: Bytes,
-    //check data is fix or dynamic for abi encoding
-    is_fix : bool,
-    //the length of the data if dynamic
-    data_length: Vec<u8>,
+    // Raw byte data emitted by the signal.
+    raw_data: Bytes,
     // Gas price. Determined during packing.
     gas_price: U256,
     // Gas. Determined before packing.
@@ -275,21 +270,21 @@ pub struct SlotTx {
     // Storage limit. Determined before packing.
     storage_limit: U256,
 }
-
 impl SlotTx {
     pub fn new(
-        slot: &Slot, epoch_height: &u64, argv: &Bytes,
-        is_fix: bool, data_length: &Vec<u8>
+        slot: &Slot, epoch_height: &u64, raw_data: &Bytes,
     ) -> Self {
         let new = SlotTx {
+            // Cloned from slot.
             location:              slot.location().clone(),
+            method_hash:           slot.method_hash.clone(),
+            gas_sponsor:           slot.gas_sponsor.clone(),
             gas_limit:             slot.gas_limit.clone(),
             gas_ratio_numerator:   slot.gas_ratio_numerator().clone(),
             gas_ratio_denominator: slot.gas_ratio_denominator.clone(),
+            // Dependant on the signal emitted.
             epoch_height:          epoch_height.clone(),
-            argv:                  argv.clone(),
-            is_fix:                is_fix,
-            data_length:           data_length.to_vec(),
+            raw_data:              raw_data.clone(),
             // Gas price is set when packed in the transaction pool.
             gas_price:             U256::zero(),
             gas:                   U256::zero(),
@@ -297,7 +292,6 @@ impl SlotTx {
         };
         new
     }
-
     // Getters
     pub fn location(&self) -> &SlotLocation {
         &self.location
@@ -305,11 +299,14 @@ impl SlotTx {
     pub fn address(&self) -> &Address {
         &self.location.address()
     }
-    pub fn contract_address(&self) -> &Address {
-        &self.location.contract_address()
-    }
     pub fn slot_key(&self) -> &Bytes {
         &self.location.slot_key()
+    }
+    pub fn method_hash(&self) -> &H256 {
+        &self.method_hash
+    }
+    pub fn gas_sponsor(&self) -> &Address {
+        &self.gas_sponsor
     }
     pub fn gas_limit(&self) -> &U256 {
         &self.gas_limit
@@ -323,8 +320,8 @@ impl SlotTx {
     pub fn epoch_height(&self) -> u64 {
         self.epoch_height
     }
-    pub fn argv(&self) -> Bytes {
-        self.argv.clone()
+    pub fn raw_data(&self) -> &Bytes {
+        &self.raw_data
     }
     pub fn gas_price(&self) -> &U256 {
         &self.gas_price
@@ -335,47 +332,22 @@ impl SlotTx {
     pub fn storage_limit(&self) -> &U256 {
         &self.storage_limit
     }
-
+    // Check if two slot transactions are identical.
     pub fn is_duplicated(&self, tx: &SlotTx) -> bool {
-        self.location == *tx.location() && self.argv == tx.argv()
+        self.location == *tx.location() && self.raw_data == tx.raw_data().clone()
         && self.epoch_height == tx.epoch_height()
     }
 
-    // Functions for ABI purposes. This becomes important when calling slot code.
-    // The standard ABI protocol involves having each function assigned a method id.
-    // To call a function, the 4 byte method ID is prepended to the argument/data vector.
-    pub fn get_method_id(&self) -> Bytes {
-        self.location.slot_key()[0..4].to_vec()
+    // For robustness, we keep encoding and decoding to a minimum in the rust implementation.
+    // All we do for data encoding is prepend the first 4 bytes of the method_hash onto the
+    // raw_data. We trust that argument processing on the solidity side has already encoded 
+    // the function arguments into proper ABI format.
+    pub fn get_encoded_data(&self) -> Bytes {
+        let mut buffer = self.method_hash()[0..4].to_vec().clone();
+        buffer.extend_from_slice(&self.raw_data[..]);
+        buffer
     }
-
-    //encoding idea and assumption:
-    /*BETTER to only accept bytes<M>, bytes, bytes<M>[N]
-    bytes<M>: methed ID + (M bytes + padding zeros)
-    bytes: methed ID + 0x0000..0020 + (padding zeros + datalength)+ 32bytes data + 32bytes data + .... + (Nbytes data + padding zeros) where N <= 32
-    bytes<M>[N]: method ID + (bytes<M>[0] + padding zeros) + (bytes<M>[1] + padding zeros) +..+ (bytes<M>[N-1] + padding zeros)
-
-    if uint, int, uint[], int[], uint<M>, int<M> where M is between 0 to 256 are accepted
-    do the same thing above but padding zeros ahead of the data
-
-    Update: the arguements should already be padded by zeros, don't care about zeros, only care about it is fixed or dynamic type
-    */
-    pub fn encode(&self) -> Bytes {
-        let mut ret = self.get_method_id().clone();
-        if self.is_fix {
-            ret.extend_from_slice(&self.argv[..]);
-        }else{
-            let mut off_part = vec![0u8; 31];
-            off_part.push(32);
-            ret.extend_from_slice(&off_part[..]);
-            ret.extend_from_slice(&self.data_length[..]);
-            ret.extend_from_slice(&self.argv[..]);
-        }
-        ret
-    }
-
-    // The two functions below are called in the tx pool, when these transactions are getting packed.
-
-    // Calculate gas price.
+    // Called in the transaction pool during transaction packing.
     pub fn calculate_and_set_gas_price(&mut self, average_gas_price: &U256) {
         self.gas_price = average_gas_price * self.gas_ratio_numerator / self.gas_ratio_denominator;
     }
@@ -387,8 +359,6 @@ impl SlotTx {
     pub fn set_storage_limit(&mut self, storage_limit: U256) {
         self.storage_limit = storage_limit;
     }
-
 }
-
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////
