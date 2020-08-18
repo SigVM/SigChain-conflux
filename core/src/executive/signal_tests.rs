@@ -525,8 +525,11 @@ fn test_simple_slot_tx_execution() {
         .clone();
     tx.calculate_and_set_gas_price(&U256::from(10));
     tx.set_gas(U256::from(1021301));
-    tx.set_storage_limit(U256::from(10000));
-    println!("{:?}", tx.get_encoded_data());
+    tx.set_storage_limit(U256::from(100000));
+    println!("Encoded Data:");
+    println!("{:?}\n", tx.get_encoded_data());
+    println!("Slot Transaction:");
+    println!("{:?}\n", tx);
 
     // Create a regular transaction and execute it.
     let tx = Transaction {
@@ -542,7 +545,7 @@ fn test_simple_slot_tx_execution() {
         slot_tx: Some(tx),
     };
     let tx = Transaction::create_signed_tx_with_slot_tx(tx.clone());
-    let _res = Executive::new(
+    let res = Executive::new(
         &mut state,
         &env,
         &machine,
@@ -550,9 +553,10 @@ fn test_simple_slot_tx_execution() {
         &internal_contract_map,
     )
     .transact(&tx)
-    .unwrap()
-    .successfully_executed()
     .unwrap();
+    println!("Transaction Result:");
+    println!("{:#?}\n", res);
+    assert!(res.successfully_executed().is_some());
 }
 
 #[test]
@@ -661,8 +665,11 @@ fn test_signal_multi_arg_emit() {
         .clone();
     tx.calculate_and_set_gas_price(&U256::from(10));
     tx.set_gas(U256::from(1021301));
-    // println!("{:?}", tx);
-    println!("{:?}", tx.get_encoded_data());
+    tx.set_storage_limit(U256::from(100000));
+    println!("Encoded Data:");
+    println!("{:?}\n", tx.get_encoded_data());
+    println!("Slot Transaction:");
+    println!("{:?}\n", tx);
     // Create a regular transaction and execute it.
     let tx = Transaction {
         nonce: U256::zero(),
@@ -686,7 +693,8 @@ fn test_signal_multi_arg_emit() {
     )
     .transact(&tx)
     .unwrap();
-    // println!("{:?}", res);
+    println!("Transaction Result:");
+    println!("{:#?}\n", res);
     assert!(res.successfully_executed().is_some());
 }
 
