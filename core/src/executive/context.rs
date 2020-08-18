@@ -974,14 +974,6 @@ mod tests {
                 .unwrap()
         );
     }
-    fn check_sig_slot_result(result : SignalSlotOpResult) {
-        match result {
-            SignalSlotOpResult::Success => {},
-            _ => panic!(
-                "Test create failed; expected Created, got Failed/Reverted."
-            ),
-        };
-    }
 
     #[test]
     fn can_do_sig_slot_ops() {
@@ -1009,52 +1001,71 @@ mod tests {
         let result = ctx.create_sig(
             &Address::zero(),
             &vec![std::u8::MIN],
-            &U256::zero()
         ).ok()
         .unwrap();
-        check_sig_slot_result(result);
+        match result {
+            SignalSlotOpResult::Success => {},
+            _ => panic!(
+                "Test create failed; expected Created, got Failed/Reverted."
+            ),
+        };
 
         let result = ctx.create_slot(
             &Address::zero(),
-            &Address::zero(),
             &vec![std::u8::MAX],
-            &U256::zero(),
-            &U256::zero(),
+            &H256::zero(),
+            &Address::zero(),
             &U256::zero(),
             &U256::zero(),
         ).ok()
         .unwrap();
-        check_sig_slot_result(result);
+        match result {
+            SignalSlotOpResult::Success => {},
+            _ => panic!(
+                "Test create failed; expected Created, got Failed/Reverted."
+            ),
+        };
 
         let result = ctx.bind_slot(
             &Address::zero(),
-            &Address::zero(),
-            &Address::zero(),
-            &vec![std::u8::MIN],
             &vec![std::u8::MAX],
+            &Address::zero(),
+            &vec![std::u8::MIN],            
         ).ok()
         .unwrap();
-        check_sig_slot_result(result);
+        match result {
+            SignalSlotOpResult::Success => {},
+            _ => panic!(
+                "Test create failed; expected Created, got Failed/Reverted."
+            ),
+        };
 
         let result = ctx.detach_slot(
             &Address::zero(),
-            &Address::zero(),
+            &vec![std::u8::MAX],
             &Address::zero(),
             &vec![std::u8::MIN],
-            &vec![std::u8::MAX],
         ).ok()
         .unwrap();
-        check_sig_slot_result(result);
+        match result {
+            SignalSlotOpResult::Success => {},
+            _ => panic!(
+                "Test create failed; expected Created, got Failed/Reverted."
+            ),
+        };
 
         let result = ctx.emit_sig(
             &Address::zero(),
             &vec![std::u8::MIN],
-            &U256::zero(),
             &vec![std::u8::MIN],
-            true,
-            &vec![0u8,32]
+            &U256::zero(),
         ).ok()
         .unwrap();
-        check_sig_slot_result(result);
+        match result {
+            SignalSlotOpResult::Success => {},
+            _ => panic!(
+                "Test create failed; expected Created, got Failed/Reverted."
+            ),
+        };
     }
 }

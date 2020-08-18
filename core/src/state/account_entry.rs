@@ -226,8 +226,10 @@ impl OverlayAccount {
             /* Signal and Slots begin */
             signal_cache: Default::default(),
             signal_changes: HashMap::new(),
+            signal_deletions: HashMap::new(),
             slot_cache: Default::default(),
             slot_changes: HashMap::new(),
+            slot_deletions: HashMap::new(),
             slot_tx_queue: None,
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////

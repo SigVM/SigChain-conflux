@@ -689,7 +689,7 @@ impl MallocSizeOf for SignedTransaction {
 mod tests {
     use rlp::{Rlp, RlpStream, };
     use crate::transaction::{Action, Transaction, };
-    use cfx_types::{Address, U256, address_util::AddressUtil};
+    use cfx_types::{Address, U256, H256, address_util::AddressUtil};
     use keylib::{
         self, public_to_address, Random, Generator,
     };
@@ -717,28 +717,26 @@ mod tests {
         assert!(tx.slot_tx.is_none());
     }
 
-    fn get_slot_tx(address : &Address) -> SlotTx {
-        let mut contract_address = address.clone();
+    fn get_slot_tx(gas_sponsor : &Address) -> SlotTx {
+        let mut contract_address = gas_sponsor.clone();
         contract_address.set_contract_type_bits();
         let key = vec![0x31u8, 0x32u8, 0x33u8];
-        let argc = U256::from(3);
         let target_epoch_height : u64 = 0;
-        let argv = vec![0x01u8, 0x02u8, 0x03u8];
+        let raw_data = vec![0x01u8, 0x02u8, 0x03u8];
+        let method_hash = H256::zero();
         let gas_limit = U256::from(1000);
-        let numerator = U256::from(3);
-        let denominator = U256::from(2);
+        let gas_ratio = U256::from(120);
         let slot_info = SlotInfo::new(
-            address,
             &contract_address,
             &key,
-            &argc,
+            &method_hash,
+            gas_sponsor,
             &gas_limit,
-            &numerator,
-            &denominator
+            &gas_ratio,
         );
         let slot = Slot::new(&slot_info);
         let slot_tx = SlotTx::new(
-            &slot, &target_epoch_height, &argv, true, &vec![0u8,32]
+            &slot, &target_epoch_height, &raw_data,
         );
         slot_tx
     }

@@ -1588,7 +1588,7 @@ impl<'a> Executive<'a> {
             let params = ActionParams {
                 code_address: tx.address().clone(),
                 address: tx.address().clone(),
-                sender,
+                sender: sender,
                 original_sender: sender,
                 storage_owner,
                 gas: init_gas,
