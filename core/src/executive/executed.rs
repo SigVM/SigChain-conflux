@@ -127,6 +127,23 @@ impl Executed {
     pub fn not_enough_balance_fee_charged(
         tx: &TransactionWithSignature, fee: &U256,
     ) -> Self {
+        /* Signal and Slots begin */
+        if tx.is_slot_tx() {
+            let gas_charged = fee / tx.slot_tx.as_ref().unwrap().gas_price();
+            return Self {
+                gas_used: U256::zero(),
+                gas_charged,
+                fee: fee.clone(),
+                gas_sponsor_paid: false,
+                logs: vec![],
+                contracts_created: vec![],
+                storage_sponsor_paid: false,
+                storage_collateralized: Vec::new(),
+                storage_released: Vec::new(),
+                output: Default::default(),
+            };
+        }
+        /* Signal and Slots end */
         let gas_charged = fee / tx.gas_price;
         Self {
             gas_used: tx.gas,
