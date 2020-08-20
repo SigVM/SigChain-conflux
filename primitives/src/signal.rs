@@ -343,7 +343,7 @@ impl SlotTx {
     // raw_data. We trust that argument processing on the solidity side has already encoded 
     // the function arguments into proper ABI format.
     pub fn get_encoded_data(&self) -> Bytes {
-        let mut buffer = self.method_hash()[(32-4)..32].to_vec().clone();
+        let mut buffer = self.method_hash()[0..4].to_vec().clone();
         buffer.extend_from_slice(&self.raw_data[..]);
         buffer
     }

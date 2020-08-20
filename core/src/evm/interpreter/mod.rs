@@ -1632,7 +1632,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 
                 // Get data from memory
                 let raw_data = if data_length != U256::zero() {
-                    self.mem.read_slice(data_offset, data_length).to_vec()
+                    self.mem.read_slice(data_offset+32, data_length).to_vec()
                 } else {
                     Vec::new()
                 };
