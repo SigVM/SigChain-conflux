@@ -1260,6 +1260,7 @@ impl ConsensusExecutionHandler {
 
             block_number += 1;
             last_block_hash = block.hash();
+            let mut txcount = 0;
             for (idx, transaction) in block.transactions.iter().enumerate() {
                 let slot_tx_time_start = SystemTime::now();
                 let tx_outcome_status;
@@ -1380,7 +1381,9 @@ impl ConsensusExecutionHandler {
                             .insert_transaction_index(&hash, &tx_index);
                     }
                 }
+                txcount = txcount + 1;
                 if transaction.is_slot_tx(){
+                    println!("SlotTx Index: {}/{}",txcount,block.transactions.len());
                     match slot_tx_time_start.elapsed() {
                         Ok(elapsed) => {
                             println!("Exec SlotTx: {:?}",transaction.slot_tx);
@@ -1389,7 +1392,8 @@ impl ConsensusExecutionHandler {
                         }
                         Err(_) => {}
                     }
-                    
+                }else{
+                    println!("NormTx Index: {}/{}",txcount,block.transactions.len());
                 }
             }
 
