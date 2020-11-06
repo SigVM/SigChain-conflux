@@ -1393,7 +1393,7 @@ impl ConsensusExecutionHandler {
                         Err(_) => {}
                     }
                 }else{
-                    println!("NormTx Index: {}/{}",txcount,block.transactions.len());
+                    //println!("NormTx Index: {}/{}",txcount,block.transactions.len());
                 }
             }
 

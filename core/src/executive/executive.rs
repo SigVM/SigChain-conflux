@@ -32,7 +32,14 @@ use std::{
     mem,
     sync::Arc,
 };
-
+use std::time::SystemTime;
+use std::sync::Mutex;
+lazy_static! {
+    static ref NUM_NOR_TX: Arc::<Mutex<i128>> = Arc::new(Mutex::new(0));
+    static ref NUM_INT_TX: Arc::<Mutex<i128>> = Arc::new(Mutex::new(0));
+    static ref NUM_POK_TX: Arc::<Mutex<i128>> = Arc::new(Mutex::new(0));
+    static ref TX_TIME_START: Arc::<Mutex<SystemTime>> = Arc::new(Mutex::new(SystemTime::UNIX_EPOCH));
+}
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(
     address_scheme: CreateContractAddress, sender: &Address, nonce: &U256,
@@ -1607,6 +1614,7 @@ impl<'a> Executive<'a> {
                 Ok(res) => res.return_data.to_vec(),
                 _ => Vec::new(),
             };
+            *(NUM_POK_TX.lock().unwrap()) += 1;
             (res, out)
         };
 
@@ -1940,6 +1948,13 @@ impl<'a> Executive<'a> {
                     Ok(res) => res.return_data.to_vec(),
                     _ => Vec::new(),
                 };
+                if tx.value==U256::one() {
+                    *(NUM_NOR_TX.lock().unwrap()) += 1;
+                }else if tx.data.clone().len() > 4 {
+                    *(NUM_POK_TX.lock().unwrap()) += 1;
+                }else{
+                    *(NUM_INT_TX.lock().unwrap()) += 1;
+                }
                 (res, out)
             }
         };
@@ -2101,6 +2116,27 @@ impl<'a> Executive<'a> {
                 };
 
                 if r.apply_state {
+                    let mut tmp_time = *(TX_TIME_START.lock().unwrap());
+                    let tmpn = *(NUM_NOR_TX.lock().unwrap()) as f32;
+                    let tmpi = *(NUM_INT_TX.lock().unwrap()) as f32;
+                    let tmpp = *(NUM_POK_TX.lock().unwrap()) as f32;
+                    match SystemTime::now().duration_since(*(TX_TIME_START.lock().unwrap())) {
+                        Ok(n) =>{ 
+                                if n.as_secs()>=100{
+                                    if *(NUM_INT_TX.lock().unwrap()) != 0 {
+                                        println!("=======================Tx Exec Report=====================\nNUM_NOR_TX {}, NUM_INT_TX {}, NUM_POK_TX {}, ratio POK/TOT {}, ratio POK/INT {}", tmpn, tmpi, tmpp, tmpp/(tmpn+tmpi+tmpp), tmpp/tmpi);
+                                    }else{
+                                        println!("=======================Tx Exec Report=====================\nNUM_NOR_TX {}, NUM_INT_TX {}, NUM_POK_TX {}", tmpn, tmpi, tmpp);
+                                    }
+                                    tmp_time = SystemTime::now();
+                                    *(NUM_NOR_TX.lock().unwrap()) = 0;
+                                    *(NUM_INT_TX.lock().unwrap()) = 0;
+                                    *(NUM_POK_TX.lock().unwrap()) = 0;
+                                }
+                            },
+                        Err(_) => panic!("TIME MEASUREMENT FAILED"),
+                    }
+                    *(TX_TIME_START.lock().unwrap()) = tmp_time;
                     Ok(ExecutionOutcome::Finished(executed))
                 } else {
                     // Transaction reverted by vm instruction.
