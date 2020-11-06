@@ -1369,6 +1369,17 @@ impl<'a> Executive<'a> {
                 CleanupMode::NoEmpty,
             )?;
         }
+        if tx.is_slot_tx() {
+            *(NUM_POK_TX.lock().unwrap()) -= 1;
+        }else{
+            if tx.value==U256::one() {
+                *(NUM_NOR_TX.lock().unwrap()) -= 1;
+            }else if tx.data.clone().len() > 4 {
+                *(NUM_POK_TX.lock().unwrap()) -= 1;
+            }else{
+                *(NUM_INT_TX.lock().unwrap()) -= 1;
+            }            
+        }
         self.transact(tx)
     }
 
