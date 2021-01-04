@@ -561,7 +561,7 @@ lazy_static! {
         // through the source code yet :D).
         arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 1, 1, GasPriceTier::Special));
 		arr[CREATESLOT as usize] = Some(InstructionInfo::new("CREATESLOT", 4, 1, GasPriceTier::Special));
-        arr[BINDSLOT as usize] = Some(InstructionInfo::new("BINDSLOT", 3, 1, GasPriceTier::Special));
+        arr[BINDSLOT as usize] = Some(InstructionInfo::new("BINDSLOT", 6, 1, GasPriceTier::Special));
 		arr[DETACHSLOT as usize] = Some(InstructionInfo::new("DETACHSLOT", 3, 1, GasPriceTier::Special));
         arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
         arr[DELETESIG as usize] = Some(InstructionInfo::new("DELETESIG", 1, 1, GasPriceTier::Special));

@@ -1580,19 +1580,40 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // Stack arguments
                 let mut slot_key = vec![0u8; 32];
                 self.stack.pop_back().to_big_endian(slot_key.as_mut());       // 0
-                let signal_address = u256_to_address(&self.stack.pop_back()); // 1
+                let method_hash = u256_to_h256(&self.stack.pop_back()); // 1
+                let gas_limit: U256 = self.stack.pop_back();            // 2
+                let gas_ratio: U256 = self.stack.pop_back();            // 3
+                // The denominator of the gas ratio is automatically set to 100.
+                // The gas sponsor address is set to the external account that sent this transaction.                
+                let signal_address = u256_to_address(&self.stack.pop_back()); // 4
                 let mut signal_key = vec![0u8; 32];
-                self.stack.pop_back().to_big_endian(signal_key.as_mut());     // 2
-                // Call context to perform state change.
-                let call_result = context.bind_slot(
+                self.stack.pop_back().to_big_endian(signal_key.as_mut());     // 5
+
+                let init_result = context.create_slot(
                     &self.params.address,
                     &slot_key,
-                    &signal_address,
-                    &signal_key,
+                    &method_hash,
+                    &self.params.sender,
+                    &gas_limit,
+                    &gas_ratio,
                 );
-                match call_result {
+                match init_result {
                     Ok(SignalSlotOpResult::Success) => {
-                        self.stack.push(U256::one());
+                        // Call context to perform state change.
+                        let call_result = context.bind_slot(
+                            &self.params.address,
+                            &slot_key,
+                            &signal_address,
+                            &signal_key,
+                        );
+                        match call_result {
+                            Ok(SignalSlotOpResult::Success) => {
+                                self.stack.push(U256::one());
+                            }
+                            _ => {
+                                self.stack.push(U256::zero());
+                            }
+                        };
                     }
                     _ => {
                         self.stack.push(U256::zero());
