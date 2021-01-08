@@ -336,8 +336,6 @@ enum_with_from_u8! {
         /* Signal and Slots begin */
         #[doc = "create a new signal"]
         CREATESIG = 0xc0,
-		#[doc = "create a new slot"]
-        CREATESLOT = 0xc1,
         #[doc = "bind a slot to a signal"]
         BINDSLOT = 0xc2,
 		#[doc = "detach a slot from a signal"]
@@ -346,8 +344,6 @@ enum_with_from_u8! {
         EMITSIG = 0xc4,
         #[doc = "delete a signal"]
         DELETESIG = 0xc5,
-        #[doc = "delete a slot"]
-        DELETESLOT = 0xc6,
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
 
@@ -560,12 +556,10 @@ lazy_static! {
         // word 'slot', think of 'handler, and you'll be okay (We changed the naming midway and have not gone
         // through the source code yet :D).
         arr[CREATESIG as usize] = Some(InstructionInfo::new("CREATESIG", 1, 1, GasPriceTier::Special));
-		arr[CREATESLOT as usize] = Some(InstructionInfo::new("CREATESLOT", 4, 1, GasPriceTier::Special));
         arr[BINDSLOT as usize] = Some(InstructionInfo::new("BINDSLOT", 6, 1, GasPriceTier::Special));
 		arr[DETACHSLOT as usize] = Some(InstructionInfo::new("DETACHSLOT", 3, 1, GasPriceTier::Special));
         arr[EMITSIG as usize] = Some(InstructionInfo::new("EMITSIG", 4, 1, GasPriceTier::Special));
         arr[DELETESIG as usize] = Some(InstructionInfo::new("DELETESIG", 1, 1, GasPriceTier::Special));
-		arr[DELETESLOT as usize] = Some(InstructionInfo::new("DELETESLOT", 1, 1, GasPriceTier::Special));
         /* Signal and Slots end */
         //////////////////////////////////////////////////////////////////////
 

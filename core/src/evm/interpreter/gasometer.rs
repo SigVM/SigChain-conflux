@@ -285,10 +285,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
                 // fixed single return value
                 Request::Gas(Gas::from(spec.sig_create_gas))
             }
-            instructions::CREATESLOT => {
-                // fixed single return value
-                Request::Gas(Gas::from(spec.slot_create_gas))
-            }
             instructions::BINDSLOT => {
                 // fixed single return value
                 Request::Gas(Gas::from(spec.slot_bind_gas))
@@ -313,9 +309,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
             }
             instructions::DELETESIG => {
                 Request::Gas(Gas::from(spec.sig_delete_gas))
-            }
-            instructions::DELETESLOT => {
-                Request::Gas(Gas::from(spec.slot_delete_gas))
             }
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////

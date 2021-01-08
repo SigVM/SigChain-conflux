@@ -1549,33 +1549,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                     }
                 };
             }
-            instructions::CREATESLOT => {
-                // Stack arguments
-                let mut slot_key = vec![0u8; 32];
-                self.stack.pop_back().to_big_endian(slot_key.as_mut()); // 0
-                let method_hash = u256_to_h256(&self.stack.pop_back()); // 1
-                let gas_limit: U256 = self.stack.pop_back();            // 2
-                let gas_ratio: U256 = self.stack.pop_back();            // 3
-                // The denominator of the gas ratio is automatically set to 100.
-                // The gas sponsor address is set to the external account that sent this transaction.
-                // Use context functions to perform state changes.
-                let call_result = context.create_slot(
-                    &self.params.address,
-                    &slot_key,
-                    &method_hash,
-                    &self.params.sender,
-                    &gas_limit,
-                    &gas_ratio,
-                );
-                match call_result {
-                    Ok(SignalSlotOpResult::Success) => {
-                        self.stack.push(U256::one());
-                    }
-                    _ => {
-                        self.stack.push(U256::zero());
-                    }
-                };
-            }
             instructions::BINDSLOT => {
                 // Stack arguments
                 let mut slot_key = vec![0u8; 32];
@@ -1692,24 +1665,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                     }
                 };
 
-            }
-            instructions::DELETESLOT => {
-                // Stack arguments
-                let mut slot_key = vec![0u8; 32];
-                self.stack.pop_back().to_big_endian(slot_key.as_mut()); // 0
-                // Call context to make state changes
-                let call_result = context.delete_slot(
-                    &self.params.address,
-                    &slot_key,
-                );
-                match call_result {
-                    Ok(SignalSlotOpResult::Success) => {
-                        self.stack.push(U256::one());
-                    }
-                    _ => {
-                        self.stack.push(U256::zero());
-                    }
-                };
             }
             /* Signal and Slots end */
             //////////////////////////////////////////////////////////////////////
