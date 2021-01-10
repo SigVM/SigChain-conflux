@@ -1553,9 +1553,9 @@ impl<Cost: CostType> Interpreter<Cost> {
                 // Stack arguments
                 let mut slot_key = vec![0u8; 32];
                 self.stack.pop_back().to_big_endian(slot_key.as_mut());       // 0
-                let method_hash = u256_to_h256(&self.stack.pop_back()); // 1
-                let gas_limit: U256 = self.stack.pop_back();            // 2
-                let gas_ratio: U256 = self.stack.pop_back();            // 3
+                let method_hash = u256_to_h256(&self.stack.pop_back());       // 1
+                let gas_limit: U256 = self.stack.pop_back();                  // 2
+                let gas_ratio: U256 = self.stack.pop_back();                  // 3
                 // The denominator of the gas ratio is automatically set to 100.
                 // The gas sponsor address is set to the external account that sent this transaction.                
                 let signal_address = u256_to_address(&self.stack.pop_back()); // 4

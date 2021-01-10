@@ -1305,24 +1305,9 @@ fn should_create_sig(factory: super::Factory) {
     };
 }
 
-evm_test! {should_create_slot: should_create_slot_int}
-fn should_create_slot(factory: super::Factory) {
-    let code = "60096020602160226023c1".from_hex().unwrap();
-
-    let mut params = ActionParams::default();
-    params.gas = U256::from(100_000);
-    params.code = Some(Arc::new(code));
-    let mut ctx = MockContext::new();
-
-    let _gas_left = {
-        let vm = factory.create(params, ctx.spec(), ctx.depth());
-        test_finalize(vm.exec(&mut ctx).ok().unwrap()).unwrap()
-    };
-}
-
-evm_test! {should_bind: should_bind_int}
-fn should_bind(factory: super::Factory) {
-    let code = "600960206021c2".from_hex().unwrap();
+evm_test! {should_create_and_bind: should_bind_int}
+fn should_create_and_bind(factory: super::Factory) {
+    let code = "60096020602160226023600960206021c2".from_hex().unwrap();
 
     let mut params = ActionParams::default();
     params.gas = U256::from(100_000);
