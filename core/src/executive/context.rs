@@ -510,7 +510,7 @@ impl<'a> ContextTrait for Context<'a> {
         let slt_loc = SlotLocation::new(&slot_address, slot_key);
         let result = self.state.detach_slot_from_signal(&sig_loc, &slt_loc);
         match result {
-            Ok(()) => Ok(SignalSlotOpResult::Success),
+            Ok(c) => Ok(SignalSlotOpResult::SuccessWithCount(c)),
             _ => Ok(SignalSlotOpResult::Failed)
         }
     }
@@ -1006,7 +1006,7 @@ mod tests {
         match result {
             SignalSlotOpResult::Success => {},
             _ => panic!(
-                "Test create failed; expected Created, got Failed/Reverted."
+                "Test create sig failed; expected Created, got Failed/Reverted."
             ),
         };
 
@@ -1022,7 +1022,7 @@ mod tests {
         match result {
             SignalSlotOpResult::Success => {},
             _ => panic!(
-                "Test create failed; expected Created, got Failed/Reverted."
+                "Test create slot failed; expected Created, got Failed/Reverted."
             ),
         };
 
@@ -1036,7 +1036,7 @@ mod tests {
         match result {
             SignalSlotOpResult::Success => {},
             _ => panic!(
-                "Test create failed; expected Created, got Failed/Reverted."
+                "Test bind slot failed; expected Created, got Failed/Reverted."
             ),
         };
 
@@ -1048,9 +1048,15 @@ mod tests {
         ).ok()
         .unwrap();
         match result {
-            SignalSlotOpResult::Success => {},
+            SignalSlotOpResult::SuccessWithCount(c) => {
+                if c != U256::one() {
+                    panic!(
+                        "Test detach slot failed; expected detached with 1, got {} .", c
+                    )
+                }
+            },
             _ => panic!(
-                "Test create failed; expected Created, got Failed/Reverted."
+                "Test detach slot failed; expected detached, got Failed/Reverted."
             ),
         };
 
@@ -1064,7 +1070,7 @@ mod tests {
         match result {
             SignalSlotOpResult::Success => {},
             _ => panic!(
-                "Test create failed; expected Created, got Failed/Reverted."
+                "Test sig emit failed; expected emitted, got Failed/Reverted."
             ),
         };
     }

@@ -36,29 +36,26 @@ fn test_bind_and_detach() {
     // BEFORE PARSING 
     //
     // contract Emitter {
-    //     signal Alert();
+    //     signal Alert;
     //     function emit_alert() public view {
-    //         Alert.emit().delay(0);
+    //         emitsig Alert().delay(0);
     //     }
     //     constructor() {
-    //         Alert.create_signal();
     //     }
     // }
     // contract Receiver {
     //     uint updated;
-    //     handler Receive();
-    //     function update_data() public {
+    //     function Receive() handler {
     //         updated = 1;
     //         return;
     //     }
     //     function bind_to_alert(address source) public view {
-    //         Receive.bind(source, "Alert()");
+    //         Receive.bind(source, "Alert()", 0.5);
     //     }
     //     function detach_from_alert(address source) public view {
     //         Receive.detach(source, "Alert()");
     //     }
     //     constructor() {
-    //         Receive.create_handler("update_data()", 100000, 120);
     //         updated = 0;
     //     }
     // }

@@ -1612,7 +1612,8 @@ impl State {
         // Make sure account is cached.
         let empty_slot = self.slot_at(slot_address, slot_key)?;
         if !empty_slot.is_none() {
-            return Ok(false);
+            // skip creation
+            return Ok(true);
         }
         // Create new slot instance.
         let slot_info = SlotInfo::new(
@@ -1758,7 +1759,7 @@ impl State {
     // Detach a slot from a signal.
     pub fn detach_slot_from_signal(
         &self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
-    ) -> DbResult<()> {
+    ) -> DbResult<U256> {
         // Get signal info, make sure it exists.
         let _sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
         let _sig_info = match _sig_info {
@@ -1771,8 +1772,8 @@ impl State {
             }
         };
         // Get slot info, make sure it exists.
-        let _slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key());
-        let _slot_info = match _slot_info {
+        let slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key());
+        let slot_info = match slot_info {
             Ok(Some(s)) => s,
             _ => {
                 return Err(DbErrorKind::IncompleteDatabase(
@@ -1787,7 +1788,7 @@ impl State {
         // Slot account.
         self.require_exists(&slot_loc.address(), false)?
             .remove_from_bind_list(&self.db, slot_loc, sig_loc);
-        Ok(())
+        Ok(U256::from(slot_info.bind_list().len())) 
     }
 
     // Emit a signal.

@@ -81,6 +81,39 @@ fn slot_creation() {
     assert_eq!(*slot.location().slot_key(), key);
 }
 
+// Multiple slot creation test
+// note: we are allowing this as CREATESLOT and BINDSLOT are now combined on the front-end
+#[test]
+fn multi_slot_creation() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+    let mut address = Address::zero();
+    let gas_sponsor = address;
+    address.set_contract_type_bits();
+    let method_hash = H256::zero();
+    let key = vec![0x31u8, 0x32u8, 0x33u8];
+    let gas_limit = U256::from(1000);
+    let gas_ratio = U256::from(120);
+
+    state
+        .new_contract(&address, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&address, &key, &method_hash, &gas_sponsor, &gas_limit, &gas_ratio)
+        .expect("Slot creation should not fail.");
+
+    state
+        .create_slot(&address, &key, &method_hash, &gas_sponsor, &gas_limit, &gas_ratio)
+        .expect("Duplicated slot creation should not fail.");
+
+    let slot = state.slot_at(&address, &key)
+        .expect("Slot should exist.")
+        .unwrap();
+
+    assert_eq!(*slot.location().address(), address);
+    assert_eq!(*slot.location().slot_key(), key);
+}
+
 // Create two contract accounts, one with a signal and one with a slot.
 // Bind the slot to the signal and check if lists are updated correctly.
 // Detach the slot from the signal and check if lists are updated correctly.
