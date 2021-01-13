@@ -1609,21 +1609,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                 );
 
                 match call_result {
-                    Ok(SignalSlotOpResult::SuccessWithCount(num_sig_listening)) => {
-                        if num_sig_listening == U256::zero() {
-                            let delete_result = context.delete_slot(
-                                &self.params.address,
-                                &slot_key,
-                            );
-                            match delete_result {
-                                Ok(SignalSlotOpResult::Success) => {
-                                    self.stack.push(U256::one());
-                                }
-                                _ => {
-                                    self.stack.push(U256::zero());
-                                }
-                            };
-                        }
+                    Ok(SignalSlotOpResult::SuccessWithCount(_)) => {
+                        self.stack.push(U256::one());
                     }
                     _ => {
                         self.stack.push(U256::zero());

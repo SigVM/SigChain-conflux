@@ -188,11 +188,11 @@ fn slot_bind_and_detach() {
     assert!(sig.slot_list().is_empty());
 
     // Check to see if slot info is correct.
+    // after merging DETACH and DELETE, the slot should be gone by now
     let slot = state
             .slot_at(&listener, &slot_key)
-            .expect("Slot info retrieval should not fail")
-            .unwrap();
-    assert!(slot.bind_list().is_empty());
+            .expect("Slot info retrieval should not fail");
+    assert!(slot.is_none());
 }
 
 // Tests to see if signal emission works as intended.
@@ -631,5 +631,244 @@ fn ready_slot_tx_addresses_cache_test() {
     check_address_list(0, &mut state);
 }
 
+// This test mimics the logic on the front end with merged DETACHSLOT and DELETESLOT opcodes
+// if DETACHSLOT is removing the last signal a slot is listening to, it should also remove the slot
+#[test]
+fn slot_detach_and_delete() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+
+    // Information to initialize signal.
+    let mut emitter = Address::from_low_u64_be(1);
+    emitter.set_contract_type_bits();
+    let sig_key_1 = vec![0x41u8, 0x42u8, 0x43u8];
+    let sig_key_2 = vec![0x41u8, 0x42u8, 0x44u8];
+
+    // Information to initialize slot.
+    let mut listener = Address::from_low_u64_be(2);
+    let gas_sponsor = listener;
+    listener.set_contract_type_bits();
+    let method_hash = H256::zero();
+    let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
+    let gas_limit = U256::from(1000);
+    let gas_ratio = U256::from(120);
+
+    // Create signal.
+    state
+        .new_contract(&emitter, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_signal(&emitter, &sig_key_1)
+        .expect("Signal creation should not fail.");
+    state
+        .create_signal(&emitter, &sig_key_2)
+        .expect("Signal creation should not fail.");
+    // Create slot.
+    state
+        .new_contract(&listener, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&listener, &slot_key, &method_hash, &gas_sponsor, &gas_limit, &gas_ratio)
+        .expect("Slot creation should not fail.");
+    // Signal and slot location.
+    let sig_loc_1 = SignalLocation::new(&emitter, &sig_key_1);
+    let sig_loc_2 = SignalLocation::new(&emitter, &sig_key_2);
+    let slot_loc = SlotLocation::new(&listener, &slot_key);
+    // Bind slot to signal 1 and check if the binding is correct.
+    state
+        .bind_slot_to_signal(&sig_loc_1, &slot_loc)
+        .expect("Bind should not fail.");
+    let sig = state
+        .signal_at(&emitter, &sig_key_1)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    let slot = sig.slot_list().last().unwrap().clone();
+    assert_eq!(*slot.location(), slot_loc);
+    assert_eq!(*slot.gas_limit(), gas_limit);
+    // Bind slot to signal 2 and check if the binding is correct.
+    state
+        .bind_slot_to_signal(&sig_loc_2, &slot_loc)
+        .expect("Bind should not fail.");
+    let sig = state
+        .signal_at(&emitter, &sig_key_2)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    let slot = sig.slot_list().last().unwrap().clone();
+    assert_eq!(*slot.location(), slot_loc);
+    assert_eq!(*slot.gas_limit(), gas_limit);
+
+    // Check to see if slot info is correct.
+    let slot = state
+        .slot_at(&listener, &slot_key)
+        .expect("Slot info retrieval should not fail")
+        .unwrap();
+    assert_eq!(slot.bind_list().len(), 2);
+
+    // Detach slot from signal.
+    let signal_remaining = state
+        .detach_slot_from_signal(&sig_loc_2, &slot_loc)
+        .expect("Detach should not fail.");
+    // Check to see if slot info is correct.
+    let slot = state
+            .slot_at(&listener, &slot_key)
+            .expect("Slot info retrieval should not fail")
+            .unwrap();
+    assert_eq!(slot.bind_list().len(), 1);
+    assert_eq!(signal_remaining, U256::one());
+
+    // Detach sig 1
+    let signal_remaining = state
+        .detach_slot_from_signal(&sig_loc_1, &slot_loc)
+        .expect("Detach should not fail.");
+    assert_eq!(signal_remaining, U256::zero());
+
+    // Slot has been deleted
+    let slot = state.slot_at(&listener, &slot_key)
+                    .expect("Slot info retrieval should not fail");
+    assert!(slot.is_none());
+}
+
+// Create then delete a signal
+#[test]
+fn signal_deletion() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+    let mut address = Address::zero();
+    address.set_contract_type_bits();
+    let key = vec![0x41u8, 0x42u8, 0x43u8];
+
+    state
+        .new_contract(&address, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_signal(&address, &key)
+        .expect("Signal creation should not fail.");
+
+    state.signal_at(&address, &key)
+        .expect("Signal should exist.")
+        .unwrap();
+
+    let sig_loc = SignalLocation::new(&address, &key);
+    state
+        .delete_signal(&sig_loc)
+        .expect("Signal deletion should not fail.");
+    
+    let sig = state.signal_at(&address, &key)
+        .expect("Signal info retrieval should not fail");
+    assert!(sig.is_none());
+}
+
+// Create then delete a slot
+#[test]
+fn slot_deletion() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+    let mut address = Address::zero();
+    let gas_sponsor = address;
+    address.set_contract_type_bits();
+    let method_hash = H256::zero();
+    let key = vec![0x31u8, 0x32u8, 0x33u8];
+    let gas_limit = U256::from(1000);
+    let gas_ratio = U256::from(120);
+
+    state
+        .new_contract(&address, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&address, &key, &method_hash, &gas_sponsor, &gas_limit, &gas_ratio)
+        .expect("Slot creation should not fail.");
+
+    let slot_loc = SlotLocation::new(&address, &key);
+    state
+        .delete_slot(&slot_loc)
+        .expect("Slot deletion should not fail.");
+    
+    let slot = state.slot_at(&address, &key)
+        .expect("Slot info retrieval should not fail");
+    assert!(slot.is_none());
+}
+
+// Create a slot listening to multiple sig, then delete it
+#[test]
+fn slot_cascading() {
+    let storage_manager = new_state_manager_for_unit_test();
+    let mut state = get_state_for_genesis_write(&storage_manager);
+
+    // Information to initialize signal.
+    let mut emitter = Address::from_low_u64_be(1);
+    emitter.set_contract_type_bits();
+    let sig_key_1 = vec![0x41u8, 0x42u8, 0x43u8];
+    let sig_key_2 = vec![0x41u8, 0x42u8, 0x44u8];
+
+    // Information to initialize slot.
+    let mut listener = Address::from_low_u64_be(2);
+    let gas_sponsor = listener;
+    listener.set_contract_type_bits();
+    let method_hash = H256::zero();
+    let slot_key = vec![0x31u8, 0x32u8, 0x33u8];
+    let gas_limit = U256::from(1000);
+    let gas_ratio = U256::from(120);
+
+    // Create signal.
+    state
+        .new_contract(&emitter, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_signal(&emitter, &sig_key_1)
+        .expect("Signal creation should not fail.");
+    state
+        .create_signal(&emitter, &sig_key_2)
+        .expect("Signal creation should not fail.");
+    // Create slot.
+    state
+        .new_contract(&listener, U256::zero(), U256::one())
+        .unwrap();
+    state
+        .create_slot(&listener, &slot_key, &method_hash, &gas_sponsor, &gas_limit, &gas_ratio)
+        .expect("Slot creation should not fail.");
+    // Signal and slot location.
+    let sig_loc_1 = SignalLocation::new(&emitter, &sig_key_1);
+    let sig_loc_2 = SignalLocation::new(&emitter, &sig_key_2);
+    let slot_loc = SlotLocation::new(&listener, &slot_key);
+    // Bind slot to signal 1 and 2.
+    state
+        .bind_slot_to_signal(&sig_loc_1, &slot_loc)
+        .expect("Bind should not fail.");
+    let sig = state
+        .signal_at(&emitter, &sig_key_1)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    assert_eq!(sig.slot_list().len(), 1);
+
+    state
+        .bind_slot_to_signal(&sig_loc_2, &slot_loc)
+        .expect("Bind should not fail.");
+    let sig = state
+        .signal_at(&emitter, &sig_key_2)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    assert_eq!(sig.slot_list().len(), 1);
+    
+    // Delete slot
+    state.delete_slot(&slot_loc)
+        .expect("Slot deletion should not fail.");
+    let slot = state.slot_at(&listener, &slot_key)
+        .expect("Slot info retrieval should not fail");
+    assert!(slot.is_none());
+
+    // Check if the slot is gone from both sig 1 and 2
+    let sig = state
+        .signal_at(&emitter, &sig_key_2)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    assert_eq!(sig.slot_list().len(), 0);
+
+    let sig = state
+        .signal_at(&emitter, &sig_key_1)
+        .expect("Signal info retrieval should not fail")
+        .unwrap();
+    assert_eq!(sig.slot_list().len(), 0);
+
+}
 /* Signal and Slots end */
 //////////////////////////////////////////////////////////////////////

@@ -1175,6 +1175,18 @@ impl OverlayAccount {
         self.slot_deletions.insert(location.slot_key().clone(), true);
     }
 
+    // Check to see if a signal is deleted but not yet committed.
+    pub fn is_signal_deleted(&self, location: &SignalLocation) -> bool {
+        // Mark the bit map
+        self.signal_deletions.contains_key(location.signal_key())
+    }
+
+    // Check to see if a slot is deleted but not yet committed.
+    pub fn is_slot_deleted(&self, location: &SlotLocation) -> bool {
+        // Mark the bit map
+        self.slot_deletions.contains_key(location.slot_key())
+    }
+
     // Get slot transaction queue.
     pub fn slot_tx_queue(&self) -> Option<&SlotTxQueue> {
         self.slot_tx_queue.as_ref()

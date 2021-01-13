@@ -1655,7 +1655,8 @@ impl State {
         Ok(())
     }
 
-    // Delete a slot.
+    // Delete a slot. Note that this is not reachable with opcode currently. 
+    // This also cascades all the listening-to relationship
     pub fn delete_slot(
         &mut self, location: &SlotLocation,
     ) -> DbResult<()> {
@@ -1688,7 +1689,12 @@ impl State {
         let loc = SignalLocation::new(address, key);
         self.ensure_cached(address, RequireCache::None, |acc| {
             acc.map_or(None, |account| {
-                account.signal_at(&self.db, &loc)
+                // in case the signal is deleted but not yet committed, return None
+                if account.is_signal_deleted(&loc) {
+                    None
+                } else {
+                    account.signal_at(&self.db, &loc)
+                }
             })
         })
     }
@@ -1699,9 +1705,13 @@ impl State {
     ) -> DbResult<Option<SlotInfo>> {
         let loc = SlotLocation::new(address, key);
         self.ensure_cached(address, RequireCache::None, |acc| {
-            acc.map_or(None, |contract_address| {
-                contract_address.slot_at(&self.db, &loc)
-            })
+            acc.map_or(None, |account| {
+                // in case the slot is deleted but not yet committed, return None
+                if account.is_slot_deleted(&loc) {
+                    None
+                } else {
+                    account.slot_at(&self.db, &loc)
+            }})
         })
     }
 
@@ -1738,15 +1748,6 @@ impl State {
             }
         };
 
-        // Check if argument counts match.
-        // if slot_info.arg_count() != sig_info.arg_count() {
-        //     // Probably want to create a new type of error...
-        //     return Err(DbErrorKind::IncompleteDatabase(
-        //         slot_loc.address().clone(),
-        //     )
-        //     .into());
-        // }
-
         // Signal account.
         self.require_exists(sig_loc.address(), false)?
             .add_to_slot_list(&self.db, sig_loc, &slot_info);
@@ -1761,33 +1762,32 @@ impl State {
         &self, sig_loc: &SignalLocation, slot_loc: &SlotLocation
     ) -> DbResult<U256> {
         // Get signal info, make sure it exists.
-        let _sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
-        let _sig_info = match _sig_info {
-            Ok(Some(s)) => s,
-            _ => {
-                return Err(DbErrorKind::IncompleteDatabase(
-                    sig_loc.address().clone(),
-                )
-                .into());
-            }
-        };
+        let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key())?;
+        if sig_info.is_none() {
+            return Err(DbErrorKind::IncompleteDatabase(sig_loc.address().clone()).into());
+        }
+
         // Get slot info, make sure it exists.
-        let slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key());
-        let slot_info = match slot_info {
-            Ok(Some(s)) => s,
-            _ => {
-                return Err(DbErrorKind::IncompleteDatabase(
-                    slot_loc.address().clone(),
-                )
-                .into());
-            }
-        };
+        let slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key())?;
+        if slot_info.is_none() {
+            return Err(DbErrorKind::IncompleteDatabase(slot_loc.address().clone()).into());
+        }
+
         // Signal account.
         self.require_exists(sig_loc.address(), false)?
             .remove_from_slot_list(&self.db, sig_loc, slot_loc);
         // Slot account.
         self.require_exists(&slot_loc.address(), false)?
             .remove_from_bind_list(&self.db, slot_loc, sig_loc);
+
+        let slot_info = self.slot_at(slot_loc.address(), slot_loc.slot_key())
+                            .expect("slot should exist at this point")
+                            .unwrap();
+        if slot_info.bind_list().len() == 0 {
+            self.require_exists(&slot_loc.address(), false)?
+                .delete_slot(&slot_loc);
+        }
+
         Ok(U256::from(slot_info.bind_list().len())) 
     }
 
@@ -1799,15 +1799,9 @@ impl State {
     ) -> DbResult<()> {
         // Get signal info.
         let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
-        let sig_info = match sig_info {
-            Ok(Some(s)) => s,
-            _ => {
-                return Err(DbErrorKind::IncompleteDatabase(
-                    sig_loc.address().clone(),
-                )
-                .into());
-            }
-        };
+        if sig_info.is_none() {
+            return Err(DbErrorKind::IncompleteDatabase(sig_loc.address().clone()).into());
+        }
         // Create and queue slot transactions. If the delay is not 0, then the slot
         // transaction is queued on the global queue. If it is 0, we queue it directly
         // to the individual account queues + add address to the ready slot tx address list.

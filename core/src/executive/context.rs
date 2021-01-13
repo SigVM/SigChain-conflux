@@ -558,6 +558,7 @@ impl<'a> ContextTrait for Context<'a> {
     }
 
     // Delete a signal
+    // Note that this is not reachable from opcode currently
     fn delete_slot(
         &mut self,
         slot_address: &Address, slot_key: &Vec<u8>,
@@ -1049,7 +1050,8 @@ mod tests {
         .unwrap();
         match result {
             SignalSlotOpResult::SuccessWithCount(c) => {
-                if c != U256::one() {
+                // remaining count of sig listening by the slot is 0
+                if c != U256::zero() {
                     panic!(
                         "Test detach slot failed; expected detached with 1, got {} .", c
                     )
