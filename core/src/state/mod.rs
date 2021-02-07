@@ -1640,7 +1640,7 @@ impl State {
         }
         // Clean up every bind list.
         for slot in sig.unwrap().slot_list() {
-            let slot_info = self.slot_at(slot.location().address(), slot.location().slot_key())?;
+            let slot_info = self.slot_at(slot.location().address(), slot.location().slot_key()).unwrap();
             if slot_info.is_none() {
                 continue;
             }
@@ -1667,7 +1667,7 @@ impl State {
         }
         // Clean up every bind list.
         for sig_loc in slot.unwrap().bind_list() {
-            let sig = self.signal_at(sig_loc.address(), sig_loc.signal_key())?;
+            let sig = self.signal_at(sig_loc.address(), sig_loc.signal_key()).unwrap();
             if sig.is_none() {
                 continue;
             }
@@ -1798,7 +1798,7 @@ impl State {
         signal_delay: u64, raw_data: &Bytes,
     ) -> DbResult<()> {
         // Get signal info.
-        let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key());
+        let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key()).unwrap();
         if sig_info.is_none() {
             return Err(DbErrorKind::IncompleteDatabase(sig_loc.address().clone()).into());
         }
@@ -1807,7 +1807,7 @@ impl State {
         // to the individual account queues + add address to the ready slot tx address list.
         let target_epoch_height = current_epoch_height + signal_delay;
         if signal_delay == 0 {
-            for slot in sig_info.slot_list() {
+            for slot in sig_info.unwrap().slot_list() {
                 let tx = SlotTx::new(
                     slot, 
                     &target_epoch_height, 
@@ -1821,7 +1821,7 @@ impl State {
             }
         }
         else {
-            for slot in sig_info.slot_list() {
+            for slot in sig_info.unwrap().slot_list() {
                 let tx = SlotTx::new(
                     slot, 
                     &target_epoch_height, 
