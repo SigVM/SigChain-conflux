@@ -310,6 +310,15 @@ impl Context for MockContext {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }
+
+    /// Check signal queue is empty or not.
+    fn is_signal_empty(
+        &mut self,
+        _contract_address: &Address,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
+        // TODO
+        Ok(SignalSlotOpResult::Success)
+    }
     /* Signal and Slots end */
     /////////////////////////////////////////////////////////////////////
 }

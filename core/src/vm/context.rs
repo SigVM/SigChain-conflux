@@ -244,6 +244,12 @@ pub trait Context {
         &mut self,
         slot_address: &Address, slot_key: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
+
+    /// Check signal queue is empty or not.
+    fn is_signal_empty(
+        &mut self,
+        contract_address: &Address,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }

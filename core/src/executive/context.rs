@@ -575,6 +575,18 @@ impl<'a> ContextTrait for Context<'a> {
             _ => Ok(SignalSlotOpResult::Failed),
         }
     }
+
+    /// Check signal queue is empty or not.
+    fn is_signal_empty(
+        &mut self,
+        contract_address: &Address,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>{
+        let result = self.state.is_account_slot_tx_queue_empty(&contract_address);
+        match result {
+            Ok(_) => Ok(SignalSlotOpResult::Success),
+            _ => Ok(SignalSlotOpResult::Failed),
+        }        
+    }
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }
