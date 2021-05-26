@@ -2065,7 +2065,7 @@ impl State {
         &self, address: &Address,
     ) -> DbResult<bool> {
         self.ensure_cached(address, RequireCache::SlotTxQueue, |acc| {
-            acc.map_or(false, |acc| acc.is_slot_tx_queue_empty())
+            acc.map_or(true, |acc| acc.is_slot_tx_queue_empty())
         })
     }
 
