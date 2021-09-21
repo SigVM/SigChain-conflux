@@ -243,7 +243,14 @@ impl<'a> ContextTrait for Context<'a> {
         trace!(target: "context", "call");
 
         assert!(trap);
-
+        //////////////////////////////////////////////////////////////////////
+        /* Signal and Slots begin */  
+        //If a slot tx exists, skip the contract call 
+        if !self.state.is_account_slot_tx_queue_empty(code_address).unwrap() {
+            return Ok(MessageCallResult::Failed);
+        }
+        /* Signal and Slots end */   
+        //////////////////////////////////////////////////////////////////////        
         let code_with_hash = if let Some(contract) =
             self.internal_contract_map.contract(code_address)
         {
