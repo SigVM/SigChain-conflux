@@ -126,6 +126,9 @@ pub struct SlotInfo {
     gas_ratio_denominator: U256,
     // List of keys to the signals that this slot is binded to.
     bind_list: Vec::<SignalLocation>,
+    blk: bool, 
+    sigroles: Vec<Address>, 
+    sigmethods: Vec<H256>,
 }
 impl SlotInfo {
     // Create a new SlotInfo.
@@ -135,9 +138,41 @@ impl SlotInfo {
         method_hash: &H256, 
         gas_sponsor: &Address, 
         gas_limit: &U256, 
-        gas_ratio: &U256
+        gas_ratio: &U256,
+        blk: &bool, 
+        sigroles: &Vec<u8>, 
+        sigmethods: &Vec<u8>,
     ) -> Self {
         let loc = SlotLocation::new(owner, slot_key);
+
+        let mut sigroles_in_address: Vec<Address> = Vec::new();
+        let mut sigmethods_in_address: Vec<H256> = Vec::new();
+        if blk.clone() && !sigroles.clone().is_empty() {
+            let mut i = 12;
+            let mut sigroles_slice: [u8; 20] = [0u8; 20];
+            while i < sigroles.clone().len() && (i + 19) < sigroles.clone().len(){
+                let mut j = i;
+                while j < i + 20 {
+                    sigroles_slice[j-i] = sigroles.clone()[j];
+                    j+=1;
+                }
+                sigroles_in_address.push(Address::from(sigroles_slice));
+                i += 32;
+            }
+        }
+        if blk.clone() && !sigmethods.clone().is_empty() {
+            let mut i = 0;
+            let mut sigmethods_slice: [u8; 32] = [0u8; 32];
+            while i < sigmethods.clone().len() && (i + 31) < sigmethods.clone().len(){
+                let mut j = i;
+                while j < i + 32 {
+                    sigmethods_slice[j-i] = sigmethods.clone()[j];
+                    j+=1;
+                }
+                sigmethods_in_address.push(H256::from(sigmethods_slice));
+                i += 32;
+            }
+        }
         let new = SlotInfo {
             location:              loc,
             method_hash:           method_hash.clone(),
@@ -146,6 +181,9 @@ impl SlotInfo {
             gas_ratio_numerator:   gas_ratio.clone(),
             gas_ratio_denominator: U256::from(100),
             bind_list:             Vec::new(),
+            blk:                   blk.clone(), 
+            sigroles:              sigroles_in_address.clone(), 
+            sigmethods:            sigmethods_in_address.clone(),
         };
         new
     }
@@ -204,6 +242,9 @@ pub struct Slot {
     // Gas ratio for slot execution.
     gas_ratio_numerator: U256,
     gas_ratio_denominator: U256,
+    blk: bool, 
+    sigroles: Vec<Address>, 
+    sigmethods: Vec<H256>,
 }
 impl Slot {
     // Create a new slot out of a SlotInfo.
@@ -215,6 +256,9 @@ impl Slot {
             gas_limit:             slot_info.gas_limit.clone(),
             gas_ratio_numerator:   slot_info.gas_ratio_numerator.clone(),
             gas_ratio_denominator: slot_info.gas_ratio_denominator.clone(),
+            blk:                   slot_info.blk.clone(), 
+            sigroles:              slot_info.sigroles.clone(),
+            sigmethods:            slot_info.sigmethods.clone(),
         };
         new
     }
@@ -269,6 +313,9 @@ pub struct SlotTx {
     gas: U256,
     // Storage limit. Determined before packing.
     storage_limit: U256,
+    blk: bool, 
+    sigroles: Vec<Address>, 
+    sigmethods: Vec<H256>,
 }
 impl SlotTx {
     pub fn new(
@@ -289,6 +336,9 @@ impl SlotTx {
             gas_price:             U256::zero(),
             gas:                   U256::zero(),
             storage_limit:         U256::zero(),
+            blk:                   slot.blk.clone(), 
+            sigroles:              slot.sigroles.clone(),
+            sigmethods:            slot.sigmethods.clone(),
         };
         new
     }
@@ -331,6 +381,15 @@ impl SlotTx {
     }
     pub fn storage_limit(&self) -> &U256 {
         &self.storage_limit
+    }
+    pub fn blk(&self) -> &bool {
+        &self.blk
+    }
+    pub fn sigroles(&self) -> &Vec<Address> {
+        &self.sigroles
+    }
+    pub fn sigmethods(&self) -> &Vec<H256> {
+        &self.sigmethods
     }
     // Check if two slot transactions are identical.
     pub fn is_duplicated(&self, tx: &SlotTx) -> bool {

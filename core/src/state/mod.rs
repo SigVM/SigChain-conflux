@@ -1608,6 +1608,7 @@ impl State {
         slot_address: &Address, slot_key: &Vec<u8>, 
         method_hash: &H256, gas_sponsor: &Address,
         gas_limit: &U256, gas_ratio: &U256,
+        blk: &bool, sigroles: &Vec<u8>, sigmethods: &Vec<u8>,
     ) -> DbResult<bool> {
         // Make sure account is cached.
         let empty_slot = self.slot_at(slot_address, slot_key)?;
@@ -1623,6 +1624,9 @@ impl State {
             gas_sponsor,
             gas_limit, 
             gas_ratio,
+            blk,
+            sigroles,
+            sigmethods,
         );
         self.require_exists(slot_address, false)?
             .set_slot(slot_info);
@@ -2069,6 +2073,51 @@ impl State {
         })
     }
 
+    // check whitelist by searching roles and function methods
+    // return true: current call can pass
+    // return false: current call should be reverted
+    pub fn can_call(
+        &self, address: &Address,
+        caller_address: &Address,
+        method_id: &Vec<u8>,
+    ) -> DbResult<bool> {
+        let queue = self.ensure_cached(address, RequireCache::SlotTxQueue, |acc| {
+            acc.map_or(SlotTxQueue::new(), |acc| acc.get_copy_of_slot_tx_queue())
+        });
+        let mut roles: Vec<Address> = Vec::new();
+        let mut mthds: Vec<H256> = Vec::new();
+        let mut is_locking: bool = false;
+        for tx in queue.unwrap().getqueue().iter() {
+            if *tx.clone().blk() {
+                is_locking = true;
+                if tx.clone().sigroles().is_empty() {
+                    roles.append(&mut tx.clone().sigroles().clone());
+                }
+                if tx.clone().sigmethods().is_empty() {
+                    mthds.append(&mut tx.clone().sigmethods().clone());
+                }
+            }
+        }
+        if is_locking {
+            if roles.clone().is_empty() {
+                Ok(false)
+            } else {
+                if let Some(_) = roles.clone().iter().find(|&x| x == caller_address) {
+                    for i in mthds.clone().iter() {
+                        let method: [u8; 32] = i.to_fixed_bytes();
+                        if method_id[0..4] == method[0..4] {
+                            return Ok(true);
+                        }
+                    }
+                    Ok(false)
+                }else{
+                    Ok(false)
+                }
+            }
+        } else {
+            Ok(true)
+        }
+    }
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }

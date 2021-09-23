@@ -210,6 +210,7 @@ pub trait Context {
         slot_address: &Address, slot_key: &Vec<u8>, 
         method_hash: &H256, gas_sponsor: &Address,
         gas_limit: &U256, gas_ratio: &U256,
+        blk: &bool, sigroles: &Vec<u8>, sigmethods: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     /// Bind a slot to a signal.

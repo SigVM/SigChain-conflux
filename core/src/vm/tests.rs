@@ -258,6 +258,7 @@ impl Context for MockContext {
         _slot_address: &Address, _slot_key: &Vec<u8>, 
         _method_hash: &H256, _gas_sponsor: &Address,
         _gas_limit: &U256, _gas_ratio: &U256,
+        _blk: &bool, _sigroles: &Vec<u8>, _sigmethods: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)

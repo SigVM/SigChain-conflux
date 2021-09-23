@@ -140,7 +140,7 @@ impl SlotTxQueue {
         return Some(elem);
     }
     None
-}
+    }
 
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
@@ -148,6 +148,10 @@ impl SlotTxQueue {
 
     pub fn len(&self) -> usize {
         self.list.len()
+    }
+
+    pub fn getqueue(&self) -> Vec<SlotTx> {
+        self.list.clone()
     }
 }
 

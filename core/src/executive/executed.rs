@@ -83,6 +83,7 @@ pub enum ToRepackError {
     SlotTxQueueNotEmpty,
     DuplicatedSlotTx,
     SlotExecutionError(ExecutionError, Executed),
+    SoltTxLocking,
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }

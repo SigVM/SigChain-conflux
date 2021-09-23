@@ -243,14 +243,7 @@ impl<'a> ContextTrait for Context<'a> {
         trace!(target: "context", "call");
 
         assert!(trap);
-        //////////////////////////////////////////////////////////////////////
-        /* Signal and Slots begin */  
-        //If a slot tx exists, skip the contract call 
-        if !self.state.is_account_slot_tx_queue_empty(code_address).unwrap() {
-            return Ok(MessageCallResult::Failed);
-        }
-        /* Signal and Slots end */   
-        //////////////////////////////////////////////////////////////////////        
+      
         let code_with_hash = if let Some(contract) =
             self.internal_contract_map.contract(code_address)
         {
@@ -477,6 +470,7 @@ impl<'a> ContextTrait for Context<'a> {
         slot_address: &Address, slot_key: &Vec<u8>, 
         method_hash: &H256, gas_sponsor: &Address, 
         gas_limit: &U256, gas_ratio: &U256,
+        blk: &bool, sigroles: &Vec<u8>, sigmethods: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         let result = self.state.create_slot(
             slot_address, 
@@ -485,6 +479,9 @@ impl<'a> ContextTrait for Context<'a> {
             gas_sponsor, 
             gas_limit, 
             gas_ratio, 
+            blk,
+            sigroles,
+            sigmethods,
         );
         match result {
             Ok(_created) => Ok(SignalSlotOpResult::Success),
@@ -1037,6 +1034,9 @@ mod tests {
             &Address::zero(),
             &U256::zero(),
             &U256::zero(),
+            &false,
+            &Vec::new(),
+            &Vec::new(),
         ).ok()
         .unwrap();
         match result {

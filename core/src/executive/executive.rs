@@ -1641,6 +1641,18 @@ impl<'a> Executive<'a> {
         let call_address = tx.call_address();
         if call_address.is_some() {
             if !self.state.is_account_slot_tx_queue_empty(&call_address.unwrap())? {
+                //If slox tx is not empty
+                //Check whitelist of the address
+                match tx.action {
+                    Action::Call(_) => {
+                        if self.state.can_call(&tx.sender(), &call_address.unwrap(), &tx.data[0..4].to_vec())? == false{
+                            return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                                ToRepackError::SoltTxLocking,
+                            ));                            
+                        }
+                    }
+                    _ => (),
+                }
                 return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                     ToRepackError::SlotTxQueueNotEmpty,
                 ));

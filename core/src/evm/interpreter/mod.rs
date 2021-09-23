@@ -1578,6 +1578,29 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let mut signal_key = vec![0u8; 32];
                 self.stack.pop_back().to_big_endian(signal_key.as_mut());     // 5
 
+                //blk
+                let raw_locking: U256 = self.stack.pop_back(); //6
+                let mut is_locking: bool = true;
+                if raw_locking == U256::zero() {
+                    is_locking = false;
+                }
+                //sigRoles
+                let sigroles_data_offset = self.stack.pop_back(); //7
+                let sigroles_data_len = self.stack.pop_back(); //8
+                let sigroles = if sigroles_data_len != U256::zero() {
+                    self.mem.read_slice(sigroles_data_offset, sigroles_data_len).to_vec()
+                } else {
+                    Vec::new()
+                };
+                //sigMethods
+                let sigmethods_data_offset = self.stack.pop_back(); //9
+                let sigmethods_data_len = self.stack.pop_back(); //10
+                let sigmethods = if sigmethods_data_len != U256::zero() {
+                    self.mem.read_slice(sigmethods_data_offset, sigmethods_data_len).to_vec()
+                } else {
+                    Vec::new()
+                };
+
                 let init_result = context.create_slot(
                     &self.params.address,
                     &slot_key,
@@ -1585,6 +1608,9 @@ impl<Cost: CostType> Interpreter<Cost> {
                     &self.params.sender,
                     &gas_limit,
                     &gas_ratio,
+                    &is_locking,
+                    &sigroles,
+                    &sigmethods,
                 );
                 match init_result {
                     Ok(SignalSlotOpResult::Success) => {
