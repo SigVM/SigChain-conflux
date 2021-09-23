@@ -320,6 +320,18 @@ impl Context for MockContext {
         // TODO
         Ok(SignalSlotOpResult::Success)
     }
+
+    /// check whitelist by searching roles and function methods
+    // return true: current call can pass
+    // return false: current call should be reverted
+    fn can_call(
+        &self, _address: &Address,
+        _caller_address: &Address,
+        _method_id: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
+        // TODO
+        Ok(SignalSlotOpResult::Success)
+    }
     /* Signal and Slots end */
     /////////////////////////////////////////////////////////////////////
 }

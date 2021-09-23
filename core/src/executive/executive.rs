@@ -1645,7 +1645,7 @@ impl<'a> Executive<'a> {
                 //Check whitelist of the address
                 match tx.action {
                     Action::Call(_) => {
-                        if self.state.can_call(&tx.sender(), &call_address.unwrap(), &tx.data[0..4].to_vec())? == false{
+                        if self.state.can_call(&call_address.unwrap(), &tx.sender(), &tx.data[0..4].to_vec())? == false{
                             return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                                 ToRepackError::SoltTxLocking,
                             ));                            

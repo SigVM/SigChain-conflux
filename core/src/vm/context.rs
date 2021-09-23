@@ -251,6 +251,13 @@ pub trait Context {
         &mut self,
         contract_address: &Address,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
+    
+    /// check whitelist by searching roles and function methods
+    fn can_call(
+        &self, address: &Address,
+        caller_address: &Address,
+        method_id: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }

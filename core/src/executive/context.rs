@@ -591,6 +591,19 @@ impl<'a> ContextTrait for Context<'a> {
             _ => Ok(SignalSlotOpResult::Failed),
         }        
     }
+    /// check whitelist by searching roles and function methods
+    // return true: current call can pass
+    // return false: current call should be reverted
+    fn can_call(
+        &self, address: &Address,
+        caller_address: &Address,
+        method_id: &Vec<u8>,
+    ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> { 
+        match self.state.can_call(address, caller_address, method_id) {
+            Ok(true) => Ok(SignalSlotOpResult::Success),
+            _ => Ok(SignalSlotOpResult::Failed),
+        }
+    }
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////
 }

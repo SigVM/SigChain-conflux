@@ -845,22 +845,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                         },
                     );
 
-                // Check the signal queue is empty or not
-                if instruction == instructions::CALL {
-                    let check_result = context.is_signal_empty(&code_address);
-                    match check_result {
-                        Ok(SignalSlotOpResult::Success) => {}
-                        _ => {
-                            self.stack.push(U256::zero());
-                            return Ok(InstructionResult::StopExecutionNeedsReturn {
-                                gas: call_gas,
-                                init_off: in_off,
-                                init_size: in_size,
-                                apply: false,
-                            });
-                        }
-                    };                    
-                }
                 // Get sender & receive addresses, check if we have balance
                 let (sender_address, receive_address, has_balance, call_type) =
                     match instruction {
@@ -914,6 +898,29 @@ impl<Cost: CostType> Interpreter<Cost> {
                             instruction
                         )),
                     };
+
+                // Check the signal queue is empty or not
+                if instruction == instructions::CALL {
+                    let check_result = context.is_signal_empty(&code_address);
+                    let input = self.mem.read_slice(in_off, in_size);
+                    match check_result {
+                        Ok(SignalSlotOpResult::Success) => {}
+                        _ => {
+                            match context.can_call(&code_address.clone(), &sender_address.clone(), &input[0..4].to_vec()) {
+                                Ok(SignalSlotOpResult::Success) => (),
+                                _ => {
+                                    self.stack.push(U256::zero());
+                                    return Ok(InstructionResult::StopExecutionNeedsReturn {
+                                        gas: call_gas,
+                                        init_off: in_off,
+                                        init_size: in_size,
+                                        apply: false,
+                                    });
+                                }
+                            }
+                        }
+                    };                    
+                }
 
                 // clear return data buffer before creating new call frame.
                 self.return_data = ReturnData::empty();
