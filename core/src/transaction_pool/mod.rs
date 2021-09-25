@@ -614,8 +614,8 @@ impl TransactionPool {
     /* Signal and Slots begin */
     // Stupid hard coded constants!
     const TX_TO_SLOT_TX_RATIO: usize = 5;
-    const TX_TO_SLOT_TX_GAS_RATIO: usize = 5;
-    const TX_TO_SLOT_TX_SIZE_RATIO: usize = 5;
+    const TX_TO_SLOT_TX_GAS_RATIO: usize = 3;
+    const TX_TO_SLOT_TX_SIZE_RATIO: usize = 3;
 
     /* Signal and Slots end */
     //////////////////////////////////////////////////////////////////////

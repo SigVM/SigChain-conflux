@@ -1653,9 +1653,6 @@ impl<'a> Executive<'a> {
                     }
                     _ => (),
                 }
-                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
-                    ToRepackError::SlotTxQueueNotEmpty,
-                ));
             }
         } 
         /* Signal and Slots end */

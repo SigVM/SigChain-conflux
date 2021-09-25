@@ -2090,10 +2090,10 @@ impl State {
         for tx in queue.unwrap().getqueue().iter() {
             if *tx.clone().blk() {
                 is_locking = true;
-                if tx.clone().sigroles().is_empty() {
+                if !tx.clone().sigroles().is_empty() {
                     roles.append(&mut tx.clone().sigroles().clone());
                 }
-                if tx.clone().sigmethods().is_empty() {
+                if !tx.clone().sigmethods().is_empty() {
                     mthds.append(&mut tx.clone().sigmethods().clone());
                 }
             }

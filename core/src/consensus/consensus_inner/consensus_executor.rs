@@ -943,11 +943,11 @@ impl ConsensusExecutionHandler {
                         storage_collateralized += storage_change.amount;
                     }
 
-                    let gas_used = executed.gas_used.into();
+                    //let gas_used = executed.gas_used.into();
                     let storage_collateralized : U256 = storage_collateralized.into();
 
                     // update the gas and collaterial for the slot tx
-                    slot_tx.set_gas(gas_used);
+                    //slot_tx.set_gas(gas_used);
                     slot_tx.set_storage_limit(storage_collateralized);
 
                     // record the slot tx
@@ -1345,7 +1345,10 @@ impl ConsensusExecutionHandler {
 
                         gas_sponsor_paid = executed.gas_sponsor_paid;
                         storage_sponsor_paid = executed.storage_sponsor_paid;
-
+                        //TODO fro debugging: should remove it.
+                        // if transaction.is_slot_tx() {
+                        //     println!("\n\n\n\n\n\n\n\n Slot tx executed successfully: transaction={:?}, result={:?}, in block {:?} \n\n\n\n\n\n\n\n\n", transaction, executed, block.hash());
+                        // }
                         trace!("tx executed successfully: transaction={:?}, result={:?}, in block {:?}", transaction, executed, block.hash());
                     }
                 }

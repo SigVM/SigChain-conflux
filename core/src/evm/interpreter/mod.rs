@@ -1595,7 +1595,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let sigroles_data_offset = self.stack.pop_back(); //7
                 let sigroles_data_len = self.stack.pop_back(); //8
                 let sigroles = if sigroles_data_len != U256::zero() {
-                    self.mem.read_slice(sigroles_data_offset, sigroles_data_len).to_vec()
+                    self.mem.read_slice(sigroles_data_offset+96, sigroles_data_len).to_vec()
                 } else {
                     Vec::new()
                 };
@@ -1603,7 +1603,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let sigmethods_data_offset = self.stack.pop_back(); //9
                 let sigmethods_data_len = self.stack.pop_back(); //10
                 let sigmethods = if sigmethods_data_len != U256::zero() {
-                    self.mem.read_slice(sigmethods_data_offset, sigmethods_data_len).to_vec()
+                    self.mem.read_slice(sigmethods_data_offset+96, sigmethods_data_len).to_vec()
                 } else {
                     Vec::new()
                 };

@@ -24,7 +24,7 @@ lazy_static! {
     pub static ref SLOT_TX_EST_GAS_PRICE: U256 = U256::from(3000);
 
     // Gas used for slot tx gas estimation
-    pub static ref SLOT_TX_EST_GAS: U256  = U256::from(1000000);
+    pub static ref SLOT_TX_EST_GAS: U256  = U256::from(10000000);
 
     // storage limit used for slot tx gas estimation
     pub static ref SLOT_TX_EST_STORAGE_LIMIT: U256  = U256::from(175);
