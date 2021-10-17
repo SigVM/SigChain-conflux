@@ -232,6 +232,7 @@ pub trait Context {
         &mut self, 
         signal_address: &Address, signal_key: &Vec<u8>, 
         raw_data: &Vec<u8>, signal_delay: &U256,
+        handler_addr: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind>;
 
     /// Delete a signal.

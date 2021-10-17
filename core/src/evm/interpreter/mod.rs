@@ -1673,7 +1673,14 @@ impl<Cost: CostType> Interpreter<Cost> {
                 let data_offset = self.stack.pop_back();                  // 1
                 let data_length = self.stack.pop_back();                  // 2
                 let signal_delay = self.stack.pop_back();                 // 3
-                
+                //handler address array
+                let handler_data_offset = self.stack.pop_back(); //4
+                let handler_data_len = self.stack.pop_back(); //5
+                let handler = if handler_data_len != U256::zero() {
+                    self.mem.read_slice(handler_data_offset+96, handler_data_len).to_vec()
+                } else {
+                    Vec::new()
+                };                
                 // Get data from memory
                 let raw_data = if data_length != U256::zero() {
                     self.mem.read_slice(data_offset+32, data_length).to_vec()
@@ -1687,6 +1694,7 @@ impl<Cost: CostType> Interpreter<Cost> {
                     &signal_key,
                     &raw_data,
                     &signal_delay,
+                    &handler,
                 );
                 match call_result {
                     Ok(SignalSlotOpResult::Success) => {

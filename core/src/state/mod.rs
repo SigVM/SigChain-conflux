@@ -1800,7 +1800,22 @@ impl State {
         &mut self, 
         sig_loc: &SignalLocation, current_epoch_height: u64, 
         signal_delay: u64, raw_data: &Bytes,
+        handler_addr: &Vec<u8>,
     ) -> DbResult<()> {
+        let mut handler_in_address: Vec<Address> = Vec::new();
+        if !handler_addr.clone().is_empty() {
+            let mut i = 12;
+            let mut handler_slice: [u8; 20] = [0u8; 20];
+            while i < handler_addr.clone().len() && (i + 19) < handler_addr.clone().len(){
+                let mut j = i;
+                while j < i + 20 {
+                    handler_slice[j-i] = handler_addr.clone()[j];
+                    j+=1;
+                }
+                handler_in_address.push(Address::from(handler_slice));
+                i += 32;
+            }
+        }
         // Get signal info.
         let sig_info = self.signal_at(sig_loc.address(), sig_loc.signal_key()).unwrap();
         if sig_info.is_none() {
@@ -1817,11 +1832,13 @@ impl State {
                     &target_epoch_height, 
                     raw_data,
                 );
-                let contract_address = tx.address().clone();
-                self.ensure_cached(&contract_address, RequireCache::SlotTxQueue, |_acc| {})?;
-                self.require_exists(&contract_address, false)?
-                    .enqueue_slot_tx(tx);
-                self.mark_address_with_ready_slot_tx(&contract_address)?;
+                if handler_in_address.contains(&tx.address().clone()) || handler_in_address.is_empty() {
+                    let contract_address = tx.address().clone();
+                    self.ensure_cached(&contract_address, RequireCache::SlotTxQueue, |_acc| {})?;
+                    self.require_exists(&contract_address, false)?
+                        .enqueue_slot_tx(tx);
+                    self.mark_address_with_ready_slot_tx(&contract_address)?;
+                }
             }
         }
         else {
@@ -1831,7 +1848,9 @@ impl State {
                     &target_epoch_height, 
                     raw_data,
                 );
-                self.enqueue_slot_tx_to_global_queue(tx)?;
+                if handler_in_address.contains(&tx.address().clone()) || handler_in_address.is_empty(){
+                    self.enqueue_slot_tx_to_global_queue(tx)?;
+                }
             }
         }
         Ok(())

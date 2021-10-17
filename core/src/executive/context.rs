@@ -524,6 +524,7 @@ impl<'a> ContextTrait for Context<'a> {
         &mut self, 
         signal_address: &Address, signal_key: &Vec<u8>, 
         raw_data: &Vec<u8>, signal_delay: &U256,
+        handler_addr: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // Get signal location.
         let sig_loc = SignalLocation::new(
@@ -536,6 +537,7 @@ impl<'a> ContextTrait for Context<'a> {
             self.env.epoch_height, 
             signal_delay.as_u64(), 
             raw_data,
+            &handler_addr,
         );
         match result {
             Ok(()) => Ok(SignalSlotOpResult::Success),

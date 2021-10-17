@@ -289,6 +289,7 @@ impl Context for MockContext {
         &mut self, 
         _signal_address: &Address, _signal_key: &Vec<u8>, 
         _raw_data: &Vec<u8>, _signal_delay: &U256,
+        _handler_addr: &Vec<u8>,
     ) -> ::std::result::Result<SignalSlotOpResult, TrapKind> {
         // TODO
         Ok(SignalSlotOpResult::Success)
