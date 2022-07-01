@@ -34,10 +34,12 @@ bootnodes=""
 # COMMENT the bootnodes setting and you should use the following parameters:
 #
 mode = "dev"
-# 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef="10000000000000000000000"
+0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef="10000000000000000000000"
 # 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde0="10000000000000000000000"
 # Note that ``dev_block_interval_ms'' controls the mining rate in the dev mode.
 #
+#10000 is for evaluation testing speed
+# dev_block_interval_ms = 10000
 dev_block_interval_ms = 50
 
 # ----------------- Mining Configuration -----------------

@@ -65,7 +65,7 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, Instant};
 use std::convert::TryInto;
 lazy_static! {
     static ref CONSENSIS_EXECUTION_TIMER: Arc<dyn Meter> =
@@ -944,11 +944,11 @@ impl ConsensusExecutionHandler {
                         storage_collateralized += storage_change.amount;
                     }
 
-                    let gas_used = executed.gas_used.into();
+                    //let gas_used = executed.gas_used.into();
                     let storage_collateralized : U256 = storage_collateralized.into();
 
                     // update the gas and collaterial for the slot tx
-                    slot_tx.set_gas(gas_used);
+                    //slot_tx.set_gas(gas_used);
                     slot_tx.set_storage_limit(storage_collateralized);
 
                     // record the slot tx
@@ -1261,12 +1261,14 @@ impl ConsensusExecutionHandler {
             block_number += 1;
             last_block_hash = block.hash();
             let mut txcount = 0;
+            let blocktime = Instant::now();
             for (idx, transaction) in block.transactions.iter().enumerate() {
                 let slot_tx_time_start = SystemTime::now();
                 let tx_outcome_status;
                 let mut transaction_logs = Vec::new();
                 let mut storage_released = Vec::new();
                 let mut storage_collateralized = Vec::new();
+                let now = Instant::now();
                 let r = {
                     Executive::new(
                         state,
@@ -1277,7 +1279,7 @@ impl ConsensusExecutionHandler {
                     )
                     .transact(transaction)?
                 };
-
+                println!("The transaction takes {:?}", now.elapsed());
                 let gas_fee;
                 let mut gas_sponsor_paid = false;
                 let mut storage_sponsor_paid = false;
@@ -1386,7 +1388,7 @@ impl ConsensusExecutionHandler {
                     println!("SlotTx Index: {}/{}",txcount,block.transactions.len());
                     match slot_tx_time_start.elapsed() {
                         Ok(elapsed) => {
-                            println!("Exec SlotTx: {:?}",transaction.slot_tx);
+                            //println!("Exec SlotTx: {:?}",transaction.slot_tx);
                             slot_tx_time_total = slot_tx_time_total
                             .checked_add(Duration::from_micros(elapsed.as_micros().try_into().unwrap())).unwrap();
                         }
@@ -1396,7 +1398,7 @@ impl ConsensusExecutionHandler {
                     //println!("NormTx Index: {}/{}",txcount,block.transactions.len());
                 }
             }
-
+            if  block.transactions.len() != 0 {println!("The block takes {:?}, num of tx: {:?}", blocktime.elapsed(), block.transactions.len());}
             let block_receipts = Arc::new(BlockReceipts {
                 receipts,
                 secondary_reward,
@@ -1416,9 +1418,9 @@ impl ConsensusExecutionHandler {
         }
 
         debug!("Finish processing tx for epoch");
-        if slot_tx_time_total.as_micros() != 0{
-            println!("SlotTx execuation time is {} us", slot_tx_time_total.as_micros());
-        }
+        // if slot_tx_time_total.as_micros() != 0{
+        //     println!("SlotTx execuation time is {} us", slot_tx_time_total.as_micros());
+        // }
         Ok(epoch_receipts)
     }
 

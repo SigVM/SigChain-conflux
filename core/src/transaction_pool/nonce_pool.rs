@@ -114,14 +114,18 @@ impl NoncePoolNode {
         let cmp = tx.nonce().cmp(&node.as_ref().unwrap().tx.nonce);
         if cmp == Ordering::Equal {
             let result = {
-                if tx.should_replace(&node.as_ref().unwrap().tx, force) {
-                    InsertResult::Updated(mem::replace(
-                        &mut node.as_mut().unwrap().tx,
-                        tx.clone(),
-                    ))
-                } else {
-                    InsertResult::Failed(format!("Tx with same nonce already inserted. To replace it, you need to specify a gas price > {}", &node.as_ref().unwrap().tx.gas_price))
-                }
+                // if tx.should_replace(&node.as_ref().unwrap().tx, force) {
+                //     InsertResult::Updated(mem::replace(
+                //         &mut node.as_mut().unwrap().tx,
+                //         tx.clone(),
+                //     ))
+                // } else {
+                //     InsertResult::Failed(format!("Tx with same nonce already inserted. To replace it, you need to specify a gas price > {}", &node.as_ref().unwrap().tx.gas_price))
+                // }
+                InsertResult::Updated(mem::replace(
+                    &mut node.as_mut().unwrap().tx,
+                    tx.clone(),
+                ))
             };
             node.as_mut().unwrap().update();
             result

@@ -1404,6 +1404,7 @@ impl<'a> Executive<'a> {
             .expect("Get slot tx queue failed!");
         let peek_tx = queue.peek(0).unwrap().clone();
         if !peek_tx.is_duplicated(tx.slot_tx.as_ref().unwrap()) {
+            *(NUM_POK_TX.lock().unwrap()) += 1;
             return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
                 ToRepackError::DuplicatedSlotTx,
             ));
@@ -1678,9 +1679,10 @@ impl<'a> Executive<'a> {
         let call_address = tx.call_address();
         if call_address.is_some() {
             if !self.state.is_account_slot_tx_queue_empty(&call_address.unwrap())? {
-                return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
-                    ToRepackError::SlotTxQueueNotEmpty,
-                ));
+                //comment under makerdao testing
+                // return Ok(ExecutionOutcome::NotExecutedToReconsiderPacking(
+                //     ToRepackError::SlotTxQueueNotEmpty,
+                // ));
             }
         } 
         /* Signal and Slots end */
@@ -1959,17 +1961,16 @@ impl<'a> Executive<'a> {
                     Ok(res) => res.return_data.to_vec(),
                     _ => Vec::new(),
                 };
-                if tx.value==U256::one() {
-                    *(NUM_NOR_TX.lock().unwrap()) += 1;
-                }else if tx.data.clone().len() > 4 {
-                    *(NUM_POK_TX.lock().unwrap()) += 1;
-                }else{
-                    *(NUM_INT_TX.lock().unwrap()) += 1;
-                }
                 (res, out)
             }
         };
-
+        if tx.value==U256::one() {
+            *(NUM_NOR_TX.lock().unwrap()) += 1;
+        }else if tx.data.clone().len() > 4 {
+            *(NUM_POK_TX.lock().unwrap()) += 1;
+        }else{
+            *(NUM_INT_TX.lock().unwrap()) += 1;
+        }
         let refund_receiver = if gas_free_of_charge {
             Some(code_address)
         } else {
@@ -2019,6 +2020,16 @@ impl<'a> Executive<'a> {
         } else {
             (gas_used, gas_used * tx_gas_price, gas_left * tx_gas_price)
         };
+        match tx.is_slot_tx() {
+            false => {
+                if tx.data.clone().len() <= 4 {
+                println!("Non Slot Tx: The gas used{:?}, gas price {:?}, gas value {:?}", gas_used, tx_gas_price, gas_used * tx_gas_price);
+            }else{
+                println!("####################POK Tx: The gas used{:?}, gas price {:?}, gas value {:?}", gas_used, tx_gas_price, gas_used * tx_gas_price);
+            }
+        },
+            true => println!("####################Slot Tx: The gas used {:?}, gas price {:?}, gas value {:?}", gas_used, tx_gas_price, gas_used * tx_gas_price),
+        }
         /* Signal and Slots end */
         //////////////////////////////////
 

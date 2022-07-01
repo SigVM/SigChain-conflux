@@ -410,8 +410,6 @@ impl<Cost: CostType> Interpreter<Cost> {
                         ));
                     }
                 };
-                //TODO: print for debugging. remove when project ends
-                //println!("exec instr: {:?}", instruction);
                 let info = instruction.info();
                 self.last_stack_ret_len = info.ret;
                 if let Err(e) =
@@ -458,6 +456,8 @@ impl<Cost: CostType> Interpreter<Cost> {
                     .as_mut()
                     .expect(GASOMETER_PROOF)
                     .current_mem_gas = requirements.memory_total_gas;
+                //TODO: print for debugging. remove when project ends
+                //println!("exec instr: {:?} current gas: {:?}, gas for inst: {:?}", instruction, self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, requirements.gas_cost);
                 self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas =
                     self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas
                         - requirements.gas_cost;

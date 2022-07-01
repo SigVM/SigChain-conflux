@@ -651,8 +651,8 @@ impl TransactionPool {
             + parent_block_gas_limit / gas_limit_divisor
             - 1;
 
-        let target_gas_limit = self.config.target_block_gas_limit.into();
-        let self_gas_limit = min(max(target_gas_limit, gas_lower), gas_upper);
+        //let target_gas_limit = self.config.target_block_gas_limit.into();
+        let self_gas_limit = U256::from(30000000); //min(max(target_gas_limit, gas_lower), gas_upper);
 
         //////////////////////////////////////////////////////////////////////
         /* Signal and Slots begin */
@@ -706,9 +706,9 @@ impl TransactionPool {
             slot_tx_address_list,
             U256::from(gas_price_average)
         );
-        if slot_tx_pool.len() != 0{
-            println!("slot_tx_pool len is {}",slot_tx_pool.len());
-        }
+        // if slot_tx_pool.len() != 0{
+        //     println!("slot_tx_pool len is {}",slot_tx_pool.len());
+        // }
 
         // /////////////////////////////////////////////////////////
         // // Test purposes...

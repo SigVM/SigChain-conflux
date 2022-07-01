@@ -38,7 +38,7 @@ loggers:
     network:
         level: off
     cfxcore:
-        level: info
+        level: off
     rpc:
         level: off
     discovery:
